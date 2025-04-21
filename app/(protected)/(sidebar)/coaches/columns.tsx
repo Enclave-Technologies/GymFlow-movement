@@ -45,7 +45,7 @@ const ActionsCell = ({ coachId }: { coachId: string }) => {
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => router.push(`/trainer?id=${coachId}`)}
+          onClick={() => router.push(`/trainer/${coachId}`)}
           className="cursor-pointer"
         >
           <User className="mr-2 h-4 w-4" />
