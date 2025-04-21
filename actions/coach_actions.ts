@@ -33,6 +33,7 @@ export async function getCoachById(trainerId: string) {
             registrationDate: Trainer.registrationDate,
             gender: Trainer.gender,
             approved: UserRoles.approvedByAdmin,
+            job_title: Trainer.jobTitle,
         })
         .from(Trainer)
         .innerJoin(UserRoles, eq(Trainer.userId, UserRoles.userId))

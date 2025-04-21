@@ -126,7 +126,7 @@ export default async function TrainerProfilePage({
                                 {trainerData.fullName}
                             </span>
                             <span className="text-black/70 text-xs sm:text-sm font-medium mt-0.5">
-                                Trainer
+                                {trainerData.job_title || "Trainer"}
                             </span>
                         </div>
                     </div>

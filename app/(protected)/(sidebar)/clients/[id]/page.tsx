@@ -68,7 +68,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
         <div className="container mx-auto py-2 md:py-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 {/* Profile Image (1/3 width, full card background) */}
-                <Card className="relative overflow-hidden p-0 md:col-span-1 flex flex-col justify-end min-h-[260px] h-full">
+                <Card className="relative overflow-hidden p-0 md:col-span-1 flex flex-col justify-end min-h-[60px] h-full">
                     {client.imageUrl ? (
                         <Image
                             src={client.imageUrl}
@@ -100,14 +100,13 @@ export default async function ClientProfilePage({ params }: PageProps) {
                         </div>
                     </div>
                 </Card>
-                <Card className="relative overflow-hidden p-0 md:col-span-1 flex flex-col justify-end min-h-[260px] h-full">
-                    <div>
-                        Notes:
-                        <p>{client.notes}</p>
+                <Card className="relative overflow-hidden p-4 md:col-span-1 flex flex-col justify-end min-h-[60px] h-full border border-muted rounded-lg shadow-sm">
+                    <div className="text-sm font-medium text-muted-foreground mb-2">
+                        Notes
                     </div>
+                    <p className="text-gray-800 text-base">{client.notes}</p>
                 </Card>
 
-                {/* Details (2/3 width) */}
                 <Card className="flex flex-col justify-center p-6 md:col-span-1">
                     <CardContent className="space-y-4">
                         <div className="flex items-center gap-3">
@@ -169,7 +168,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
                 </Card>
 
                 {/* Table (full width, new row) */}
-                <Card className="flex flex-col p-4 min-h-[400px] md:col-span-3">
+                <Card className="flex flex-col p-4 min-h-[350px] md:col-span-3">
                     {/* <CardHeader>
                         <CardTitle className="text-lg">Clients</CardTitle>
                     </CardHeader>
