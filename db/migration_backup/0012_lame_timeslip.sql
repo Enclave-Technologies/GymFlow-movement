@@ -1,0 +1,1 @@
+ALTER TABLE "Users" ADD COLUMN "test_column" text;

@@ -1,69 +1,104 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1744559112644,
-      "tag": "0000_silky_energizer",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1744561935832,
-      "tag": "0001_colossal_lila_cheney",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1744565257375,
-      "tag": "0002_early_onslaught",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1744572684288,
-      "tag": "0003_solid_outlaw_kid",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1744611986098,
-      "tag": "0004_tan_hardball",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1744613072624,
-      "tag": "0005_groovy_rawhide_kid",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1744621966911,
-      "tag": "0006_medical_imperial_guard",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1744639822586,
-      "tag": "0007_slippery_veda",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1744647078437,
-      "tag": "0008_chilly_blue_marvel",
-      "breakpoints": true
-    }
-  ]
+    "version": "7",
+    "dialect": "postgresql",
+    "entries": [
+        {
+            "idx": 0,
+            "version": "7",
+            "when": 1744559112644,
+            "tag": "0000_silky_energizer",
+            "breakpoints": true
+        },
+        {
+            "idx": 1,
+            "version": "7",
+            "when": 1744561935832,
+            "tag": "0001_colossal_lila_cheney",
+            "breakpoints": true
+        },
+        {
+            "idx": 2,
+            "version": "7",
+            "when": 1744565257375,
+            "tag": "0002_early_onslaught",
+            "breakpoints": true
+        },
+        {
+            "idx": 3,
+            "version": "7",
+            "when": 1744572684288,
+            "tag": "0003_solid_outlaw_kid",
+            "breakpoints": true
+        },
+        {
+            "idx": 4,
+            "version": "7",
+            "when": 1744611986098,
+            "tag": "0004_tan_hardball",
+            "breakpoints": true
+        },
+        {
+            "idx": 5,
+            "version": "7",
+            "when": 1744613072624,
+            "tag": "0005_groovy_rawhide_kid",
+            "breakpoints": true
+        },
+        {
+            "idx": 6,
+            "version": "7",
+            "when": 1744621966911,
+            "tag": "0006_medical_imperial_guard",
+            "breakpoints": true
+        },
+        {
+            "idx": 7,
+            "version": "7",
+            "when": 1744639822586,
+            "tag": "0007_slippery_veda",
+            "breakpoints": true
+        },
+        {
+            "idx": 8,
+            "version": "7",
+            "when": 1744647078437,
+            "tag": "0008_chilly_blue_marvel",
+            "breakpoints": true
+        },
+        {
+            "idx": 9,
+            "version": "7",
+            "when": 1745252278307,
+            "tag": "0009_manually_fixed_migration",
+            "breakpoints": true
+        },
+        {
+            "idx": 10,
+            "version": "7",
+            "when": 1745253893468,
+            "tag": "0010_manually_added_migration_for_height_removal",
+            "breakpoints": true
+        },
+        {
+            "idx": 11,
+            "version": "7",
+            "when": 1745254082345,
+            "tag": "0011_manually_added_migration_for_height_addition",
+            "breakpoints": true
+        },
+        {
+            "idx": 12,
+            "version": "7",
+            "when": 1745254144876,
+            "tag": "0012_manually_added_migration_for_test_column_addition",
+            "breakpoints": true
+        },
+        {
+            "idx": 13,
+            "version": "7",
+            "when": 1745255180351,
+            "tag": "0013_numerous_stark_industries",
+            "breakpoints": true
+        }
+    ]
 }

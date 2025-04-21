@@ -1,0 +1,3 @@
+-- This migration was manually applied
+-- The height and job_title columns were added directly to the Users table
+-- This file is kept for migration tracking purposes

@@ -40,6 +40,11 @@ export const Users = pgTable("Users", {
     gender: genderEnum("gender"),
     idealWeight: real("ideal_weight"),
     dob: timestamp("dob"),
+    height: real("height"),
+    jobTitle: text("job_title"),
+    address: text("address"),
+    emergencyContactName: text("emergency_contact_name"),
+    emergencyContactPhone: text("emergency_contact_phone"),
 });
 
 export type InsertUser = typeof Users.$inferInsert;
@@ -161,7 +166,7 @@ export const Sessions = pgTable(
             .references(() => Phases.phaseId),
         sessionName: text("session_name").notNull(),
         orderNumber: integer("order_number").notNull(), // Keep integer
-		sessionTime: real("session_time"),
+        sessionTime: real("session_time"),
     },
     (table) => [unique("uniquePhaseOrder").on(table.phaseId, table.orderNumber)]
 );
@@ -325,25 +330,29 @@ export type SelectWorkoutSessionDetail =
 
 // --- NEW TABLES ---
 // TrainerClients Table (Explicit trainer-client relationships)
-export const TrainerClients = pgTable("TrainerClients", {
-    relationshipId: uuid("relationship_id")
-        .primaryKey()
-        .default(sql`uuid_generate_v4()`),
-    trainerId: text("trainer_id")
-        .notNull()
-        .references(() => Users.userId, {
-            onUpdate: "cascade",
-        }),
-    clientId: text("client_id")
-        .notNull()
-        .references(() => Users.userId, {
-            onDelete: "cascade",
-            onUpdate: "cascade",
-        }),
-    assignedDate: timestamp("assigned_date").defaultNow().notNull(),
-    isActive: boolean("is_active").default(true),
-    notes: text("notes"),
-}, (table) => [unique("uq_trainer_client").on(table.trainerId, table.clientId)]);
+export const TrainerClients = pgTable(
+    "TrainerClients",
+    {
+        relationshipId: uuid("relationship_id")
+            .primaryKey()
+            .default(sql`uuid_generate_v4()`),
+        trainerId: text("trainer_id")
+            .notNull()
+            .references(() => Users.userId, {
+                onUpdate: "cascade",
+            }),
+        clientId: text("client_id")
+            .notNull()
+            .references(() => Users.userId, {
+                onDelete: "cascade",
+                onUpdate: "cascade",
+            }),
+        assignedDate: timestamp("assigned_date").defaultNow().notNull(),
+        isActive: boolean("is_active").default(true),
+        notes: text("notes"),
+    },
+    (table) => [unique("uq_trainer_client").on(table.trainerId, table.clientId)]
+);
 
 export type InsertTrainerClient = typeof TrainerClients.$inferInsert;
 export type SelectTrainerClient = typeof TrainerClients.$inferSelect;
@@ -354,8 +363,12 @@ export type SelectTrainerClient = typeof TrainerClients.$inferSelect;
 // Users Relations
 export const usersRelations = relations(Users, ({ many }) => ({
     userRoles: many(UserRoles),
-    trainerClientsAsTrainer: many(TrainerClients, { relationName: "TrainerRelationships" }),
-    trainerClientsAsClient: many(TrainerClients, { relationName: "ClientRelationships" }),
+    trainerClientsAsTrainer: many(TrainerClients, {
+        relationName: "TrainerRelationships",
+    }),
+    trainerClientsAsClient: many(TrainerClients, {
+        relationName: "ClientRelationships",
+    }),
     uploadedExercises: many(Exercises, { relationName: "UploadedExercises" }),
     createdExercisePlans: many(ExercisePlans, { relationName: "CreatedPlans" }),
     assignedExercisePlans: many(ExercisePlans, {
