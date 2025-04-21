@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Suspense } from "react";
 import { InfiniteTable } from "./infinite-table";
-import { getAllExercises } from "@/actions/client_actions";
+import { getAllExercises } from "@/actions/exercise_actions";
 import { columns } from "./columns";
 
 export default async function ExerciseLibraryPage() {
