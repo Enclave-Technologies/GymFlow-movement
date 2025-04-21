@@ -38,7 +38,10 @@ export async function getCoachById(trainerId: string) {
         .innerJoin(UserRoles, eq(Trainer.userId, UserRoles.userId))
         .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
         .where(
-            and(eq(Trainer.userId, trainerId), eq(Roles.roleName, "Trainer"))
+            and(
+                eq(Trainer.userId, trainerId),
+                or(eq(Roles.roleName, "Trainer"), eq(Roles.roleName, "Admin"))
+            )
         )
         .limit(1);
 

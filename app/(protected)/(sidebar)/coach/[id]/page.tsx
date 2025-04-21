@@ -10,7 +10,7 @@ import { InfiniteTable } from "../../my-clients/infinite-table";
 import { columns } from "../../my-clients/columns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, Calendar, Pencil, Trash2 } from "lucide-react";
+import { User, Mail, Phone, Calendar, Pencil } from "lucide-react";
 // import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 
@@ -183,10 +183,10 @@ export default async function TrainerProfilePage({
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Edit Profile
                             </Button>
-                            <Button variant="destructive" size="sm">
+                            {/* <Button variant="destructive" size="sm">
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete
-                            </Button>
+                            </Button> */}
                         </div>
                     </CardContent>
                 </Card>

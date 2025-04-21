@@ -1,109 +1,191 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+// import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getClientById } from "@/actions/client_actions";
 import { formatDate } from "@/lib/utils";
+import { checkGuestApproval } from "@/lib/auth-utils";
+import { cookies } from "next/headers";
+import { MOVEMENT_SESSION_NAME } from "@/lib/constants";
+import { authenticated_or_login } from "@/actions/appwrite_actions";
+import Image from "next/image";
+import { Calendar, Mail, Pencil, Phone, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-interface PageProps {
-    params: {
+type PageProps = {
+    params: Promise<{
         id: string;
-    };
-}
+    }>;
+};
 
 export default async function ClientProfilePage({ params }: PageProps) {
-    const client = await getClientById(params.id);
+    const resolvedParams = await params;
 
-    if (!client) {
-        notFound();
+    await checkGuestApproval();
+
+    const session = (await cookies()).get(MOVEMENT_SESSION_NAME)?.value || null;
+    const result = await authenticated_or_login(session);
+
+    if (result && "error" in result) {
+        console.error("Error in Trainer:", result.error);
+        redirect("/login?error=user_fetch_error");
     }
 
-    return (
-        <div className="space-y-4">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-4">
-                        <Avatar className="h-16 w-16">
-                            <AvatarImage src={client.imageUrl || undefined} />
-                            <AvatarFallback>
-                                {client.fullName?.[0]?.toUpperCase()}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <h1 className="text-2xl font-bold">
-                                {client.fullName}
-                            </h1>
-                            <p className="text-muted-foreground">
-                                {client.email}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                Member since{" "}
-                                {formatDate(client.registrationDate)}
-                            </p>
-                        </div>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Phone
-                            </p>
-                            <p className="font-medium">
-                                {client.phone || "N/A"}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Gender
-                            </p>
-                            <p className="font-medium capitalize">
-                                {client.gender?.toLowerCase() || "N/A"}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Date of Birth
-                            </p>
-                            <p className="font-medium">
-                                {client.dob ? formatDate(client.dob) : "N/A"}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Ideal Weight
-                            </p>
-                            <p className="font-medium">
-                                {client.idealWeight
-                                    ? `${client.idealWeight} kg`
-                                    : "N/A"}
-                            </p>
-                        </div>
-                    </div>
+    if (!result || (!("error" in result) && !result)) {
+        redirect("/login");
+    }
 
-                    {client.notes && (
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Additional Notes
-                            </p>
-                            <p className="font-medium whitespace-pre-wrap">
-                                {client.notes}
-                            </p>
+    const client = await getClientById(resolvedParams.id);
+
+    if (!client) {
+        return (
+            <div className="container mx-auto py-10">
+                <Card>
+                    <CardHeader className="text-center">
+                        <CardTitle>Client Not Found</CardTitle>
+                    </CardHeader>
+                </Card>
+            </div>
+        );
+    }
+
+    const getInitials = (name: string) => {
+        return name
+            .split(" ")
+            .map((part) => part.charAt(0))
+            .join("")
+            .toUpperCase()
+            .substring(0, 2);
+    };
+
+    const formatGender = (gender: string | null) => {
+        if (!gender) return "Not specified";
+        return (
+            gender.charAt(0).toUpperCase() + gender.slice(1).replace("-", " ")
+        );
+    };
+
+    return (
+        <div className="container mx-auto py-2 md:py-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {/* Profile Image (1/3 width, full card background) */}
+                <Card className="relative overflow-hidden p-0 md:col-span-1 flex flex-col justify-end min-h-[260px] h-full">
+                    {client.imageUrl ? (
+                        <Image
+                            src={client.imageUrl}
+                            alt={client.fullName}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            width={500}
+                            height={500}
+                        />
+                    ) : (
+                        <div className="absolute inset-0 w-full h-full bg-muted flex items-center justify-center text-5xl font-bold text-muted-foreground">
+                            {getInitials(client.fullName)}
                         </div>
                     )}
-                </CardContent>
-            </Card>
+                    {/* Glass overlay: small, pill-shaped, bottom-left, compact */}
+                    <div
+                        className="absolute left-4 bottom-4 z-10 flex flex-col items-start"
+                        style={{
+                            WebkitBackdropFilter: "blur(8px)",
+                            backdropFilter: "blur(8px)",
+                        }}
+                    >
+                        <div className="bg-white/60 rounded-2xl shadow-md px-4 py-2 flex flex-col items-start min-w-[140px] max-w-[90vw]">
+                            <span className="text-black font-semibold text-base sm:text-lg leading-tight truncate">
+                                {client.fullName}
+                            </span>
+                            {/* <span className="text-black/70 text-xs sm:text-sm font-medium mt-0.5">
+                                Trainer
+                            </span> */}
+                        </div>
+                    </div>
+                </Card>
+                <Card className="relative overflow-hidden p-0 md:col-span-1 flex flex-col justify-end min-h-[260px] h-full">
+                    <div>
+                        Notes:
+                        <p>{client.notes}</p>
+                    </div>
+                </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Assigned Exercises</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {/* Exercise list component to be added */}
-                    <p className="text-muted-foreground">
-                        Exercise list coming soon
-                    </p>
-                </CardContent>
-            </Card>
+                {/* Details (2/3 width) */}
+                <Card className="flex flex-col justify-center p-6 md:col-span-1">
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center gap-3">
+                            <Mail className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                                <div className="text-sm font-medium">Email</div>
+                                <div className="text-sm text-muted-foreground">
+                                    {client.email || "- -"}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Phone className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                                <div className="text-sm font-medium">Phone</div>
+                                <div className="text-sm text-muted-foreground">
+                                    {client.phone || "- -"}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <User className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                                <div className="text-sm font-medium">
+                                    Gender
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                    {formatGender(client.gender)}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Calendar className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                                <div className="text-sm font-medium">
+                                    Joined
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                    {client.registrationDate
+                                        ? formatDate(client.registrationDate)
+                                        : "Unknown"}
+                                </div>
+                                {/* <div className="text-xs text-muted-foreground">
+                                    {timeWithMovement} with Movement
+                                </div> */}
+                            </div>
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                            <Button variant="outline" size="sm">
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit Profile
+                            </Button>
+                            {/* <Button variant="destructive" size="sm">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                            </Button> */}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Table (full width, new row) */}
+                <Card className="flex flex-col p-4 min-h-[400px] md:col-span-3">
+                    {/* <CardHeader>
+                        <CardTitle className="text-lg">Clients</CardTitle>
+                    </CardHeader>
+                    <Separator className="my-2" /> */}
+                    <CardContent>
+                        {/* <Suspense fallback={<div>Loading table...</div>}>
+                            <InfiniteTable
+                                fetchDataFn={getClientsManagedByUserPaginated}
+                                columns={columns}
+                                queryId={userId}
+                                trainerId={userId}
+                            />
+                        </Suspense> */}
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }
