@@ -3,8 +3,15 @@
 import * as React from "react";
 import { useTableActions } from "@/hooks/use-table-actions";
 import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
-import { Coach, tableOperations } from "./columns";
-import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
+import { Coach, CoachResponse, tableOperations } from "./columns";
+import { motion } from "framer-motion";
+import {
+    keepPreviousData,
+    useInfiniteQuery,
+    useQueryClient,
+    useMutation,
+} from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
     ColumnDef,
     useReactTable,
@@ -15,25 +22,48 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import CompactTableOperations from "@/components/ui/compact-table-operations";
 
 interface InfiniteTableProps {
-    initialData: {
-        data: any[];
-        meta: {
-            totalRowCount: number;
-        };
-    };
     fetchDataFn: (params: any) => Promise<any>;
     columns: ColumnDef<any, unknown>[];
     queryId?: string;
 }
 
 export function InfiniteTable({
-    initialData,
     fetchDataFn,
     columns,
     queryId = "default",
 }: InfiniteTableProps) {
+    const queryClient = useQueryClient();
     // Reference to the scrolling element
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
+
+    // State for row selection
+    const [rowSelection, setRowSelection] = React.useState({});
+    const [selectedRows, setSelectedRows] = React.useState<Coach[]>([]);
+
+    // Placeholder mutation for bulk delete functionality
+    const { mutate: bulkDelete } = useMutation({
+        mutationFn: async (data: { coachIds: string[] }) => {
+            console.log("Bulk delete coaches:", data.coachIds);
+            // This is just a placeholder - no actual deletion happens yet
+            return {
+                success: true,
+                message: `Deleted ${data.coachIds.length} coaches`,
+            };
+        },
+        onSuccess: (data) => {
+            toast.success(data.message);
+            // Reset selection
+            setRowSelection({});
+            setSelectedRows([]);
+            // Invalidate queries to refresh data
+            queryClient.invalidateQueries({
+                queryKey: ["allCoaches", urlParams, queryId],
+            });
+        },
+        onError: (error) => {
+            toast.error(`Error deleting coaches: ${error.message}`);
+        },
+    });
 
     const {
         sorting,
@@ -47,13 +77,15 @@ export function InfiniteTable({
 
     // Use React Query for data fetching with infinite scroll
     const { data, fetchNextPage, isFetchingNextPage, isLoading } =
-        useInfiniteQuery({
-            queryKey: ["tableData", urlParams, queryId],
+        useInfiniteQuery<CoachResponse>({
+            queryKey: ["allCoaches", urlParams, queryId], //refetch when these change
             queryFn: async ({ pageParam = 0 }) => {
+                // Add pageIndex to params but don't include it in URL
                 const params = {
                     ...urlParams,
                     pageIndex: pageParam,
                 };
+
                 return fetchDataFn(params as Record<string, unknown>);
             },
             initialPageParam: 0,
@@ -61,10 +93,6 @@ export function InfiniteTable({
                 // Simply return the length of allPages as the next page param
                 // This will be 1, 2, 3, etc. as pages are added
                 return allPages.length;
-            },
-            initialData: {
-                pages: [initialData],
-                pageParams: [0],
             },
             refetchOnWindowFocus: false,
             placeholderData: keepPreviousData,
@@ -87,10 +115,22 @@ export function InfiniteTable({
         state: {
             sorting,
             columnFilters,
+            rowSelection,
         },
+        enableRowSelection: true,
+        onRowSelectionChange: setRowSelection,
         manualSorting: true,
         debugTable: true,
     });
+
+    // Update selected rows when rowSelection changes
+    React.useEffect(() => {
+        const selectedRowsData = Object.keys(rowSelection)
+            .map((index) => flatData[parseInt(index)])
+            .filter(Boolean) as Coach[];
+
+        setSelectedRows(selectedRowsData);
+    }, [rowSelection, flatData]);
 
     // Create row virtualizer
     const rowVirtualizer = useVirtualizer({
@@ -128,14 +168,6 @@ export function InfiniteTable({
                     !isFetchingNextPage &&
                     totalFetched < totalRowCount
                 ) {
-                    console.log("Fetching more data...", {
-                        scrollHeight,
-                        scrollTop,
-                        clientHeight,
-                        isFetchingNextPage,
-                        totalFetched,
-                        totalRowCount,
-                    });
                     fetchNextPage();
                 }
             }
@@ -149,12 +181,25 @@ export function InfiniteTable({
     }, [fetchMoreOnBottomReached]);
 
     if (isLoading && flatData.length === 0) {
-        return <div>Loading...</div>;
+        return (
+            <div className="flex items-center h-full w-full justify-center bg-background z-[9999]">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex items-center justify-center"
+                >
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                </motion.div>
+            </div>
+        );
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-x-auto no-scrollbar pt-1">
             <CompactTableOperations
+                className="min-w-[800px] flex-nowrap"
                 columns={columns}
                 globalFilter={searchQuery}
                 setGlobalFilter={handleSearchChange}
@@ -188,14 +233,48 @@ export function InfiniteTable({
                     }
                 }}
                 onApplyClick={() => {
-                    console.log("Apply clicked - refreshing data");
-                    // In a real application, you might want to trigger a data refresh here
+                    queryClient.invalidateQueries({
+                        queryKey: ["allCoaches", urlParams, queryId],
+                    });
                 }}
                 showNewButton={true}
                 onNewClick={() => {
                     console.log("New button clicked");
                     // In a real application, you might want to navigate to a create form or open a modal
                 }}
+                showDeleteButton={true}
+                selectedRows={selectedRows}
+                onDeleteClick={(rows) => {
+                    if (rows.length > 0) {
+                        console.log("Delete button clicked for coaches", rows);
+                        // Call the mutation with the selected coach IDs
+                        bulkDelete({
+                            coachIds: rows.map((coach) => coach.userId),
+                        });
+                    }
+                }}
+                getRowSampleData={(rows) => (
+                    <ul className="text-sm">
+                        {rows.slice(0, 5).map((row) => (
+                            <li
+                                key={row.userId}
+                                className="mb-1 pb-1 border-b border-gray-100 last:border-0"
+                            >
+                                <div className="font-medium">
+                                    {row.fullName}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {row.email}
+                                </div>
+                            </li>
+                        ))}
+                        {rows.length > 5 && (
+                            <li className="text-xs text-muted-foreground mt-2">
+                                ...and {rows.length - 5} more
+                            </li>
+                        )}
+                    </ul>
+                )}
             />
 
             <div className="flex items-center text-sm text-muted-foreground">

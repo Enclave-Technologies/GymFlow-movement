@@ -11,7 +11,7 @@ import { columns } from "../../my-clients/columns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User, Mail, Phone, Calendar, Pencil, Trash2 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+// import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 
 export default async function TrainerProfilePage({
@@ -193,10 +193,10 @@ export default async function TrainerProfilePage({
 
                 {/* Table (full width, new row) */}
                 <Card className="flex flex-col p-4 min-h-[400px] md:col-span-3">
-                    <CardHeader>
+                    {/* <CardHeader>
                         <CardTitle className="text-lg">Clients</CardTitle>
                     </CardHeader>
-                    <Separator className="my-2" />
+                    <Separator className="my-2" /> */}
                     <CardContent>
                         <Suspense fallback={<div>Loading table...</div>}>
                             <InfiniteTable
