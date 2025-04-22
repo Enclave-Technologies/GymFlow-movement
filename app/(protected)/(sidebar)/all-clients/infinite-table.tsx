@@ -23,12 +23,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import CompactTableOperations from "@/components/ui/compact-table-operations";
 
 interface InfiniteTableProps {
-    // initialData: {
-    //     data: any[];
-    //     meta: {
-    //         totalRowCount: number;
-    //     };
-    // };
     fetchDataFn: (params: any) => Promise<any>;
     columns: ColumnDef<any, unknown>[];
     queryId?: string;
@@ -42,15 +36,21 @@ export function InfiniteTable({
     const queryClient = useQueryClient();
     // Reference to the scrolling element
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
-    
+
     // State for row selection
     const [rowSelection, setRowSelection] = React.useState({});
     const [selectedRows, setSelectedRows] = React.useState<Client[]>([]);
-    
+
     // Mutation for bulk delete
     const { mutate: bulkDelete } = useMutation({
-        mutationFn: async (data: { trainerId: string; clientIds: string[] }) => {
-            return bulkDeleteClientRelationships(data.trainerId, data.clientIds);
+        mutationFn: async (data: {
+            trainerId: string;
+            clientIds: string[];
+        }) => {
+            return bulkDeleteClientRelationships(
+                data.trainerId,
+                data.clientIds
+            );
         },
         onSuccess: (data) => {
             toast.success(data.message);
@@ -100,10 +100,6 @@ export function InfiniteTable({
                 // This will be 1, 2, 3, etc. as pages are added
                 return allPages.length;
             },
-            // initialData: {
-            //     pages: [initialData],
-            //     pageParams: [0],
-            // },
             refetchOnWindowFocus: false,
             placeholderData: keepPreviousData,
         });
@@ -132,13 +128,13 @@ export function InfiniteTable({
         manualSorting: true,
         debugTable: true,
     });
-    
+
     // Update selected rows when rowSelection changes
     React.useEffect(() => {
         const selectedRowsData = Object.keys(rowSelection)
             .map((index) => flatData[parseInt(index)])
             .filter(Boolean) as Client[];
-            
+
         setSelectedRows(selectedRowsData);
     }, [rowSelection, flatData]);
 
@@ -178,14 +174,6 @@ export function InfiniteTable({
                     !isFetchingNextPage &&
                     totalFetched < totalRowCount
                 ) {
-                    // console.log("Fetching more data...", {
-                    //     scrollHeight,
-                    //     scrollTop,
-                    //     clientHeight,
-                    //     isFetchingNextPage,
-                    //     totalFetched,
-                    //     totalRowCount,
-                    // });
                     fetchNextPage();
                 }
             }
@@ -198,9 +186,6 @@ export function InfiniteTable({
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    // if (isLoading && flatData.length === 0) {
-    //     return <div>Loading...</div>;
-    // }
     if (isLoading && flatData.length === 0) {
         return (
             <div className="flex items-center h-full w-full justify-center bg-background z-[9999]">
@@ -269,20 +254,24 @@ export function InfiniteTable({
                     if (rows.length > 0) {
                         // Group clients by trainer for bulk deletion
                         const clientsByTrainer: Record<string, string[]> = {};
-                        
-                        rows.forEach(row => {
+
+                        rows.forEach((row) => {
                             if (row.trainerId) {
                                 if (!clientsByTrainer[row.trainerId]) {
                                     clientsByTrainer[row.trainerId] = [];
                                 }
-                                clientsByTrainer[row.trainerId].push(row.userId);
+                                clientsByTrainer[row.trainerId].push(
+                                    row.userId
+                                );
                             }
                         });
-                        
+
                         // Process each trainer's clients
-                        Object.entries(clientsByTrainer).forEach(([trainerId, clientIds]) => {
-                            bulkDelete({ trainerId, clientIds });
-                        });
+                        Object.entries(clientsByTrainer).forEach(
+                            ([trainerId, clientIds]) => {
+                                bulkDelete({ trainerId, clientIds });
+                            }
+                        );
                     }
                 }}
                 getRowSampleData={(rows) => (

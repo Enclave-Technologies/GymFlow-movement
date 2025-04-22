@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Suspense } from "react";
 import { InfiniteTable } from "./infinite-table";
-import { getAllCoachesPaginated } from "@/actions/coach_actions";
+import { getCoachesPaginated } from "@/actions/coach_actions";
 import { columns } from "./columns";
 
 export default async function CoachesPage() {
@@ -25,19 +25,13 @@ export default async function CoachesPage() {
         redirect("/login");
     }
 
-    const initialResult = await getAllCoachesPaginated({
-        pageIndex: 0,
-        pageSize: 10,
-    });
-
     return (
         <div className="container mx-auto py-2 md:py-6">
             <h1 className="text-2xl font-bold mb-6">Coaching Team</h1>
 
             <Suspense fallback={<TableSkeleton />}>
                 <InfiniteTable
-                    initialData={initialResult}
-                    fetchDataFn={getAllCoachesPaginated}
+                    fetchDataFn={getCoachesPaginated}
                     columns={columns}
                     queryId="coaches"
                 />

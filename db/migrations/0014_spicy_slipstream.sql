@@ -1,0 +1,1 @@
+ALTER TABLE "WorkoutSessionDetails" ALTER COLUMN "entry_time" DROP NOT NULL;

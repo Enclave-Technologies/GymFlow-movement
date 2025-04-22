@@ -64,6 +64,48 @@
       "when": 1744647078437,
       "tag": "0008_chilly_blue_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1745252278307,
+      "tag": "0009_manually_fixed_migration",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1745253893468,
+      "tag": "0010_manually_added_migration_for_height_removal",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1745254082345,
+      "tag": "0011_manually_added_migration_for_height_addition",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1745254144876,
+      "tag": "0012_manually_added_migration_for_test_column_addition",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1745255180351,
+      "tag": "0013_numerous_stark_industries",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1745331543833,
+      "tag": "0014_spicy_slipstream",
+      "breakpoints": true
     }
   ]
 }

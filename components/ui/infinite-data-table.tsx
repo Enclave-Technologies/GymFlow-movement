@@ -70,6 +70,20 @@ export function InfiniteDataTable<TData, TValue>({
             style={{ height }} // Allow customizable height
             onScroll={onScroll} // Allow custom scroll handler
         >
+            {/* Loading overlay */}
+            {isLoading && (
+                <div
+                    className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/70 rounded-md"
+                    style={{
+                        backdropFilter: "blur(2px)",
+                    }}
+                >
+                    <div className="flex items-center gap-2 text-base text-muted-foreground">
+                        <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        Loading...
+                    </div>
+                </div>
+            )}
             <Table style={{ display: "grid" }}>
                 <TableHeader
                     style={{

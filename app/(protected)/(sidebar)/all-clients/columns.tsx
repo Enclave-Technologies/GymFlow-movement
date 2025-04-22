@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import {
     DropdownMenu,
@@ -47,11 +48,11 @@ export type Client = {
 };
 
 export type ClientResponse = {
-    data: Client[]
+    data: Client[];
     meta: {
-      totalRowCount: number
-    }
-  }
+        totalRowCount: number;
+    };
+};
 
 // Function to get initials from a name
 function getInitials(name: string): string {
@@ -252,7 +253,7 @@ export const tableOperations = {
         { id: "fullName", label: "Full Name" },
         { id: "email", label: "Email" },
         { id: "phone", label: "Phone" },
-        { id: "gender", label: "Gender" }
+        { id: "gender", label: "Gender" },
     ],
     sortableColumns: [
         { id: "fullName", label: "Full Name" },
@@ -261,7 +262,7 @@ export const tableOperations = {
         { id: "gender", label: "Gender" },
         { id: "age", label: "Age" },
         { id: "registrationDate", label: "Member Since" },
-        { id: "trainerName", label: "Trainer" }
+        { id: "trainerName", label: "Trainer" },
     ],
 };
 
@@ -311,7 +312,12 @@ export const columns: ColumnDef<Client>[] = [
                         <AvatarImage src={imageUrl || undefined} alt={value} />
                         <AvatarFallback>{getInitials(value)}</AvatarFallback>
                     </Avatar>
-                    <div className="font-medium">{value || "—"}</div>
+                    <Link
+                        href={`/clients/${row.original.userId}`}
+                        className="flex items-center gap-2 font-bold underline text-inherit cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 rounded"
+                    >
+                        {value || "—"}
+                    </Link>
                 </div>
             );
         },

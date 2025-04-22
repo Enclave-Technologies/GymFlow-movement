@@ -1,0 +1,1 @@
+-- Placeholder for manual migration: manually_added_migration_for_test_column_addition
