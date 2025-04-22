@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getClientById } from "@/actions/client_actions";
 import { formatDate } from "@/lib/utils";
 import { checkGuestApproval } from "@/lib/auth-utils";
@@ -109,29 +110,67 @@ export default async function ClientProfilePage({ params }: PageProps) {
                         <div className="grid grid-cols-2 gap-2 text-center mb-auto">
                             <div className="flex flex-col items-center">
                                 <Mail className="h-5 w-5 text-muted-foreground mb-1" />
-                                <div className="text-xs text-muted-foreground truncate w-full px-1">
-                                    {client.email || "- -"}
-                                </div>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="text-xs text-muted-foreground truncate w-full px-1">
+                                                {client.email || "- -"}
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{client.email || "- -"}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                             <div className="flex flex-col items-center">
                                 <Phone className="h-5 w-5 text-muted-foreground mb-1" />
-                                <div className="text-xs text-muted-foreground truncate w-full px-1">
-                                    {client.phone || "- -"}
-                                </div>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="text-xs text-muted-foreground truncate w-full px-1">
+                                                {client.phone || "- -"}
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{client.phone || "- -"}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                             <div className="flex flex-col items-center">
                                 <User className="h-5 w-5 text-muted-foreground mb-1" />
-                                <div className="text-xs text-muted-foreground truncate w-full px-1">
-                                    {formatGender(client.gender)}
-                                </div>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="text-xs text-muted-foreground truncate w-full px-1">
+                                                {formatGender(client.gender)}
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{formatGender(client.gender)}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                             <div className="flex flex-col items-center">
                                 <Calendar className="h-5 w-5 text-muted-foreground mb-1" />
-                                <div className="text-xs text-muted-foreground truncate w-full px-1">
-                                    {client.registrationDate
-                                        ? formatDate(client.registrationDate)
-                                        : "Unknown"}
-                                </div>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="text-xs text-muted-foreground truncate w-full px-1">
+                                                {client.registrationDate
+                                                    ? formatDate(client.registrationDate)
+                                                    : "Unknown"}
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{client.registrationDate
+                                                ? formatDate(client.registrationDate)
+                                                : "Unknown"}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                         </div>
                         <div className="flex justify-center mt-2">
@@ -143,8 +182,8 @@ export default async function ClientProfilePage({ params }: PageProps) {
                     </CardContent>
                 </Card>
 
-                <Card className="flex flex-col p-4 min-h-[350px] max-h-[500px] md:col-span-5">
-                    <CardContent>
+                <Card className="flex flex-col p-4 h-[800px] md:col-span-5">
+                    <CardContent className="h-full p-0">
                         <ClientTabs params={{ userdata: client }} />
                     </CardContent>
                 </Card>

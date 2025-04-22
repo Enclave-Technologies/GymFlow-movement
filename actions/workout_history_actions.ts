@@ -2,7 +2,7 @@
 
 import { db } from "@/db/xata";
 import { WorkoutSessionDetails, WorkoutSessionsLog } from "@/db/schemas";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 
 /**
  * Fetch a page of workout history details.
@@ -85,7 +85,11 @@ export async function updateWorkoutHistoryEntry(
 }
 
 // Fetch a page of workout session logs (session-level data)
-export async function fetchWorkoutSessionLogsPage(start: number, size: number) {
+export async function fetchWorkoutSessionLogsPage(
+    userId: string,
+    start: number,
+    size: number
+) {
     const [rows, countResult] = await Promise.all([
         db
             .select({
@@ -95,10 +99,14 @@ export async function fetchWorkoutSessionLogsPage(start: number, size: number) {
                 endTime: WorkoutSessionsLog.endTime,
             })
             .from(WorkoutSessionsLog)
+            .where(eq(WorkoutSessionsLog.userId, userId))
             .orderBy(desc(WorkoutSessionsLog.startTime))
             .limit(size)
             .offset(start),
-        db.select({ count: sql<number>`count(*)` }).from(WorkoutSessionsLog),
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(WorkoutSessionsLog)
+            .where(eq(WorkoutSessionsLog.userId, userId)),
     ]);
 
     const total = Number(countResult[0]?.count ?? 0);
@@ -114,8 +122,43 @@ export async function fetchWorkoutSessionLogsPage(start: number, size: number) {
     return { items, total };
 }
 
-// Fetch all workout details for a given session
-export async function fetchWorkoutDetailsBySession(sessionLogId: string) {
+/**
+ * Delete an entire workout session and all its details.
+ * @param sessionId the UUID of the WorkoutSessionsLog record
+ */
+export async function deleteWorkoutSession(sessionId: string) {
+    // First delete all workout details associated with this session
+    await db
+        .delete(WorkoutSessionDetails)
+        .where(eq(WorkoutSessionDetails.workoutSessionLogId, sessionId));
+
+    // Then delete the session itself
+    await db
+        .delete(WorkoutSessionsLog)
+        .where(eq(WorkoutSessionsLog.workoutSessionLogId, sessionId));
+}
+
+// Fetch all workout details for a given session, grouped by exercise name
+export async function fetchWorkoutDetailsBySession(
+    sessionLogId: string,
+    userId: string
+) {
+    // First verify this session belongs to the user
+    const session = await db
+        .select()
+        .from(WorkoutSessionsLog)
+        .where(
+            and(
+                eq(WorkoutSessionsLog.workoutSessionLogId, sessionLogId),
+                eq(WorkoutSessionsLog.userId, userId)
+            )
+        )
+        .limit(1);
+
+    if (!session.length) {
+        throw new Error("Session not found or unauthorized");
+    }
+
     const rows = await db
         .select({
             workoutDetailId: WorkoutSessionDetails.workoutDetailId,
@@ -130,8 +173,8 @@ export async function fetchWorkoutDetailsBySession(sessionLogId: string) {
         .where(eq(WorkoutSessionDetails.workoutSessionLogId, sessionLogId))
         .orderBy(desc(WorkoutSessionDetails.entryTime));
 
-    // map raw rows to client-friendly shape
-    return rows.map((row) => ({
+    // Convert rows to client-friendly shape
+    const details = rows.map((row) => ({
         id: row.workoutDetailId,
         exerciseName: row.exerciseName,
         sets: row.sets ?? 0,
@@ -140,4 +183,33 @@ export async function fetchWorkoutDetailsBySession(sessionLogId: string) {
         notes: row.coachNote ?? "",
         entryTime: row.entryTime ? row.entryTime.toISOString() : null,
     }));
+
+    // Group by exercise name
+    const groupedByExercise: Record<string, typeof details> = {};
+
+    details.forEach((detail) => {
+        if (!groupedByExercise[detail.exerciseName]) {
+            groupedByExercise[detail.exerciseName] = [];
+        }
+        groupedByExercise[detail.exerciseName].push(detail);
+    });
+
+    // Flatten the grouped exercises back into an array, but now ordered by exercise name
+    const result: typeof details = [];
+
+    Object.values(groupedByExercise).forEach((exercises) => {
+        // Sort exercises by entryTime if needed
+        exercises.sort((a, b) => {
+            if (!a.entryTime) return 1;
+            if (!b.entryTime) return -1;
+            return (
+                new Date(b.entryTime).getTime() -
+                new Date(a.entryTime).getTime()
+            );
+        });
+
+        result.push(...exercises);
+    });
+
+    return result;
 }

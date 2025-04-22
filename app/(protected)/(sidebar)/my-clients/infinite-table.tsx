@@ -10,6 +10,7 @@ import {
     useQueryClient,
     useMutation,
 } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { bulkDeleteClientRelationships } from "@/actions/client_actions";
 import { toast } from "sonner";
 import {
@@ -202,7 +203,19 @@ export function InfiniteTable({
     }, [fetchMoreOnBottomReached]);
 
     if (isLoading && flatData.length === 0) {
-        return <div>Loading...</div>;
+        return (
+            <div className="flex items-center h-full w-full justify-center bg-background z-[9999]">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex items-center justify-center"
+                >
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                </motion.div>
+            </div>
+        );
     }
 
     return (

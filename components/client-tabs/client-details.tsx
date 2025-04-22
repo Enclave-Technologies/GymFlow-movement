@@ -9,8 +9,11 @@ const ClientDetails = ({ client_id }: { client_id: string }) => {
     console.log("ClientDetails", client_id);
 
     return (
-        <div className="w-full max-w-full px-4 sm:px-6 lg:px-8">
-            <Tabs defaultValue="workout-history" className="w-full">
+        <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 h-full">
+            <Tabs
+                defaultValue="workout-history"
+                className="w-full h-full flex flex-col"
+            >
                 <TabsList className="flex w-full space-x-2 overflow-x-auto sm:grid sm:grid-cols-4">
                     <TabsTrigger
                         className="flex-shrink-0 whitespace-nowrap"
@@ -37,8 +40,11 @@ const ClientDetails = ({ client_id }: { client_id: string }) => {
                         Body Mass Composition
                     </TabsTrigger>
                 </TabsList>
-                <TabsContent value="workout-history">
-                    <WorkoutHistoryList />
+                <TabsContent
+                    value="workout-history"
+                    className="flex-1 overflow-hidden"
+                >
+                    <WorkoutHistoryList client_id={client_id} />
                 </TabsContent>
                 <TabsContent value="workout-plan">
                     <WorkoutPlan client_id={client_id} />
