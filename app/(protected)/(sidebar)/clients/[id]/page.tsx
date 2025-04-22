@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-// import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getClientById } from "@/actions/client_actions";
 import { formatDate } from "@/lib/utils";
 import { checkGuestApproval } from "@/lib/auth-utils";
@@ -10,6 +9,7 @@ import { authenticated_or_login } from "@/actions/appwrite_actions";
 import Image from "next/image";
 import { Calendar, Mail, Pencil, Phone, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ClientTabs from "@/components/client-tabs/client-tabs";
 
 type PageProps = {
     params: Promise<{
@@ -66,9 +66,9 @@ export default async function ClientProfilePage({ params }: PageProps) {
 
     return (
         <div className="container mx-auto py-2 md:py-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {/* Profile Image (1/3 width, full card background) */}
-                <Card className="relative overflow-hidden p-0 md:col-span-1 flex flex-col justify-end min-h-[60px] h-full">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+                {/* Profile Image */}
+                <Card className="relative overflow-hidden p-0 md:col-span-1 flex flex-col justify-end h-48">
                     {client.imageUrl ? (
                         <Image
                             src={client.imageUrl}
@@ -82,7 +82,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
                             {getInitials(client.fullName)}
                         </div>
                     )}
-                    {/* Glass overlay: small, pill-shaped, bottom-left, compact */}
+                    {/* Name overlay */}
                     <div
                         className="absolute left-4 bottom-4 z-10 flex flex-col items-start"
                         style={{
@@ -94,94 +94,58 @@ export default async function ClientProfilePage({ params }: PageProps) {
                             <span className="text-black font-semibold text-base sm:text-lg leading-tight truncate">
                                 {client.fullName}
                             </span>
-                            {/* <span className="text-black/70 text-xs sm:text-sm font-medium mt-0.5">
-                                Trainer
-                            </span> */}
                         </div>
                     </div>
                 </Card>
-                <Card className="relative overflow-hidden p-4 md:col-span-1 flex flex-col justify-end min-h-[60px] h-full border border-muted rounded-lg shadow-sm">
+                <Card className="relative overflow-hidden p-2 md:col-span-3 flex flex-col justify-end h-48 border border-muted rounded-lg shadow-sm">
                     <div className="text-sm font-medium text-muted-foreground mb-2">
                         Notes
                     </div>
                     <p className="text-gray-800 text-base">{client.notes}</p>
                 </Card>
 
-                <Card className="flex flex-col justify-center p-6 md:col-span-1">
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <Mail className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                                <div className="text-sm font-medium">Email</div>
-                                <div className="text-sm text-muted-foreground">
+                <Card className="flex flex-col justify-center p-3 md:col-span-1 h-48">
+                    <CardContent className="flex flex-col h-full p-0">
+                        <div className="grid grid-cols-2 gap-2 text-center mb-auto">
+                            <div className="flex flex-col items-center">
+                                <Mail className="h-5 w-5 text-muted-foreground mb-1" />
+                                <div className="text-xs text-muted-foreground truncate w-full px-1">
                                     {client.email || "- -"}
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Phone className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                                <div className="text-sm font-medium">Phone</div>
-                                <div className="text-sm text-muted-foreground">
+                            <div className="flex flex-col items-center">
+                                <Phone className="h-5 w-5 text-muted-foreground mb-1" />
+                                <div className="text-xs text-muted-foreground truncate w-full px-1">
                                     {client.phone || "- -"}
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <User className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                                <div className="text-sm font-medium">
-                                    Gender
-                                </div>
-                                <div className="text-sm text-muted-foreground">
+                            <div className="flex flex-col items-center">
+                                <User className="h-5 w-5 text-muted-foreground mb-1" />
+                                <div className="text-xs text-muted-foreground truncate w-full px-1">
                                     {formatGender(client.gender)}
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Calendar className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                                <div className="text-sm font-medium">
-                                    Joined
-                                </div>
-                                <div className="text-sm text-muted-foreground">
+                            <div className="flex flex-col items-center">
+                                <Calendar className="h-5 w-5 text-muted-foreground mb-1" />
+                                <div className="text-xs text-muted-foreground truncate w-full px-1">
                                     {client.registrationDate
                                         ? formatDate(client.registrationDate)
                                         : "Unknown"}
                                 </div>
-                                {/* <div className="text-xs text-muted-foreground">
-                                    {timeWithMovement} with Movement
-                                </div> */}
                             </div>
                         </div>
-                        <div className="flex gap-2 mt-4">
-                            <Button variant="outline" size="sm">
-                                <Pencil className="h-4 w-4 mr-2" />
-                                Edit Profile
+                        <div className="flex justify-center mt-2">
+                            <Button variant="outline" size="sm" className="h-8">
+                                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                                Edit
                             </Button>
-                            {/* <Button variant="destructive" size="sm">
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                            </Button> */}
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Table (full width, new row) */}
-                <Card className="flex flex-col p-4 min-h-[350px] md:col-span-3">
-                    {/* <CardHeader>
-                        <CardTitle className="text-lg">Clients</CardTitle>
-                    </CardHeader>
-                    <Separator className="my-2" /> */}
+                <Card className="flex flex-col p-4 min-h-[350px] max-h-[500px] md:col-span-5">
                     <CardContent>
-                        {/* <Suspense fallback={<div>Loading table...</div>}>
-                            <InfiniteTable
-                                fetchDataFn={getClientsManagedByUserPaginated}
-                                columns={columns}
-                                queryId={userId}
-                                trainerId={userId}
-                            />
-                        </Suspense> */}
+                        <ClientTabs params={{ userdata: client }} />
                     </CardContent>
                 </Card>
             </div>
