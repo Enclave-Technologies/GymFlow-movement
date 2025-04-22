@@ -42,7 +42,7 @@ export async function fetchWorkoutHistoryPage(start: number, size: number) {
     const total = Number(countResult[0]?.count ?? 0);
     const items = rows.map((row) => ({
         id: row.workoutDetailId,
-        date: row.entryTime.toISOString(),
+        date: row.entryTime ? row.entryTime.toISOString() : null,
         exerciseName: row.exerciseName,
         sets: row.sets ?? 0,
         reps: row.reps ?? 0,
@@ -102,12 +102,21 @@ export async function fetchWorkoutSessionLogsPage(start: number, size: number) {
     ]);
 
     const total = Number(countResult[0]?.count ?? 0);
-    return { items: rows, total };
+
+    // Convert dates to ISO strings for client-side use
+    const items = rows.map((row) => ({
+        workoutSessionLogId: row.workoutSessionLogId,
+        sessionName: row.sessionName,
+        startTime: row.startTime.toISOString(),
+        endTime: row.endTime ? row.endTime.toISOString() : null,
+    }));
+
+    return { items, total };
 }
 
 // Fetch all workout details for a given session
 export async function fetchWorkoutDetailsBySession(sessionLogId: string) {
-    const details = await db
+    const rows = await db
         .select({
             workoutDetailId: WorkoutSessionDetails.workoutDetailId,
             exerciseName: WorkoutSessionDetails.exerciseName,
@@ -121,5 +130,14 @@ export async function fetchWorkoutDetailsBySession(sessionLogId: string) {
         .where(eq(WorkoutSessionDetails.workoutSessionLogId, sessionLogId))
         .orderBy(desc(WorkoutSessionDetails.entryTime));
 
-    return details;
+    // map raw rows to client-friendly shape
+    return rows.map((row) => ({
+        id: row.workoutDetailId,
+        exerciseName: row.exerciseName,
+        sets: row.sets ?? 0,
+        reps: row.reps ?? 0,
+        weight: row.weight ?? 0,
+        notes: row.coachNote ?? "",
+        entryTime: row.entryTime ? row.entryTime.toISOString() : null,
+    }));
 }

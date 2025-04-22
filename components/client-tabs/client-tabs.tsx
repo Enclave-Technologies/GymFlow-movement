@@ -22,39 +22,11 @@ type ClientType = {
 const ClientTabs = ({ params }: { params: { userdata: ClientType } }) => {
     const { userdata } = params;
 
-    // const [userDataState, setUserDataState] = useState<ClientType | null>(
-    //     userdata
-    // );
-    // const [showRightModal, setShowRightModal] = useState(false);
-
-    // useEffect(() => {
-    //     setUserDataState(userdata);
-    // }, [userdata]);
-
-    // const rightModal = () => {
-    //     return (
-    //         <RightModal
-    //             formTitle="Add User"
-    //             isVisible={showRightModal}
-    //             hideModal={() => {
-    //                 setShowRightModal(false);
-    //                 setUserDataState(null);
-    //             }}
-    //         >
-    //             <EditUserForm
-    //                 fetchData={reloadData}
-    //                 clientData={userDataState}
-    //             />
-    //         </RightModal>
-    //     );
-    // };
-
     return (
         <div className="flex flex-col items-center justify-between text-black w-full h-full">
             <div className="text-center flex flex-col gap-8 w-full h-full">
                 <ClientDetails client_id={userdata.userId} />
             </div>
-            {/* {rightModal()} */}
         </div>
     );
 };

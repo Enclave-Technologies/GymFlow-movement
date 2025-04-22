@@ -320,7 +320,7 @@ export const WorkoutSessionDetails = pgTable("WorkoutSessionDetails", {
     weight: real("weight"),
     workoutVolume: real("workout_volume"),
     coachNote: text("coach_note"),
-    entryTime: timestamp("entry_time").defaultNow().notNull(),
+    entryTime: timestamp("entry_time").defaultNow(),
 });
 
 export type InsertWorkoutSessionDetail =

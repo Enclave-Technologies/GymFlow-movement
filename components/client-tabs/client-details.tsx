@@ -1,9 +1,9 @@
 import * as React from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import WorkoutHistory from "@/components/workout-history/workout-history";
 import WorkoutPlan from "@/components/workout-planning/workout-plan";
 import GoalList from "@/components/goals/goal-list";
 import BodyMassComposition from "@/components/body-mass-composition/body-mass-composition";
+import WorkoutHistoryList from "../workout-history/workout-history-list";
 
 const ClientDetails = ({ client_id }: { client_id: string }) => {
     console.log("ClientDetails", client_id);
@@ -38,7 +38,7 @@ const ClientDetails = ({ client_id }: { client_id: string }) => {
                     </TabsTrigger>
                 </TabsList>
                 <TabsContent value="workout-history">
-                    <WorkoutHistory client_id={client_id} />
+                    <WorkoutHistoryList />
                 </TabsContent>
                 <TabsContent value="workout-plan">
                     <WorkoutPlan client_id={client_id} />
