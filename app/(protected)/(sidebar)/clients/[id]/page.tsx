@@ -99,6 +99,30 @@ export default async function ClientProfilePage({ params }: PageProps) {
                     </div>
                 </Card>
                 <Card className="relative overflow-hidden p-2 md:col-span-3 flex flex-col justify-end h-48 border border-muted rounded-lg shadow-sm">
+                    <div className="mb-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div>
+                                <span className="text-xs text-muted-foreground">Ideal Weight</span>
+                                <div className="text-base font-medium text-gray-900">
+                                    {client.idealWeight !== null && client.idealWeight !== undefined
+                                        ? `${client.idealWeight} kg`
+                                        : "- -"}
+                                </div>
+                            </div>
+                            <div>
+                                <span className="text-xs text-muted-foreground">Emergency Contact Name</span>
+                                <div className="text-base font-medium text-gray-900">
+                                    {client.emergencyContactName || "- -"}
+                                </div>
+                            </div>
+                            <div>
+                                <span className="text-xs text-muted-foreground">Emergency Contact Phone</span>
+                                <div className="text-base font-medium text-gray-900">
+                                    {client.emergencyContactPhone || "- -"}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div className="text-sm font-medium text-muted-foreground mb-2">
                         Notes
                     </div>
