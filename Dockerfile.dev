@@ -1,11 +1,11 @@
-FROM node:20-alpine
+FROM node:23-alpine
 
 # Set working directory
 WORKDIR /app
 
 # Install dependencies only when needed
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Set development environment
 ENV NODE_ENV=development
