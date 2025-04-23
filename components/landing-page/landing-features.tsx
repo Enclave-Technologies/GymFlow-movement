@@ -43,7 +43,7 @@ export function LandingFeatures() {
     return (
         <motion.section
             id="features"
-            className="w-full py-24 md:py-32 bg-black relative overflow-hidden"
+            className="w-full py-24 md:py-32 bg-background relative overflow-hidden"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
@@ -64,7 +64,7 @@ export function LandingFeatures() {
                         Key Features
                     </motion.div>
                     <motion.h2 
-                        className="text-4xl md:text-5xl font-bold tracking-tight text-white"
+                        className="text-4xl md:text-5xl font-bold tracking-tight text-foreground"
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
@@ -73,7 +73,7 @@ export function LandingFeatures() {
                         Everything You Need to Succeed
                     </motion.h2>
                     <motion.p 
-                        className="max-w-[800px] text-gray-300 text-lg md:text-xl"
+                        className="max-w-[800px] text-muted-foreground text-lg md:text-xl"
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
@@ -94,17 +94,17 @@ export function LandingFeatures() {
                             transition={{ delay: index * 0.1 }}
                             whileHover={{ y: -8, transition: { duration: 0.2 } }}
                         >
-                            <Card className="h-full bg-gray-900/50 backdrop-blur-sm border-gray-800 hover:border-primary/50 transition-all duration-300 overflow-hidden group">
+                            <Card className="h-full bg-card/50 backdrop-blur-sm border-border hover:border-primary/50 transition-all duration-300 overflow-hidden group">
                                 <CardHeader className="flex flex-col items-center text-center pb-6 pt-8">
                                     <div className="p-3 rounded-full bg-primary/10 mb-5 group-hover:bg-primary/20 transition-colors duration-300">
                                         <feature.icon className="h-8 w-8 text-primary" />
                                     </div>
-                                    <CardTitle className="text-xl font-bold text-white">
+                                    <CardTitle className="text-xl font-bold text-foreground">
                                         {feature.title}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="text-center pb-8">
-                                    <p className="text-gray-400 group-hover:text-gray-300 transition-colors duration-300">
+                                    <p className="text-muted-foreground group-hover:text-muted-foreground/80 transition-colors duration-300">
                                         {feature.description}
                                     </p>
                                 </CardContent>

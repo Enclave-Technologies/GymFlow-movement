@@ -37,7 +37,7 @@ export default async function Home() {
     }
 
     return (
-        <div className="flex flex-col min-h-dvh bg-black text-white">
+        <div className="flex flex-col min-h-dvh bg-background text-foreground">
             {/* Use the new navigation component */}
             <LandingNav />
 
@@ -48,23 +48,23 @@ export default async function Home() {
             </main>
 
             {/* Footer */}
-            <footer className="border-t border-gray-800 bg-black">
+            <footer className="border-t border-border bg-background">
                 <div className="container mx-auto flex flex-col gap-4 sm:flex-row py-8 w-full shrink-0 items-center px-4 md:px-8">
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-muted-foreground">
                         &copy; {new Date().getFullYear()} GymFlow. All rights
                         reserved.
                     </p>
                     <nav className="sm:ml-auto flex gap-6">
                         <Link
                             href="#"
-                            className="text-xs text-gray-400 hover:text-white transition-colors hover:underline underline-offset-4"
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors hover:underline underline-offset-4"
                             prefetch={false}
                         >
                             Terms of Service
                         </Link>
                         <Link
                             href="#"
-                            className="text-xs text-gray-400 hover:text-white transition-colors hover:underline underline-offset-4"
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors hover:underline underline-offset-4"
                             prefetch={false}
                         >
                             Privacy Policy

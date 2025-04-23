@@ -17,7 +17,7 @@ const sectionVariants = {
 export function LandingHero() {
     return (
         <motion.section
-            className="w-full py-24 md:py-32 lg:py-40 xl:py-52 bg-black flex flex-col items-center justify-center relative overflow-hidden"
+            className="w-full py-24 md:py-32 lg:py-40 xl:py-52 bg-background flex flex-col items-center justify-center relative overflow-hidden"
             initial="hidden"
             animate="visible"
             variants={sectionVariants}
@@ -28,7 +28,7 @@ export function LandingHero() {
             <div className="container mx-auto px-4 md:px-8 text-center relative z-10">
                 <div className="flex flex-col items-center space-y-8 max-w-4xl mx-auto">
                     <motion.h1
-                        className="text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl text-white"
+                        className="text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl text-foreground"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2, duration: 0.5 }}
@@ -36,7 +36,7 @@ export function LandingHero() {
                         Elevate Your Coaching Game
                     </motion.h1>
                     <motion.p
-                        className="mx-auto text-lg md:text-xl text-gray-300 leading-relaxed"
+                        className="mx-auto text-lg md:text-xl text-muted-foreground leading-relaxed"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4, duration: 0.5 }}

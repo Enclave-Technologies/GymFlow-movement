@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MountainIcon, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-// import { ModeToggle } from "../theme/theme-toggle";
+import { ModeToggle } from "../theme/theme-toggle";
 
 export function LandingNav() {
     return (
@@ -60,7 +60,7 @@ export function LandingNav() {
                             Sign Up <ArrowRight className="ml-1 h-3.5 w-3.5" />
                         </Link>
                     </Button>
-                    {/* <ModeToggle /> */}
+                    <ModeToggle />
                 </div>
             </div>
         </motion.header>
