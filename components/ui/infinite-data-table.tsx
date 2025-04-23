@@ -63,8 +63,9 @@ export function InfiniteDataTable<TData, TValue>({
     return (
         <div
             ref={tableContainerRef}
-            className={cn(
-                "relative overflow-auto rounded-md border",
+            // Remove overflow-auto from default classes
+            className={cn( 
+                "relative rounded-md border", 
                 className
             )}
             style={{ height }} // Allow customizable height
