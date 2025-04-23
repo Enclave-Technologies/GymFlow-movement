@@ -6,6 +6,35 @@ import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import "server-only";
 
+
+
+/**
+ * Update a user's idealWeight in the Users table.
+ * @param userId - The user's ID
+ * @param idealWeight - The ideal weight to set
+ * @returns Success status and message
+ */
+export async function updateUserIdealWeight(userId: string, idealWeight: number) {
+    try {
+        await db
+            .update(Users)
+            .set({ idealWeight })
+            .where(eq(Users.userId, userId));
+        return {
+            success: true,
+            message: "Ideal weight updated successfully",
+        };
+    } catch (error) {
+        console.error("Error updating ideal weight:", error);
+        return {
+            success: false,
+            message: `Error updating ideal weight: ${
+                error instanceof Error ? error.message : String(error)
+            }`,
+        };
+    }
+}
+
 export async function userRoleTable() {
     const userRoleData = await db
         .select({
@@ -755,6 +784,8 @@ export async function getClientById(clientId: string) {
             dob: Users.dob,
             notes: Users.notes,
             registrationDate: Users.registrationDate,
+            emergencyContactName: Users.emergencyContactName,
+            emergencyContactPhone: Users.emergencyContactPhone,
         })
         .from(Users)
         .innerJoin(UserRoles, eq(Users.userId, UserRoles.userId))

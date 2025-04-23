@@ -356,7 +356,11 @@ export const columns: ColumnDef<BMCRecord>[] = [
             }
 
             // Calculate idealWeight if not provided
-            if (idealWeight === null || idealWeight === undefined) {
+            if (
+                idealWeight === null ||
+                idealWeight === undefined ||
+                idealWeight === 0
+            ) {
                 idealWeight = 55 + (height - 160) / 2;
             }
 
@@ -387,9 +391,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                     return <div className="text-center">—</div>;
                 }
 
-                return (
-                    <div className="text-center">{bf.toFixed(1)}</div>
-                );
+                return <div className="text-center">{bf.toFixed(1)}</div>;
             } catch (error) {
                 console.error("Error calculating BF%:", error);
                 return <div className="text-center">Error</div>; // Indicate calculation error
@@ -446,8 +448,8 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 idealWeight = 55 + (height - 160) / 2;
             }
 
-             // Ensure calculated idealWeight is valid
-             if (idealWeight === null || idealWeight === undefined) {
+            // Ensure calculated idealWeight is valid
+            if (idealWeight === null || idealWeight === undefined) {
                 return <div className="text-center">—</div>;
             }
 

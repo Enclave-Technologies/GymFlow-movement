@@ -1,10 +1,11 @@
 "use server";
 
-import { BMCMeasurements } from "@/db/schemas";
+import { BMCMeasurements, Users } from "@/db/schemas";
 import { db } from "@/db/xata";
 import { desc, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import "server-only";
+import { updateUserIdealWeight } from "./client_actions";
 
 export type BMCRecordInput = {
     measurementId?: string;
@@ -42,9 +43,10 @@ export async function saveBMCRecord(record: BMCRecordInput) {
         // Note: BMI, BF%, and LM are now calculated client-side in the updateData function
         // and passed in the record parameter. No need to recalculate here.
 
-        // If measurementId is provided and not a temp id, update the existing record
+        // Save the BMC record (update or insert)
+        let result;
         if (record.measurementId && !record.measurementId.startsWith("temp-")) {
-            const result = await db
+            result = await db
                 .update(BMCMeasurements)
                 .set({
                     date: record.date,
@@ -71,15 +73,8 @@ export async function saveBMCRecord(record: BMCRecordInput) {
                 })
                 .where(eq(BMCMeasurements.measurementId, record.measurementId))
                 .returning();
-
-            return {
-                success: true,
-                message: "BMC record updated successfully",
-                data: result[0],
-            };
         } else {
-            // Insert a new record
-            const result = await db
+            result = await db
                 .insert(BMCMeasurements)
                 .values({
                     userId: record.userId,
@@ -107,13 +102,43 @@ export async function saveBMCRecord(record: BMCRecordInput) {
                     measurementId: sql`uuid_generate_v4()`,
                 })
                 .returning();
-
-            return {
-                success: true,
-                message: "BMC record created successfully",
-                data: result[0],
-            };
         }
+
+        // After saving, check if user's idealWeight is missing and height is present
+        if (
+            record.userId &&
+            record.height &&
+            typeof record.height === "number"
+        ) {
+            // Fetch the user
+            const user = await db
+                .select({ idealWeight: Users.idealWeight })
+                .from(Users)
+                .where(eq(Users.userId, record.userId));
+            const currentIdealWeight = user[0]?.idealWeight;
+            if (
+                (currentIdealWeight === null ||
+                    currentIdealWeight === undefined) &&
+                record.height
+            ) {
+                // Calculate idealWeight and update
+                const calculatedIdealWeight = 55 + (record.height - 160) / 2;
+                await updateUserIdealWeight(
+                    record.userId,
+                    calculatedIdealWeight
+                );
+            }
+        }
+
+        return {
+            success: true,
+            message:
+                record.measurementId &&
+                !record.measurementId.startsWith("temp-")
+                    ? "BMC record updated successfully"
+                    : "BMC record created successfully",
+            data: result[0],
+        };
     } catch (error) {
         console.error("Error saving BMC record:", error);
         return {
@@ -155,6 +180,8 @@ export async function deleteBMCRecord(measurementId: string) {
 export async function getClientBMCRecordPaginated(
     params: Record<string, unknown> = {}
 ) {
+    console.log("PARAMS RECEIVED IN BMC FETCH\n", JSON.stringify(params));
+
     const clientId =
         typeof params.clientId === "string" ? params.clientId : null;
 
@@ -186,6 +213,8 @@ export async function getClientBMCRecordPaginated(
             ? parseInt(params.pageSize, 10)
             : 10;
 
+    console.log("APPLIED THE FOLLOWING FILTERS", pageIndex, pageSize);
+
     const [countResult, BMCRecordData] = await Promise.all([
         db
             .select({ count: sql<number>`count(*)` })
@@ -201,6 +230,8 @@ export async function getClientBMCRecordPaginated(
     ]);
 
     const totalCount = Number(countResult[0]?.count || 0);
+
+    console.log("TOTAL COUNTS OF BMC FOR USER: ", totalCount);
 
     return {
         data: BMCRecordData,

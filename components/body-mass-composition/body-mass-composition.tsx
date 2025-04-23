@@ -12,16 +12,13 @@ const BodyMassComposition = async ({ client_id }: { client_id: string }) => {
     // Fetch client data
     const clientData = await getClientById(client_id);
 
-    // Calculate age
+    // Calculate age as a real number (years)
     let age: number | null = null;
     if (clientData?.dob) {
         const today = new Date();
         const birthDate = new Date(clientData.dob);
-        age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
+        const diffMs = today.getTime() - birthDate.getTime();
+        age = diffMs / (365.25 * 24 * 60 * 60 * 1000);
     }
 
     // Get ideal weight
@@ -34,7 +31,7 @@ const BodyMassComposition = async ({ client_id }: { client_id: string }) => {
                     <CardTitle>Body Mass Composition</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex-1 overflow-hidden">
+                    <div className="w-full max-h-[600px] overflow-x-auto overflow-y-auto">
                         <Suspense fallback={<TableSkeleton />}>
                             <InfiniteTable
                                 fetchDataFn={getClientBMCRecordPaginated}

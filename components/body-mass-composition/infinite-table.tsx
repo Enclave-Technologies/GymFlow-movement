@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import * as React from "react";
-import { useTableActions } from "@/hooks/use-table-actions";
 import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
 import { BMCRecord, BMCRecordResponse } from "./columns";
 import { motion } from "framer-motion";
@@ -98,7 +97,9 @@ const calculateBfAndLm = (
         if (Number.isFinite(calculatedBf)) {
             bf = parseFloat(calculatedBf.toFixed(1)); // Store with 1 decimal place
             // Calculate Lean Mass (LM)
-            lm = parseFloat((weight - (weight * calculatedBf) / 100).toFixed(1)); // Store with 1 decimal place
+            lm = parseFloat(
+                (weight - (weight * calculatedBf) / 100).toFixed(1)
+            ); // Store with 1 decimal place
         }
     } catch (error) {
         console.error("Error calculating BF% and LM in updateData:", error);
@@ -107,7 +108,6 @@ const calculateBfAndLm = (
 
     return { bf, lm };
 };
-
 
 interface InfiniteTableProps {
     fetchDataFn: (params: any) => Promise<any>;
@@ -139,9 +139,6 @@ export function InfiniteTable({
     const [unsavedChanges, setUnsavedChanges] = React.useState<boolean>(false);
     const [isSaving, setIsSaving] = React.useState<boolean>(false);
 
-    const { sorting, columnFilters, searchQuery, urlParams } =
-        useTableActions();
-
     // Use React Query for data fetching with infinite scroll
     const {
         data: queryData,
@@ -149,12 +146,12 @@ export function InfiniteTable({
         isFetchingNextPage,
         isLoading,
     } = useInfiniteQuery<BMCRecordResponse>({
-        queryKey: ["bmcRecords", urlParams, queryId, clientId], //refetch when these change
+        queryKey: ["bmcRecords", queryId, clientId], //refetch when these change
         queryFn: async ({ pageParam = 0 }) => {
-            // Add pageIndex to params but don't include it in URL
+            // Add pageIndex and pageSize to params but don't include them in URL
             const params = {
-                ...urlParams,
                 pageIndex: pageParam,
+                pageSize: 50,
                 clientId,
             };
 
@@ -235,18 +232,33 @@ export function InfiniteTable({
 
             // Define columns that trigger BF% and LM recalculation
             const relevantColumns = [
-                "height", "weight", "pec", "subscap", "midax", "supra",
-                "ubmil", "triceps", "calf", "quad", "ham"
+                "height",
+                "weight",
+                "pec",
+                "subscap",
+                "midax",
+                "supra",
+                "ubmil",
+                "triceps",
+                "calf",
+                "quad",
+                "ham",
             ];
 
             // Recalculate BMI, BF%, and LM if a relevant column changed
             if (relevantColumns.includes(columnId)) {
                 // BMI Calculation
-                if (updatedRecord.height && updatedRecord.weight && updatedRecord.height > 0) {
+                if (
+                    updatedRecord.height &&
+                    updatedRecord.weight &&
+                    updatedRecord.height > 0
+                ) {
                     const heightM = updatedRecord.height / 100;
-                    updatedRecord.bmi = parseFloat((updatedRecord.weight / (heightM * heightM)).toFixed(1));
+                    updatedRecord.bmi = parseFloat(
+                        (updatedRecord.weight / (heightM * heightM)).toFixed(1)
+                    );
                 } else if (updatedRecord.height === 0 && updatedRecord.weight) {
-                     updatedRecord.bmi = 0;
+                    updatedRecord.bmi = 0;
                 } else {
                     updatedRecord.bmi = null;
                 }
@@ -260,7 +272,6 @@ export function InfiniteTable({
                 updatedRecord.bf = calculatedBf;
                 updatedRecord.lm = calculatedLm;
             }
-
 
             setUnsavedChanges(true);
             return newData;
@@ -377,7 +388,7 @@ export function InfiniteTable({
 
                 // Invalidate queries to refresh data from server
                 queryClient.invalidateQueries({
-                    queryKey: ["bmcRecords", urlParams, queryId, clientId],
+                    queryKey: ["bmcRecords", queryId, clientId],
                 });
             } else {
                 toast.error(result.message);
@@ -433,8 +444,6 @@ export function InfiniteTable({
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
         state: {
-            sorting,
-            columnFilters,
             rowSelection,
         },
         enableRowSelection: true,
@@ -475,7 +484,7 @@ export function InfiniteTable({
         ) {
             rowVirtualizer.scrollToIndex(0);
         }
-    }, [sorting, rowVirtualizer, table]);
+    }, [rowVirtualizer, table]);
 
     // Function to fetch more data when scrolling to bottom
     const fetchMoreOnBottomReached = React.useCallback(
@@ -564,11 +573,7 @@ export function InfiniteTable({
                     rows={table.getRowModel().rows}
                     hasMore={totalFetched < totalRowCount}
                     isLoading={isFetchingNextPage || isSaving}
-                    emptyMessage={
-                        columnFilters.length > 0 || searchQuery
-                            ? "No results found. Try clearing your filters."
-                            : "No BMC records available. Click 'Add New Record' to create one."
-                    }
+                    emptyMessage="No BMC records available. Click 'Add New Record' to create one."
                     onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
                     height="calc(100vh - 290px)"
                     // Apply min-width and full width to ensure proper table layout
