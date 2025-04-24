@@ -113,6 +113,7 @@ export function InfiniteDataTable<TData, TValue>({
                                                 ? header.getSize()
                                                 : "auto",
                                         alignItems: "center",
+                                        justifyContent: "center",
                                     }}
                                 >
                                     {header.isPlaceholder
@@ -183,6 +184,7 @@ export function InfiniteDataTable<TData, TValue>({
                                                             ? cell.column.getSize()
                                                             : "auto",
                                                     alignItems: "center",
+                                                    justifyContent: "center",
                                                 }}
                                             >
                                                 {flexRender(
