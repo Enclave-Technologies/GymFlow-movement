@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getClientById } from "@/actions/client_actions";
 import { formatDate } from "@/lib/utils";
 import { checkGuestApproval } from "@/lib/auth-utils";
@@ -91,8 +96,8 @@ export default async function ClientProfilePage({ params }: PageProps) {
                             backdropFilter: "blur(8px)",
                         }}
                     >
-                        <div className="bg-white/60 rounded-2xl shadow-md px-4 py-2 flex flex-col items-start min-w-[140px] max-w-[90vw]">
-                            <span className="text-black font-semibold text-base sm:text-lg leading-tight truncate">
+                        <div className="bg-popover/60 rounded-2xl shadow-md px-4 py-2 flex flex-col items-start min-w-[140px] max-w-[90vw]">
+                            <span className="text-popover-foreground font-semibold text-base sm:text-lg leading-tight truncate">
                                 {client.fullName}
                             </span>
                         </div>
@@ -102,22 +107,29 @@ export default async function ClientProfilePage({ params }: PageProps) {
                     <div className="mb-3">
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <div>
-                                <span className="text-xs text-muted-foreground">Ideal Weight</span>
-                                <div className="text-base font-medium text-gray-900">
-                                    {client.idealWeight !== null && client.idealWeight !== undefined
+                                <span className="text-xs text-muted-foreground">
+                                    Ideal Weight
+                                </span>
+                                <div className="text-base font-medium text-foreground">
+                                    {client.idealWeight !== null &&
+                                    client.idealWeight !== undefined
                                         ? `${client.idealWeight} kg`
                                         : "- -"}
                                 </div>
                             </div>
                             <div>
-                                <span className="text-xs text-muted-foreground">Emergency Contact Name</span>
-                                <div className="text-base font-medium text-gray-900">
+                                <span className="text-xs text-muted-foreground">
+                                    Emergency Contact Name
+                                </span>
+                                <div className="text-base font-medium text-foreground">
                                     {client.emergencyContactName || "- -"}
                                 </div>
                             </div>
                             <div>
-                                <span className="text-xs text-muted-foreground">Emergency Contact Phone</span>
-                                <div className="text-base font-medium text-gray-900">
+                                <span className="text-xs text-muted-foreground">
+                                    Emergency Contact Phone
+                                </span>
+                                <div className="text-base font-medium text-foreground">
                                     {client.emergencyContactPhone || "- -"}
                                 </div>
                             </div>
@@ -126,7 +138,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
                     <div className="text-sm font-medium text-muted-foreground mb-2">
                         Notes
                     </div>
-                    <p className="text-gray-800 text-base">{client.notes}</p>
+                    <p className="text-foreground text-base">{client.notes}</p>
                 </Card>
 
                 <Card className="flex flex-col justify-center p-3 md:col-span-1 h-48">
@@ -184,14 +196,20 @@ export default async function ClientProfilePage({ params }: PageProps) {
                                         <TooltipTrigger asChild>
                                             <div className="text-xs text-muted-foreground truncate w-full px-1">
                                                 {client.registrationDate
-                                                    ? formatDate(client.registrationDate)
+                                                    ? formatDate(
+                                                          client.registrationDate
+                                                      )
                                                     : "Unknown"}
                                             </div>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>{client.registrationDate
-                                                ? formatDate(client.registrationDate)
-                                                : "Unknown"}</p>
+                                            <p>
+                                                {client.registrationDate
+                                                    ? formatDate(
+                                                          client.registrationDate
+                                                      )
+                                                    : "Unknown"}
+                                            </p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>

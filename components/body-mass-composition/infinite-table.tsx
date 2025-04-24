@@ -596,6 +596,8 @@ export function InfiniteTable({
                     height="calc(100vh - 290px)"
                     // Apply min-width and full width to ensure proper table layout
                     className="min-w-[400px] w-full"
+                    headerJustifyContent="center"
+                    cellJustifyContent="center"
                 />
             </div>
         </div>
