@@ -240,6 +240,15 @@ export const BMCMeasurements = pgTable(
         calf: real("calf"),
         quad: real("quad"),
         ham: real("ham").default(0),
+        // Add new girth measurements here
+        waist_girth: real("waist_girth"),
+        thigh_left_girth: real("thigh_left_girth"),
+        thigh_right_girth: real("thigh_right_girth"),
+        arm_left_girth: real("arm_left_girth"),
+        arm_right_girth: real("arm_right_girth"),
+        hip_girth: real("hip_girth"),
+        chest_girth: real("chest_girth"),
+        // End of new girth measurements
         bmi: real("bmi"),
         bf: real("bf"), // Body Fat %
         lm: real("lm"), // Lean Mass

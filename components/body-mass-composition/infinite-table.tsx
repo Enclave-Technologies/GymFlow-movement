@@ -205,6 +205,15 @@ export function InfiniteTable({
             calf: null,
             quad: null,
             ham: null,
+            // Add new girth measurements
+            waist_girth: null,
+            thigh_left_girth: null,
+            thigh_right_girth: null,
+            arm_left_girth: null,
+            arm_right_girth: null,
+            hip_girth: null,
+            chest_girth: null,
+            // End of new girth measurements
             bmi: null,
             bf: null,
             lm: null,
@@ -320,6 +329,15 @@ export function InfiniteTable({
                 calf: record.calf,
                 quad: record.quad,
                 ham: record.ham,
+                // Add new girth measurements
+                waist_girth: record.waist_girth,
+                thigh_left_girth: record.thigh_left_girth,
+                thigh_right_girth: record.thigh_right_girth,
+                arm_left_girth: record.arm_left_girth,
+                arm_right_girth: record.arm_right_girth,
+                hip_girth: record.hip_girth,
+                chest_girth: record.chest_girth,
+                // End of new girth measurements
                 bmi: record.bmi,
                 bf: record.bf,
                 lm: record.lm,
