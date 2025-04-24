@@ -11,6 +11,7 @@ import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Textarea } from "../ui/textarea";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 
 interface SessionLog {
     workoutSessionLogId: string;
@@ -56,11 +57,12 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
                 if (target.isIntersecting && hasMore && !isLoading) {
                     setIsLoading(true);
                     try {
-                        const { items, total } = await fetchWorkoutSessionLogsPage(
-                            userId,
-                            page * 10,
-                            10
-                        );
+                        const { items, total } =
+                            await fetchWorkoutSessionLogsPage(
+                                userId,
+                                page * 10,
+                                10
+                            );
                         if (items.length > 0) {
                             setSessions((prev) => [...prev, ...items]);
                             setPage((p) => p + 1);
@@ -221,7 +223,7 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
                                     }
                                     title="Delete workout session"
                                 >
-                                    <svg
+                                    {/* <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         width="16"
                                         height="16"
@@ -235,7 +237,8 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
                                         <path d="M3 6h18"></path>
                                         <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
                                         <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                                    </svg>
+                                    </svg> */}
+                                    <Trash2 />
                                 </button>
                             </div>
                         </div>

@@ -19,7 +19,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { MoreHorizontal, Edit, Save, X } from "lucide-react";
+import { MoreHorizontal, Edit, Save, X, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 // Define the BMC record type to match what comes from the database
@@ -74,6 +74,7 @@ export interface BMCTableMeta {
     onEdit: (rowIndex: number) => void;
     onSave: (rowIndex: number) => void;
     onCancel: (rowIndex: number) => void;
+    onDelete: (rowIndex: number) => void;
     age?: number | null; // Add age from meta
     idealWeight?: number | null; // Add idealWeight from meta
 }
@@ -124,11 +125,13 @@ function ActionsCell({
     onEdit,
     onSave,
     onCancel,
+    onDelete,
 }: {
     row: Row<BMCRecord>;
     onEdit: () => void;
     onSave: () => void;
     onCancel: () => void;
+    onDelete: () => void;
 }) {
     const isEditing = row.original.isEditing;
     const isDirty = row.original.isDirty;
@@ -170,6 +173,12 @@ function ActionsCell({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onEdit}>
                     <Edit className="mr-2 h-4 w-4" /> Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    onClick={onDelete}
+                    className="text-red-600 focus:text-red-700"
+                >
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
@@ -1193,6 +1202,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                         onEdit={() => meta?.onEdit?.(row.index)}
                         onSave={() => meta?.onSave?.(row.index)}
                         onCancel={() => meta?.onCancel?.(row.index)}
+                        onDelete={() => meta?.onDelete?.(row.index)}
                     />
                 </div>
             );

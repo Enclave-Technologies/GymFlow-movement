@@ -207,8 +207,6 @@ export async function deleteBMCRecord(measurementId: string) {
 export async function getClientBMCRecordPaginated(
     params: Record<string, unknown> = {}
 ) {
-    console.log("PARAMS RECEIVED IN BMC FETCH\n", JSON.stringify(params));
-
     const clientId =
         typeof params.clientId === "string" ? params.clientId : null;
 
@@ -240,8 +238,6 @@ export async function getClientBMCRecordPaginated(
             ? parseInt(params.pageSize, 10)
             : 10;
 
-    console.log("APPLIED THE FOLLOWING FILTERS", pageIndex, pageSize);
-
     const [countResult, BMCRecordData] = await Promise.all([
         db
             .select({ count: sql<number>`count(*)` })
@@ -257,8 +253,6 @@ export async function getClientBMCRecordPaginated(
     ]);
 
     const totalCount = Number(countResult[0]?.count || 0);
-
-    console.log("TOTAL COUNTS OF BMC FOR USER: ", totalCount);
 
     return {
         data: BMCRecordData,

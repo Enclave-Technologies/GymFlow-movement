@@ -20,7 +20,15 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { saveBMCRecord } from "@/actions/bmc_actions";
+import { saveBMCRecord, deleteBMCRecord } from "@/actions/bmc_actions";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogFooter,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
 
 // Helper function to calculate BF% and LM
 const calculateBfAndLm = (
@@ -138,6 +146,13 @@ export function InfiniteTable({
     const [originalData, setOriginalData] = React.useState<BMCRecord[]>([]);
     const [unsavedChanges, setUnsavedChanges] = React.useState<boolean>(false);
     const [isSaving, setIsSaving] = React.useState<boolean>(false);
+
+    // State for delete confirmation dialog
+    const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+    const [deleteTarget, setDeleteTarget] = React.useState<{
+        rowIndex: number;
+        record: BMCRecord;
+    } | null>(null);
 
     // Use React Query for data fetching with infinite scroll
     const {
@@ -404,9 +419,10 @@ export function InfiniteTable({
                 );
                 setUnsavedChanges(stillHasUnsavedChanges);
 
-                // Invalidate queries to refresh data from server
-                queryClient.invalidateQueries({
+                // Force a refetch to ensure data consistency
+                await queryClient.refetchQueries({
                     queryKey: ["bmcRecords", queryId, clientId],
+                    exact: true,
                 });
             } else {
                 toast.error(result.message);
@@ -455,6 +471,55 @@ export function InfiniteTable({
         setUnsavedChanges(stillHasUnsavedChanges);
     };
 
+    // Handler for delete action (opens dialog)
+    const handleDelete = (rowIndex: number) => {
+        setDeleteTarget({ rowIndex, record: data[rowIndex] });
+        setDeleteDialogOpen(true);
+    };
+
+    // Handler for confirming delete
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        const { rowIndex, record } = deleteTarget;
+        setIsSaving(true);
+        try {
+            const result = await deleteBMCRecord(record.measurementId);
+            if (result.success) {
+                toast.success(result.message);
+                
+                // Remove the record from local state
+                setData((old) => old.filter((_, idx) => idx !== rowIndex));
+                setOriginalData((old) =>
+                    old.filter((r) => r.measurementId !== record.measurementId)
+                );
+                
+                // Force a refetch to ensure data consistency
+                await queryClient.refetchQueries({
+                    queryKey: ["bmcRecords", queryId, clientId],
+                    exact: true,
+                });
+            } else {
+                toast.error(result.message);
+            }
+        } catch (error) {
+            toast.error(
+                `Failed to delete record: ${
+                    error instanceof Error ? error.message : String(error)
+                }`
+            );
+        } finally {
+            setIsSaving(false);
+            setDeleteDialogOpen(false);
+            setDeleteTarget(null);
+        }
+    };
+
+    // Handler for canceling delete
+    const cancelDelete = () => {
+        setDeleteDialogOpen(false);
+        setDeleteTarget(null);
+    };
+
     // Create react-table instance with meta data for our custom actions
     const table = useReactTable({
         data,
@@ -472,6 +537,7 @@ export function InfiniteTable({
             onEdit: handleEdit,
             onSave: handleSave,
             onCancel: handleCancel,
+            onDelete: handleDelete,
             age, // Pass age to meta
             idealWeight, // Pass idealWeight to meta
         } as TableMeta<BMCRecord> & {
@@ -546,6 +612,49 @@ export function InfiniteTable({
 
     return (
         <div className="space-y-4 pt-1">
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete BMC Record</DialogTitle>
+                        <DialogDescription>
+                            {deleteTarget && (
+                                <>
+                                    Are you sure you want to delete this record?
+                                    <br />
+                                    <span className="font-medium">
+                                        Date:{" "}
+                                        {deleteTarget.record.date
+                                            ? new Date(
+                                                  deleteTarget.record.date
+                                              ).toLocaleDateString()
+                                            : "N/A"}
+                                    </span>
+                                    {/* <br />
+                                    <span className="font-medium">
+                                        User ID: {deleteTarget.record.userId}
+                                    </span> */}
+                                </>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={cancelDelete}
+                            disabled={isSaving}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmDelete}
+                            disabled={isSaving}
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             <div className="flex justify-between items-center">
                 <div className="flex items-center text-sm text-muted-foreground">
                     ({data.length} of {totalRowCount} records)
