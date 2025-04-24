@@ -1,10 +1,11 @@
 import { checkGuestApproval } from "@/lib/auth-utils";
 import React from "react";
+import { SettingsClient } from "./settings-client";
 
 const Settings = async () => {
-    // Check if user is a Guest and not approved
-    await checkGuestApproval();
-    return <div>Settings</div>;
+  await checkGuestApproval();
+
+  return <SettingsClient />;
 };
 
 export default Settings;

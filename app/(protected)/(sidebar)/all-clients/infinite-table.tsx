@@ -21,7 +21,7 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import CompactTableOperations from "@/components/ui/compact-table-operations";
-
+import { useRouter } from "next/navigation";
 interface InfiniteTableProps {
     fetchDataFn: (params: any) => Promise<any>;
     columns: ColumnDef<any, unknown>[];
@@ -34,6 +34,7 @@ export function InfiniteTable({
     queryId = "default",
 }: InfiniteTableProps) {
     const queryClient = useQueryClient();
+    const router = useRouter();
     // Reference to the scrolling element
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
 
@@ -246,6 +247,7 @@ export function InfiniteTable({
                 showNewButton={true}
                 onNewClick={() => {
                     console.log("New button clicked");
+                    router.push("/onboard-users");
                     // In a real application, you might want to navigate to a create form or open a modal
                 }}
                 showDeleteButton={true}
