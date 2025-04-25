@@ -5,8 +5,7 @@ import { db } from "@/db/xata";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import "server-only";
-
-
+import { randomUUID } from "crypto";
 
 /**
  * Update a user's idealWeight in the Users table.
@@ -14,39 +13,39 @@ import "server-only";
  * @param idealWeight - The ideal weight to set
  * @returns Success status and message
  */
-export async function updateUserIdealWeight(userId: string, idealWeight: number) {
-    try {
-        await db
-            .update(Users)
-            .set({ idealWeight })
-            .where(eq(Users.userId, userId));
-        return {
-            success: true,
-            message: "Ideal weight updated successfully",
-        };
-    } catch (error) {
-        console.error("Error updating ideal weight:", error);
-        return {
-            success: false,
-            message: `Error updating ideal weight: ${
-                error instanceof Error ? error.message : String(error)
-            }`,
-        };
-    }
+export async function updateUserIdealWeight(
+  userId: string,
+  idealWeight: number
+) {
+  try {
+    await db.update(Users).set({ idealWeight }).where(eq(Users.userId, userId));
+    return {
+      success: true,
+      message: "Ideal weight updated successfully",
+    };
+  } catch (error) {
+    console.error("Error updating ideal weight:", error);
+    return {
+      success: false,
+      message: `Error updating ideal weight: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
 }
 
 export async function userRoleTable() {
-    const userRoleData = await db
-        .select({
-            userId: Users.userId,
-            roleName: Roles.roleName,
-            approvedByAdmin: UserRoles.approvedByAdmin,
-            userName: Users.fullName, // Include Users.name in the output
-        })
-        .from(UserRoles)
-        .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
-        .innerJoin(Users, eq(UserRoles.userId, Users.userId)); // Join the Users table
-    return userRoleData;
+  const userRoleData = await db
+    .select({
+      userId: Users.userId,
+      roleName: Roles.roleName,
+      approvedByAdmin: UserRoles.approvedByAdmin,
+      userName: Users.fullName, // Include Users.name in the output
+    })
+    .from(UserRoles)
+    .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
+    .innerJoin(Users, eq(UserRoles.userId, Users.userId)); // Join the Users table
+  return userRoleData;
 }
 
 /**
@@ -55,70 +54,70 @@ export async function userRoleTable() {
  * @returns Array of Users being managed by this trainer
  */
 export async function getClientsManagedByUser(trainerAppwriteId: string) {
-    console.log(`Fetching all clients for trainer: ${trainerAppwriteId}`);
+  console.log(`Fetching all clients for trainer: ${trainerAppwriteId}`);
 
-    // First, get the trainer's name
-    const trainerResult = await db
-        .select({
-            fullName: Users.fullName,
-        })
-        .from(Users)
-        .where(eq(Users.userId, trainerAppwriteId))
-        .limit(1);
+  // First, get the trainer's name
+  const trainerResult = await db
+    .select({
+      fullName: Users.fullName,
+    })
+    .from(Users)
+    .where(eq(Users.userId, trainerAppwriteId))
+    .limit(1);
 
-    const trainerName = trainerResult[0]?.fullName || "Unknown Trainer";
+  const trainerName = trainerResult[0]?.fullName || "Unknown Trainer";
 
-    // Then get the clients
-    const clients = await db
-        .select({
-            userId: Users.userId,
-            fullName: Users.fullName,
-            email: Users.email,
-            registrationDate: Users.registrationDate,
-            notes: Users.notes,
-            phone: Users.phone,
-            imageUrl: Users.imageUrl,
-            gender: Users.gender,
-            idealWeight: Users.idealWeight,
-            dob: Users.dob,
-            // Calculate age in JavaScript after fetching
-            relationshipId: TrainerClients.relationshipId,
-            assignedDate: TrainerClients.assignedDate,
-        })
-        .from(TrainerClients)
-        .innerJoin(Users, eq(TrainerClients.clientId, Users.userId))
-        .where(
-            and(
-                eq(TrainerClients.trainerId, trainerAppwriteId),
-                eq(TrainerClients.isActive, true)
-            )
-        )
-        .orderBy(desc(TrainerClients.assignedDate));
+  // Then get the clients
+  const clients = await db
+    .select({
+      userId: Users.userId,
+      fullName: Users.fullName,
+      email: Users.email,
+      registrationDate: Users.registrationDate,
+      notes: Users.notes,
+      phone: Users.phone,
+      imageUrl: Users.imageUrl,
+      gender: Users.gender,
+      idealWeight: Users.idealWeight,
+      dob: Users.dob,
+      // Calculate age in JavaScript after fetching
+      relationshipId: TrainerClients.relationshipId,
+      assignedDate: TrainerClients.assignedDate,
+    })
+    .from(TrainerClients)
+    .innerJoin(Users, eq(TrainerClients.clientId, Users.userId))
+    .where(
+      and(
+        eq(TrainerClients.trainerId, trainerAppwriteId),
+        eq(TrainerClients.isActive, true)
+      )
+    )
+    .orderBy(desc(TrainerClients.assignedDate));
 
-    // Add age and trainerName to each client
-    const clientsWithAge = clients.map((client) => {
-        // Calculate age from dob if available
-        let age = null;
-        if (client.dob) {
-            const today = new Date();
-            const birthDate = new Date(client.dob);
-            age = today.getFullYear() - birthDate.getFullYear();
-            const m = today.getMonth() - birthDate.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-            }
-        }
+  // Add age and trainerName to each client
+  const clientsWithAge = clients.map((client) => {
+    // Calculate age from dob if available
+    let age = null;
+    if (client.dob) {
+      const today = new Date();
+      const birthDate = new Date(client.dob);
+      age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+    }
 
-        return {
-            ...client,
-            age,
-            trainerName,
-        };
-    });
+    return {
+      ...client,
+      age,
+      trainerName,
+    };
+  });
 
-    console.log("Found clients:", clientsWithAge.length);
-    // console.log("Sample client data:", clientsWithAge[0] || "No clients found");
-    return clientsWithAge;
+  console.log("Found clients:", clientsWithAge.length);
+  // console.log("Sample client data:", clientsWithAge[0] || "No clients found");
+  return clientsWithAge;
 }
 
 /**
@@ -130,287 +129,269 @@ export async function getClientsManagedByUser(trainerAppwriteId: string) {
  * @returns Object containing clients array and pagination info
  */
 export async function getClientsManagedByUserPaginated(
-    trainerAppwriteId: string,
-    params: Record<string, unknown> | number = 0,
-    pageSize: number = 10
+  trainerAppwriteId: string,
+  params: Record<string, unknown> | number = 0,
+  pageSize: number = 10
 ) {
-    // Handle both new params object and old separate parameters
-    let page = 0;
-    let size = pageSize;
-    let filters: Record<string, unknown> = {};
-    let sorting: Array<{ id: string; desc: boolean }> = [];
-    let search: string | undefined;
-    let parsedFilters: Array<{ id: string; value: unknown }> = [];
+  // Handle both new params object and old separate parameters
+  let page = 0;
+  let size = pageSize;
+  let filters: Record<string, unknown> = {};
+  let sorting: Array<{ id: string; desc: boolean }> = [];
+  let search: string | undefined;
+  let parsedFilters: Array<{ id: string; value: unknown }> = [];
 
-    // Ensure trainerAppwriteId is a string
-    if (typeof trainerAppwriteId !== "string") {
-        console.error("Invalid trainerAppwriteId:", trainerAppwriteId);
-        throw new Error("trainerAppwriteId must be a string");
+  // Ensure trainerAppwriteId is a string
+  if (typeof trainerAppwriteId !== "string") {
+    console.error("Invalid trainerAppwriteId:", trainerAppwriteId);
+    throw new Error("trainerAppwriteId must be a string");
+  }
+
+  console.log(
+    `Received params for trainer ${trainerAppwriteId}:\n`,
+    JSON.stringify(params, null, 2)
+  );
+
+  if (typeof params === "object") {
+    // Extract pagination parameters from params
+    page =
+      typeof params.pageIndex === "number"
+        ? params.pageIndex
+        : typeof params.pageIndex === "string"
+        ? parseInt(params.pageIndex, 10)
+        : 0;
+
+    size =
+      typeof params.pageSize === "number"
+        ? params.pageSize
+        : typeof params.pageSize === "string"
+        ? parseInt(params.pageSize, 10)
+        : 10;
+
+    // Extract sorting from params
+    if (params.sorting && typeof params.sorting === "string") {
+      try {
+        sorting = JSON.parse(params.sorting as string);
+      } catch (e) {
+        console.error("Error parsing sorting parameter:", e);
+      }
     }
 
-    console.log(
-        `Received params for trainer ${trainerAppwriteId}:\n`,
-        JSON.stringify(params, null, 2)
-    );
+    // Extract search from params
+    search = typeof params.search === "string" ? params.search : undefined;
 
-    if (typeof params === "object") {
-        // Extract pagination parameters from params
-        page =
-            typeof params.pageIndex === "number"
-                ? params.pageIndex
-                : typeof params.pageIndex === "string"
-                ? parseInt(params.pageIndex, 10)
-                : 0;
-
-        size =
-            typeof params.pageSize === "number"
-                ? params.pageSize
-                : typeof params.pageSize === "string"
-                ? parseInt(params.pageSize, 10)
-                : 10;
-
-        // Extract sorting from params
-        if (params.sorting && typeof params.sorting === "string") {
-            try {
-                sorting = JSON.parse(params.sorting as string);
-            } catch (e) {
-                console.error("Error parsing sorting parameter:", e);
-            }
-        }
-
-        // Extract search from params
-        search = typeof params.search === "string" ? params.search : undefined;
-
-        // Extract filters from params
-        if (params.filters && typeof params.filters === "string") {
-            try {
-                parsedFilters = JSON.parse(params.filters as string);
-                console.log("Parsed filters:", parsedFilters);
-            } catch (e) {
-                console.error("Error parsing filters parameter:", e);
-            }
-        }
-
-        // Keep all other params for potential filtering
-        filters = { ...params };
-
-        console.log("Extracted filters:", filters);
-        console.log("Extracted sorting:", sorting);
-        console.log("Extracted search:", search);
-        console.log("Extracted page:", page);
-        console.log("Extracted pageSize:", size);
-
-        // Remove extracted pagination params to avoid duplication
-        delete filters.pageIndex;
-        delete filters.pageSize;
-        delete filters.sorting;
-        delete filters.search;
-        delete filters.filters;
-    } else {
-        // Old style: separate parameters
-        page = params;
+    // Extract filters from params
+    if (params.filters && typeof params.filters === "string") {
+      try {
+        parsedFilters = JSON.parse(params.filters as string);
+        console.log("Parsed filters:", parsedFilters);
+      } catch (e) {
+        console.error("Error parsing filters parameter:", e);
+      }
     }
 
-    console.log(
-        `Fetching paginated clients for trainer: ${trainerAppwriteId}, page: ${page}, pageSize: ${size}`
-    );
-    if (sorting.length > 0) {
-        console.log(`Sorting:`, sorting);
-    }
-    if (search) {
-        console.log(`Search query:`, search);
-    }
-    if (Object.keys(filters).length > 0) {
-        console.log(`Additional filters:`, filters);
-    }
+    // Keep all other params for potential filtering
+    filters = { ...params };
 
-    const Trainer = alias(Users, "trainer");
-    const Client = alias(Users, "client");
+    console.log("Extracted filters:", filters);
+    console.log("Extracted sorting:", sorting);
+    console.log("Extracted search:", search);
+    console.log("Extracted page:", page);
+    console.log("Extracted pageSize:", size);
 
-    // Build where conditions
-    const baseConditions = [
-        eq(TrainerClients.trainerId, trainerAppwriteId),
-        eq(TrainerClients.isActive, true),
-    ];
+    // Remove extracted pagination params to avoid duplication
+    delete filters.pageIndex;
+    delete filters.pageSize;
+    delete filters.sorting;
+    delete filters.search;
+    delete filters.filters;
+  } else {
+    // Old style: separate parameters
+    page = params;
+  }
 
-    // Define allowed filter columns
-    const ALLOWED_FILTER_COLUMNS = new Set([
-        "fullName",
-        "email",
-        "phone",
-        "gender",
-    ]);
+  console.log(
+    `Fetching paginated clients for trainer: ${trainerAppwriteId}, page: ${page}, pageSize: ${size}`
+  );
+  if (sorting.length > 0) {
+    console.log(`Sorting:`, sorting);
+  }
+  if (search) {
+    console.log(`Search query:`, search);
+  }
+  if (Object.keys(filters).length > 0) {
+    console.log(`Additional filters:`, filters);
+  }
 
-    // Add filter conditions
-    const filterConditions = parsedFilters
-        .map((filter: { id: string; value: unknown }) => {
-            const { id, value } = filter;
+  const Trainer = alias(Users, "trainer");
+  const Client = alias(Users, "client");
 
-            // Skip filters for columns that are not in the allowed list
-            if (!ALLOWED_FILTER_COLUMNS.has(id)) {
-                console.warn(`Unsupported filter column: ${id}`);
-                return undefined;
-            }
+  // Build where conditions
+  const baseConditions = [
+    eq(TrainerClients.trainerId, trainerAppwriteId),
+    eq(TrainerClients.isActive, true),
+  ];
 
-            switch (id) {
-                case "fullName":
-                    return sql`${Client.fullName} ILIKE ${`%${String(
-                        value
-                    )}%`}`;
-                case "email":
-                    return sql`${Client.email} ILIKE ${`%${String(value)}%`}`;
-                case "phone":
-                    return sql`${Client.phone} ILIKE ${`%${String(value)}%`}`;
-                case "gender":
-                    // Handle gender as enum with specific allowed values
-                    const genderValue = String(value).toUpperCase();
-                    if (genderValue === "M" || genderValue === "MALE") {
-                        return eq(Client.gender, "male");
-                    } else if (
-                        genderValue === "F" ||
-                        genderValue === "FEMALE"
-                    ) {
-                        return eq(Client.gender, "female");
-                    } else if (
-                        genderValue === "NB" ||
-                        genderValue === "NON-BINARY"
-                    ) {
-                        return eq(Client.gender, "non-binary");
-                    } else {
-                        return eq(Client.gender, "prefer-not-to-say");
-                    }
-                default:
-                    console.warn(`Unsupported filter column: ${id}`);
-                    return undefined;
-            }
-        })
-        .filter(Boolean);
+  // Define allowed filter columns
+  const ALLOWED_FILTER_COLUMNS = new Set([
+    "fullName",
+    "email",
+    "phone",
+    "gender",
+  ]);
 
-    // Add search condition if provided
-    let searchCondition;
-    if (search) {
-        const searchLike = `%${search}%`;
-        searchCondition = sql`(
+  // Add filter conditions
+  const filterConditions = parsedFilters
+    .map((filter: { id: string; value: unknown }) => {
+      const { id, value } = filter;
+
+      // Skip filters for columns that are not in the allowed list
+      if (!ALLOWED_FILTER_COLUMNS.has(id)) {
+        console.warn(`Unsupported filter column: ${id}`);
+        return undefined;
+      }
+
+      switch (id) {
+        case "fullName":
+          return sql`${Client.fullName} ILIKE ${`%${String(value)}%`}`;
+        case "email":
+          return sql`${Client.email} ILIKE ${`%${String(value)}%`}`;
+        case "phone":
+          return sql`${Client.phone} ILIKE ${`%${String(value)}%`}`;
+        case "gender":
+          // Handle gender as enum with specific allowed values
+          const genderValue = String(value).toUpperCase();
+          if (genderValue === "M" || genderValue === "MALE") {
+            return eq(Client.gender, "male");
+          } else if (genderValue === "F" || genderValue === "FEMALE") {
+            return eq(Client.gender, "female");
+          } else if (genderValue === "NB" || genderValue === "NON-BINARY") {
+            return eq(Client.gender, "non-binary");
+          } else {
+            return eq(Client.gender, "prefer-not-to-say");
+          }
+        default:
+          console.warn(`Unsupported filter column: ${id}`);
+          return undefined;
+      }
+    })
+    .filter(Boolean);
+
+  // Add search condition if provided
+  let searchCondition;
+  if (search) {
+    const searchLike = `%${search}%`;
+    searchCondition = sql`(
             ${Client.fullName} ILIKE ${searchLike} OR
             ${Client.email} ILIKE ${searchLike} OR
             ${Client.phone} ILIKE ${searchLike}
         )`;
-    }
+  }
 
-    // Combine all conditions
-    const whereConditions = [
-        ...baseConditions,
-        ...filterConditions,
-        ...(searchCondition ? [searchCondition] : []),
-    ];
+  // Combine all conditions
+  const whereConditions = [
+    ...baseConditions,
+    ...filterConditions,
+    ...(searchCondition ? [searchCondition] : []),
+  ];
 
-    // Build order by
-    let orderByColumns = [desc(TrainerClients.assignedDate)]; // Default sorting
+  // Build order by
+  let orderByColumns = [desc(TrainerClients.assignedDate)]; // Default sorting
 
-    if (sorting.length > 0) {
-        orderByColumns = sorting.map((sort) => {
-            const { id, desc: isDesc } = sort;
-            switch (id) {
-                case "email":
-                    return isDesc
-                        ? desc(Client.email)
-                        : sql`${Client.email} asc`;
-                case "fullName":
-                    return isDesc
-                        ? desc(Client.fullName)
-                        : sql`${Client.fullName} asc`;
-                case "registrationDate":
-                    return isDesc
-                        ? desc(Client.registrationDate)
-                        : sql`${Client.registrationDate} asc`;
-                case "phone":
-                    return isDesc
-                        ? desc(Client.phone)
-                        : sql`${Client.phone} asc`;
-                case "gender":
-                    return isDesc
-                        ? desc(Client.gender)
-                        : sql`${Client.gender} asc`;
-                case "age":
-                    // Age is calculated, so we sort by dob instead
-                    return isDesc ? sql`${Client.dob} asc` : desc(Client.dob); // Reverse logic for age
-                case "trainerName":
-                    return isDesc
-                        ? desc(Trainer.fullName)
-                        : sql`${Trainer.fullName} asc`;
-                default:
-                    console.warn(`Unsupported sort column: ${id}`);
-                    return desc(TrainerClients.assignedDate); // Default
-            }
-        });
-    }
-
-    // Fetch total count and paginated clients concurrently for faster response
-    const [countResult, clientsWithTrainerName] = await Promise.all([
-        db
-            .select({ count: sql<number>`count(*)` })
-            .from(TrainerClients)
-            .innerJoin(Client, eq(Client.userId, TrainerClients.clientId))
-            .innerJoin(Trainer, eq(Trainer.userId, TrainerClients.trainerId))
-            .where(and(...whereConditions)),
-        db
-            .select({
-                trainerName: Trainer.fullName,
-                userId: Client.userId,
-                fullName: Client.fullName,
-                email: Client.email,
-                registrationDate: Client.registrationDate,
-                notes: Client.notes,
-                phone: Client.phone,
-                imageUrl: Client.imageUrl,
-                gender: Client.gender,
-                idealWeight: Client.idealWeight,
-                dob: Client.dob,
-                relationshipId: TrainerClients.relationshipId,
-                assignedDate: TrainerClients.assignedDate,
-            })
-            .from(TrainerClients)
-            .innerJoin(Trainer, eq(Trainer.userId, TrainerClients.trainerId)) // trainer join
-            .innerJoin(Client, eq(Client.userId, TrainerClients.clientId)) // client join
-            .where(and(...whereConditions))
-            .orderBy(...orderByColumns)
-            .limit(size)
-            .offset(page * size),
-    ]);
-
-    const totalCount = Number(countResult[0]?.count || 0);
-
-    // Map clients to add age calculated on server side
-    const clientsWithAge = clientsWithTrainerName.map((client) => {
-        let age = null;
-        if (client.dob) {
-            const today = new Date();
-            const birthDate = new Date(client.dob);
-            age = today.getFullYear() - birthDate.getFullYear();
-            const m = today.getMonth() - birthDate.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-            }
-        }
-        return { ...client, age };
+  if (sorting.length > 0) {
+    orderByColumns = sorting.map((sort) => {
+      const { id, desc: isDesc } = sort;
+      switch (id) {
+        case "email":
+          return isDesc ? desc(Client.email) : sql`${Client.email} asc`;
+        case "fullName":
+          return isDesc ? desc(Client.fullName) : sql`${Client.fullName} asc`;
+        case "registrationDate":
+          return isDesc
+            ? desc(Client.registrationDate)
+            : sql`${Client.registrationDate} asc`;
+        case "phone":
+          return isDesc ? desc(Client.phone) : sql`${Client.phone} asc`;
+        case "gender":
+          return isDesc ? desc(Client.gender) : sql`${Client.gender} asc`;
+        case "age":
+          // Age is calculated, so we sort by dob instead
+          return isDesc ? sql`${Client.dob} asc` : desc(Client.dob); // Reverse logic for age
+        case "trainerName":
+          return isDesc ? desc(Trainer.fullName) : sql`${Trainer.fullName} asc`;
+        default:
+          console.warn(`Unsupported sort column: ${id}`);
+          return desc(TrainerClients.assignedDate); // Default
+      }
     });
+  }
 
-    console.log(
-        `Found ${clientsWithAge.length} clients (page ${page} of ${Math.ceil(
-            totalCount / size
-        )}) for trainer: ${trainerAppwriteId}`
-    );
+  // Fetch total count and paginated clients concurrently for faster response
+  const [countResult, clientsWithTrainerName] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(TrainerClients)
+      .innerJoin(Client, eq(Client.userId, TrainerClients.clientId))
+      .innerJoin(Trainer, eq(Trainer.userId, TrainerClients.trainerId))
+      .where(and(...whereConditions)),
+    db
+      .select({
+        trainerName: Trainer.fullName,
+        userId: Client.userId,
+        fullName: Client.fullName,
+        email: Client.email,
+        registrationDate: Client.registrationDate,
+        notes: Client.notes,
+        phone: Client.phone,
+        imageUrl: Client.imageUrl,
+        gender: Client.gender,
+        idealWeight: Client.idealWeight,
+        dob: Client.dob,
+        relationshipId: TrainerClients.relationshipId,
+        assignedDate: TrainerClients.assignedDate,
+      })
+      .from(TrainerClients)
+      .innerJoin(Trainer, eq(Trainer.userId, TrainerClients.trainerId)) // trainer join
+      .innerJoin(Client, eq(Client.userId, TrainerClients.clientId)) // client join
+      .where(and(...whereConditions))
+      .orderBy(...orderByColumns)
+      .limit(size)
+      .offset(page * size),
+  ]);
 
-    return {
-        data: clientsWithAge,
-        meta: {
-            totalRowCount: totalCount,
-            page,
-            pageSize: size,
-            totalPages: Math.ceil(totalCount / size),
-            hasMore: (page + 1) * size < totalCount,
-        },
-    };
+  const totalCount = Number(countResult[0]?.count || 0);
+
+  // Map clients to add age calculated on server side
+  const clientsWithAge = clientsWithTrainerName.map((client) => {
+    let age = null;
+    if (client.dob) {
+      const today = new Date();
+      const birthDate = new Date(client.dob);
+      age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+    }
+    return { ...client, age };
+  });
+
+  console.log(
+    `Found ${clientsWithAge.length} clients (page ${page} of ${Math.ceil(
+      totalCount / size
+    )}) for trainer: ${trainerAppwriteId}`
+  );
+
+  return {
+    data: clientsWithAge,
+    meta: {
+      totalRowCount: totalCount,
+      page,
+      pageSize: size,
+      totalPages: Math.ceil(totalCount / size),
+      hasMore: (page + 1) * size < totalCount,
+    },
+  };
 }
 
 /**
@@ -421,288 +402,270 @@ export async function getClientsManagedByUserPaginated(
  * @returns Object containing clients array and pagination info
  */
 export async function getAllClientsPaginated(
-    params: Record<string, unknown> | number = 0,
-    pageSize: number = 10
+  params: Record<string, unknown> | number = 0,
+  pageSize: number = 10
 ) {
-    // Handle both new params object and old separate parameters
-    let page = 0;
-    let size = pageSize;
-    let filters: Record<string, unknown> = {};
-    let sorting: Array<{ id: string; desc: boolean }> = [];
-    let search: string | undefined;
-    let parsedFilters: Array<{ id: string; value: unknown }> = [];
+  // Handle both new params object and old separate parameters
+  let page = 0;
+  let size = pageSize;
+  let filters: Record<string, unknown> = {};
+  let sorting: Array<{ id: string; desc: boolean }> = [];
+  let search: string | undefined;
+  let parsedFilters: Array<{ id: string; value: unknown }> = [];
 
-    console.log(`Received params:`, JSON.stringify(params, null, 2));
+  console.log(`Received params:`, JSON.stringify(params, null, 2));
 
-    if (typeof params === "object") {
-        // Extract pagination parameters from params
-        page =
-            typeof params.pageIndex === "number"
-                ? params.pageIndex
-                : typeof params.pageIndex === "string"
-                ? parseInt(params.pageIndex, 10)
-                : 0;
+  if (typeof params === "object") {
+    // Extract pagination parameters from params
+    page =
+      typeof params.pageIndex === "number"
+        ? params.pageIndex
+        : typeof params.pageIndex === "string"
+        ? parseInt(params.pageIndex, 10)
+        : 0;
 
-        size =
-            typeof params.pageSize === "number"
-                ? params.pageSize
-                : typeof params.pageSize === "string"
-                ? parseInt(params.pageSize, 10)
-                : 10;
+    size =
+      typeof params.pageSize === "number"
+        ? params.pageSize
+        : typeof params.pageSize === "string"
+        ? parseInt(params.pageSize, 10)
+        : 10;
 
-        // Extract sorting from params
-        if (params.sorting && typeof params.sorting === "string") {
-            try {
-                sorting = JSON.parse(params.sorting as string);
-            } catch (e) {
-                console.error("Error parsing sorting parameter:", e);
-            }
-        }
-
-        // Extract search from params
-        search = typeof params.search === "string" ? params.search : undefined;
-
-        // Extract filters from params
-        if (params.filters && typeof params.filters === "string") {
-            try {
-                parsedFilters = JSON.parse(params.filters as string);
-                console.log("Parsed filters:", parsedFilters);
-            } catch (e) {
-                console.error("Error parsing filters parameter:", e);
-            }
-        }
-
-        // Keep all other params for potential filtering
-        filters = { ...params };
-        // Remove extracted pagination params to avoid duplication
-        delete filters.pageIndex;
-        delete filters.pageSize;
-        delete filters.sorting;
-        delete filters.search;
-        delete filters.filters;
-    } else {
-        // Old style: separate parameters
-        page = params;
+    // Extract sorting from params
+    if (params.sorting && typeof params.sorting === "string") {
+      try {
+        sorting = JSON.parse(params.sorting as string);
+      } catch (e) {
+        console.error("Error parsing sorting parameter:", e);
+      }
     }
 
-    console.log(`Fetching all clients, page: ${page}, pageSize: ${size}`);
-    if (sorting.length > 0) {
-        console.log(`Sorting:`, sorting);
+    // Extract search from params
+    search = typeof params.search === "string" ? params.search : undefined;
+
+    // Extract filters from params
+    if (params.filters && typeof params.filters === "string") {
+      try {
+        parsedFilters = JSON.parse(params.filters as string);
+        console.log("Parsed filters:", parsedFilters);
+      } catch (e) {
+        console.error("Error parsing filters parameter:", e);
+      }
     }
-    if (search) {
-        console.log(`Search query:`, search);
-    }
-    if (Object.keys(filters).length > 0) {
-        console.log(`Additional filters:`, filters);
-    }
 
-    // return {
-    //     data: [],
-    //     meta: {
-    //         totalRowCount: 0,
-    //     },
-    // }; // Temporary placeholder
+    // Keep all other params for potential filtering
+    filters = { ...params };
+    // Remove extracted pagination params to avoid duplication
+    delete filters.pageIndex;
+    delete filters.pageSize;
+    delete filters.sorting;
+    delete filters.search;
+    delete filters.filters;
+  } else {
+    // Old style: separate parameters
+    page = params;
+  }
 
-    const Client = alias(Users, "client");
-    const Trainer = alias(Users, "trainer");
+  console.log(`Fetching all clients, page: ${page}, pageSize: ${size}`);
+  if (sorting.length > 0) {
+    console.log(`Sorting:`, sorting);
+  }
+  if (search) {
+    console.log(`Search query:`, search);
+  }
+  if (Object.keys(filters).length > 0) {
+    console.log(`Additional filters:`, filters);
+  }
 
-    // Build where conditions
-    const baseConditions = [
-        eq(Roles.roleName, "Client"),
-        eq(TrainerClients.isActive, true),
-    ];
+  // return {
+  //     data: [],
+  //     meta: {
+  //         totalRowCount: 0,
+  //     },
+  // }; // Temporary placeholder
 
-    // Define allowed filter columns
-    const ALLOWED_FILTER_COLUMNS = new Set([
-        "fullName",
-        "email",
-        "phone",
-        "gender",
-    ]);
+  const Client = alias(Users, "client");
+  const Trainer = alias(Users, "trainer");
 
-    // Add filter conditions
-    const filterConditions = parsedFilters
-        .map((filter: { id: string; value: unknown }) => {
-            const { id, value } = filter;
+  // Build where conditions
+  const baseConditions = [
+    eq(Roles.roleName, "Client"),
+    eq(TrainerClients.isActive, true),
+  ];
 
-            // Skip filters for columns that are not in the allowed list
-            if (!ALLOWED_FILTER_COLUMNS.has(id)) {
-                console.warn(`Unsupported filter column: ${id}`);
-                return undefined;
-            }
+  // Define allowed filter columns
+  const ALLOWED_FILTER_COLUMNS = new Set([
+    "fullName",
+    "email",
+    "phone",
+    "gender",
+  ]);
 
-            switch (id) {
-                case "fullName":
-                    return sql`${Client.fullName} ILIKE ${`%${String(
-                        value
-                    )}%`}`;
-                case "email":
-                    return sql`${Client.email} ILIKE ${`%${String(value)}%`}`;
-                case "phone":
-                    return sql`${Client.phone} ILIKE ${`%${String(value)}%`}`;
-                case "gender":
-                    // Handle gender as enum with specific allowed values
-                    const genderValue = String(value).toUpperCase();
-                    if (genderValue === "M" || genderValue === "MALE") {
-                        return eq(Client.gender, "male");
-                    } else if (
-                        genderValue === "F" ||
-                        genderValue === "FEMALE"
-                    ) {
-                        return eq(Client.gender, "female");
-                    } else if (
-                        genderValue === "NB" ||
-                        genderValue === "NON-BINARY"
-                    ) {
-                        return eq(Client.gender, "non-binary");
-                    } else {
-                        return eq(Client.gender, "prefer-not-to-say");
-                    }
-                default:
-                    console.warn(`Unsupported filter column: ${id}`);
-                    return undefined;
-            }
-        })
-        .filter(Boolean);
+  // Add filter conditions
+  const filterConditions = parsedFilters
+    .map((filter: { id: string; value: unknown }) => {
+      const { id, value } = filter;
 
-    // Add search condition if provided
-    let searchCondition;
-    if (search) {
-        const searchLike = `%${search}%`;
-        searchCondition = sql`(
+      // Skip filters for columns that are not in the allowed list
+      if (!ALLOWED_FILTER_COLUMNS.has(id)) {
+        console.warn(`Unsupported filter column: ${id}`);
+        return undefined;
+      }
+
+      switch (id) {
+        case "fullName":
+          return sql`${Client.fullName} ILIKE ${`%${String(value)}%`}`;
+        case "email":
+          return sql`${Client.email} ILIKE ${`%${String(value)}%`}`;
+        case "phone":
+          return sql`${Client.phone} ILIKE ${`%${String(value)}%`}`;
+        case "gender":
+          // Handle gender as enum with specific allowed values
+          const genderValue = String(value).toUpperCase();
+          if (genderValue === "M" || genderValue === "MALE") {
+            return eq(Client.gender, "male");
+          } else if (genderValue === "F" || genderValue === "FEMALE") {
+            return eq(Client.gender, "female");
+          } else if (genderValue === "NB" || genderValue === "NON-BINARY") {
+            return eq(Client.gender, "non-binary");
+          } else {
+            return eq(Client.gender, "prefer-not-to-say");
+          }
+        default:
+          console.warn(`Unsupported filter column: ${id}`);
+          return undefined;
+      }
+    })
+    .filter(Boolean);
+
+  // Add search condition if provided
+  let searchCondition;
+  if (search) {
+    const searchLike = `%${search}%`;
+    searchCondition = sql`(
             ${Client.fullName} ILIKE ${searchLike} OR
             ${Client.email} ILIKE ${searchLike} OR
             ${Client.phone} ILIKE ${searchLike} OR
             ${Trainer.fullName} ILIKE ${searchLike}
         )`;
-    }
+  }
 
-    // Combine all conditions
-    const whereConditions = [
-        ...baseConditions,
-        ...filterConditions,
-        ...(searchCondition ? [searchCondition] : []),
-    ];
+  // Combine all conditions
+  const whereConditions = [
+    ...baseConditions,
+    ...filterConditions,
+    ...(searchCondition ? [searchCondition] : []),
+  ];
 
-    // Build order by
-    let orderByColumns = [desc(Client.registrationDate)]; // Default sorting
+  // Build order by
+  let orderByColumns = [desc(Client.registrationDate)]; // Default sorting
 
-    if (sorting.length > 0) {
-        orderByColumns = sorting.map((sort) => {
-            const { id, desc: isDesc } = sort;
-            switch (id) {
-                case "email":
-                    return isDesc
-                        ? desc(Client.email)
-                        : sql`${Client.email} asc`;
-                case "fullName":
-                    return isDesc
-                        ? desc(Client.fullName)
-                        : sql`${Client.fullName} asc`;
-                case "registrationDate":
-                    return isDesc
-                        ? desc(Client.registrationDate)
-                        : sql`${Client.registrationDate} asc`;
-                case "phone":
-                    return isDesc
-                        ? desc(Client.phone)
-                        : sql`${Client.phone} asc`;
-                case "gender":
-                    return isDesc
-                        ? desc(Client.gender)
-                        : sql`${Client.gender} asc`;
-                case "age":
-                    // Age is calculated, so we sort by dob instead
-                    return isDesc ? sql`${Client.dob} asc` : desc(Client.dob); // Reverse logic for age
-                case "trainerName":
-                    return isDesc
-                        ? desc(Trainer.fullName)
-                        : sql`${Trainer.fullName} asc`;
-                default:
-                    console.warn(`Unsupported sort column: ${id}`);
-                    return desc(Client.registrationDate); // Default
-            }
-        });
-    }
-
-    // Get total count of clients with role "client" who have an active trainer relationship
-    const [countResult, clientsQuery] = await Promise.all([
-        db
-            .select({ count: sql<number>`count(*)` })
-            .from(Client)
-            .innerJoin(
-                TrainerClients,
-                and(
-                    eq(Client.userId, TrainerClients.clientId),
-                    eq(TrainerClients.isActive, true)
-                )
-            )
-            .innerJoin(Trainer, eq(Trainer.userId, TrainerClients.trainerId))
-            .innerJoin(UserRoles, eq(Client.userId, UserRoles.userId))
-            .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
-            .where(and(...whereConditions)),
-        db
-            .select({
-                userId: Client.userId,
-                fullName: Client.fullName,
-                email: Client.email,
-                registrationDate: Client.registrationDate,
-                notes: Client.notes,
-                phone: Client.phone,
-                imageUrl: Client.imageUrl,
-                gender: Client.gender,
-                idealWeight: Client.idealWeight,
-                dob: Client.dob,
-                relationshipId: TrainerClients.relationshipId,
-                assignedDate: TrainerClients.assignedDate,
-                trainerId: Trainer.userId,
-                trainerName: Trainer.fullName,
-            })
-            .from(TrainerClients)
-            .innerJoin(Client, eq(Client.userId, TrainerClients.clientId))
-            .innerJoin(Trainer, eq(Trainer.userId, TrainerClients.trainerId))
-            .innerJoin(UserRoles, eq(Client.userId, UserRoles.userId))
-            .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
-            .where(and(...whereConditions))
-            .orderBy(...orderByColumns)
-            .limit(size)
-            .offset(page * size),
-    ]);
-
-    const totalCount = Number(countResult[0]?.count || 0);
-    console.log(`Total clients found: ${totalCount}`);
-
-    // Add age calculation
-    const clients = clientsQuery.map((client) => {
-        let age: number | null = null;
-        if (client.dob) {
-            const today = new Date();
-            const birthDate = new Date(client.dob);
-            age = today.getFullYear() - birthDate.getFullYear();
-            const m = today.getMonth() - birthDate.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-            }
-        }
-        return { ...client, age };
+  if (sorting.length > 0) {
+    orderByColumns = sorting.map((sort) => {
+      const { id, desc: isDesc } = sort;
+      switch (id) {
+        case "email":
+          return isDesc ? desc(Client.email) : sql`${Client.email} asc`;
+        case "fullName":
+          return isDesc ? desc(Client.fullName) : sql`${Client.fullName} asc`;
+        case "registrationDate":
+          return isDesc
+            ? desc(Client.registrationDate)
+            : sql`${Client.registrationDate} asc`;
+        case "phone":
+          return isDesc ? desc(Client.phone) : sql`${Client.phone} asc`;
+        case "gender":
+          return isDesc ? desc(Client.gender) : sql`${Client.gender} asc`;
+        case "age":
+          // Age is calculated, so we sort by dob instead
+          return isDesc ? sql`${Client.dob} asc` : desc(Client.dob); // Reverse logic for age
+        case "trainerName":
+          return isDesc ? desc(Trainer.fullName) : sql`${Trainer.fullName} asc`;
+        default:
+          console.warn(`Unsupported sort column: ${id}`);
+          return desc(Client.registrationDate); // Default
+      }
     });
+  }
 
-    console.log(
-        `Found ${clients.length} clients (page ${page} of ${Math.ceil(
-            totalCount / size
-        )})`
-    );
+  // Get total count of clients with role "client" who have an active trainer relationship
+  const [countResult, clientsQuery] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(Client)
+      .innerJoin(
+        TrainerClients,
+        and(
+          eq(Client.userId, TrainerClients.clientId),
+          eq(TrainerClients.isActive, true)
+        )
+      )
+      .innerJoin(Trainer, eq(Trainer.userId, TrainerClients.trainerId))
+      .innerJoin(UserRoles, eq(Client.userId, UserRoles.userId))
+      .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
+      .where(and(...whereConditions)),
+    db
+      .select({
+        userId: Client.userId,
+        fullName: Client.fullName,
+        email: Client.email,
+        registrationDate: Client.registrationDate,
+        notes: Client.notes,
+        phone: Client.phone,
+        imageUrl: Client.imageUrl,
+        gender: Client.gender,
+        idealWeight: Client.idealWeight,
+        dob: Client.dob,
+        relationshipId: TrainerClients.relationshipId,
+        assignedDate: TrainerClients.assignedDate,
+        trainerId: Trainer.userId,
+        trainerName: Trainer.fullName,
+      })
+      .from(TrainerClients)
+      .innerJoin(Client, eq(Client.userId, TrainerClients.clientId))
+      .innerJoin(Trainer, eq(Trainer.userId, TrainerClients.trainerId))
+      .innerJoin(UserRoles, eq(Client.userId, UserRoles.userId))
+      .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
+      .where(and(...whereConditions))
+      .orderBy(...orderByColumns)
+      .limit(size)
+      .offset(page * size),
+  ]);
 
-    return {
-        data: clients,
-        meta: {
-            totalRowCount: totalCount,
-            page,
-            pageSize: size,
-            totalPages: Math.ceil(totalCount / size),
-            hasMore: (page + 1) * size < totalCount,
-        },
-    };
+  const totalCount = Number(countResult[0]?.count || 0);
+  console.log(`Total clients found: ${totalCount}`);
+
+  // Add age calculation
+  const clients = clientsQuery.map((client) => {
+    let age: number | null = null;
+    if (client.dob) {
+      const today = new Date();
+      const birthDate = new Date(client.dob);
+      age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+    }
+    return { ...client, age };
+  });
+
+  console.log(
+    `Found ${clients.length} clients (page ${page} of ${Math.ceil(
+      totalCount / size
+    )})`
+  );
+
+  return {
+    data: clients,
+    meta: {
+      totalRowCount: totalCount,
+      page,
+      pageSize: size,
+      totalPages: Math.ceil(totalCount / size),
+      hasMore: (page + 1) * size < totalCount,
+    },
+  };
 }
 
 /**
@@ -717,81 +680,282 @@ export async function getAllClientsPaginated(
  * @returns Object containing success status and count of deleted relationships
  */
 export async function bulkDeleteClientRelationships(
-    trainerAppwriteId: string,
-    clientIds: string[]
+  trainerAppwriteId: string,
+  clientIds: string[]
 ) {
+  console.log(
+    `Bulk deleting ${clientIds.length} client relationships for trainer: ${trainerAppwriteId}`
+  );
+
+  if (!clientIds.length) {
+    return {
+      success: false,
+      message: "No client IDs provided",
+      count: 0,
+    };
+  }
+
+  try {
+    // Mark relationships as inactive rather than deleting them
+    await db
+      .update(TrainerClients)
+      .set({
+        isActive: false,
+      })
+      .where(
+        and(
+          eq(TrainerClients.trainerId, trainerAppwriteId),
+          inArray(TrainerClients.clientId, clientIds)
+        )
+      );
+
     console.log(
-        `Bulk deleting ${clientIds.length} client relationships for trainer: ${trainerAppwriteId}`
+      `Successfully marked ${clientIds.length} client relationships as inactive`
     );
 
-    if (!clientIds.length) {
-        return {
-            success: false,
-            message: "No client IDs provided",
-            count: 0,
-        };
-    }
-
-    try {
-        // Mark relationships as inactive rather than deleting them
-        await db
-            .update(TrainerClients)
-            .set({
-                isActive: false,
-            })
-            .where(
-                and(
-                    eq(TrainerClients.trainerId, trainerAppwriteId),
-                    inArray(TrainerClients.clientId, clientIds)
-                )
-            );
-
-        console.log(
-            `Successfully marked ${clientIds.length} client relationships as inactive`
-        );
-
-        return {
-            success: true,
-            message: `Successfully removed ${clientIds.length} client${
-                clientIds.length !== 1 ? "s" : ""
-            }`,
-            count: clientIds.length,
-        };
-    } catch (error) {
-        console.error("Error bulk deleting client relationships:", error);
-        return {
-            success: false,
-            message: `Error removing clients: ${
-                error instanceof Error ? error.message : String(error)
-            }`,
-            count: 0,
-        };
-    }
+    return {
+      success: true,
+      message: `Successfully removed ${clientIds.length} client${
+        clientIds.length !== 1 ? "s" : ""
+      }`,
+      count: clientIds.length,
+    };
+  } catch (error) {
+    console.error("Error bulk deleting client relationships:", error);
+    return {
+      success: false,
+      message: `Error removing clients: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      count: 0,
+    };
+  }
 }
 
 export async function getClientById(clientId: string) {
-    const client = await db
-        .select({
-            userId: Users.userId,
-            fullName: Users.fullName,
-            email: Users.email,
-            phone: Users.phone,
-            imageUrl: sql<string>`COALESCE(${Users.imageUrl}, '')`.as(
-                "imageUrl"
-            ),
-            gender: Users.gender,
-            idealWeight: Users.idealWeight,
-            dob: Users.dob,
-            notes: Users.notes,
-            registrationDate: Users.registrationDate,
-            emergencyContactName: Users.emergencyContactName,
-            emergencyContactPhone: Users.emergencyContactPhone,
+  const client = await db
+    .select({
+      userId: Users.userId,
+      fullName: Users.fullName,
+      email: Users.email,
+      phone: Users.phone,
+      imageUrl: sql<string>`COALESCE(${Users.imageUrl}, '')`.as("imageUrl"),
+      gender: Users.gender,
+      idealWeight: Users.idealWeight,
+      dob: Users.dob,
+      notes: Users.notes,
+      registrationDate: Users.registrationDate,
+      emergencyContactName: Users.emergencyContactName,
+      emergencyContactPhone: Users.emergencyContactPhone,
+      trainerId: TrainerClients.trainerId,
+    })
+    .from(Users)
+    .innerJoin(UserRoles, eq(Users.userId, UserRoles.userId))
+    .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
+    .innerJoin(TrainerClients, eq(Users.userId, TrainerClients.clientId))
+    .where(and(eq(Users.userId, clientId), eq(Roles.roleName, "Client")))
+    .limit(1);
+
+  return client[0] || null;
+}
+
+/**
+ * Create a new client with associated trainer
+ * @param clientData - Client data including personal details and trainer assignment
+ * @returns The created client data or error
+ */
+export async function createClient(clientData: {
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phoneNumber?: string;
+  coachNotes?: string;
+  gender?: string;
+  dateOfBirth?: Date;
+  idealWeight?: number;
+  trainerId: string;
+}) {
+  try {
+    console.log("Creating new client:", clientData);
+
+    // Create fullName from firstName and lastName
+    const fullName = `${clientData.firstName} ${clientData.lastName}`.trim();
+
+    // Generate a unique ID for appwrite_id (using UUID v4)
+    const appwrite_id = randomUUID();
+
+    // Insert new user with Client role
+    const newClient = await db.transaction(async (tx) => {
+      // 1. Create the user
+      const [user] = await tx
+        .insert(Users)
+        .values({
+          appwrite_id,
+          fullName,
+          email: clientData.email || null,
+          phone: clientData.phoneNumber || null,
+          notes: clientData.coachNotes || null,
+          gender:
+            (clientData.gender as
+              | "male"
+              | "female"
+              | "non-binary"
+              | "prefer-not-to-say") || null,
+          dob: clientData.dateOfBirth ? new Date(clientData.dateOfBirth) : null,
+          idealWeight: clientData.idealWeight || null,
+          registrationDate: new Date(),
         })
-        .from(Users)
-        .innerJoin(UserRoles, eq(Users.userId, UserRoles.userId))
-        .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
-        .where(and(eq(Users.userId, clientId), eq(Roles.roleName, "Client")))
+        .returning();
+
+      if (!user) {
+        throw new Error("Failed to create user");
+      }
+
+      // 2. Get Client role ID
+      const clientRole = await tx
+        .select({ roleId: Roles.roleId })
+        .from(Roles)
+        .where(eq(Roles.roleName, "Client"))
         .limit(1);
 
-    return client[0] || null;
+      if (!clientRole.length) {
+        throw new Error("Client role not found");
+      }
+
+      // 3. Assign Client role to user
+      await tx.insert(UserRoles).values({
+        userId: user.userId,
+        roleId: clientRole[0].roleId,
+        approvedByAdmin: true,
+      });
+
+      // 4. Create trainer-client relationship
+      await tx.insert(TrainerClients).values({
+        trainerId: clientData.trainerId,
+        clientId: user.userId,
+        assignedDate: new Date(),
+        isActive: true,
+      });
+
+      return user;
+    });
+
+    console.log("Client created successfully:", newClient.userId);
+    return { success: true, data: newClient };
+  } catch (error) {
+    console.error("Error creating client:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Update an existing client
+ * @param clientId - ID of the client to update
+ * @param clientData - Updated client data
+ * @returns Success status and updated client data
+ */
+export async function updateClient(
+  clientId: string,
+  clientData: {
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phoneNumber?: string;
+    coachNotes?: string;
+    gender?: string;
+    dateOfBirth?: Date;
+    idealWeight?: number;
+    trainerId?: string;
+  }
+) {
+  try {
+    console.log("Updating client:", clientId, clientData);
+
+    // Create fullName from firstName and lastName
+    const fullName = `${clientData.firstName} ${clientData.lastName}`.trim();
+
+    // Update user record
+    await db.transaction(async (tx) => {
+      // 1. Update the user details
+      await tx
+        .update(Users)
+        .set({
+          fullName,
+          email: clientData.email || null,
+          phone: clientData.phoneNumber || null,
+          notes: clientData.coachNotes || null,
+          gender:
+            (clientData.gender as
+              | "male"
+              | "female"
+              | "non-binary"
+              | "prefer-not-to-say") || null,
+          dob: clientData.dateOfBirth ? new Date(clientData.dateOfBirth) : null,
+          idealWeight: clientData.idealWeight || null,
+        })
+        .where(eq(Users.userId, clientId));
+
+      // 2. Update trainer relationship if trainerId is provided
+      if (clientData.trainerId) {
+        // Check if there's an existing relationship
+        const existingRelationship = await tx
+          .select()
+          .from(TrainerClients)
+          .where(
+            and(
+              eq(TrainerClients.clientId, clientId),
+              eq(TrainerClients.isActive, true)
+            )
+          )
+          .limit(1);
+
+        if (existingRelationship.length > 0) {
+          // If relationship exists with a different trainer, update it
+          if (existingRelationship[0].trainerId !== clientData.trainerId) {
+            // Mark old relationship as inactive
+            await tx
+              .update(TrainerClients)
+              .set({ isActive: false })
+              .where(
+                eq(
+                  TrainerClients.relationshipId,
+                  existingRelationship[0].relationshipId
+                )
+              );
+
+            // Create new relationship
+            await tx.insert(TrainerClients).values({
+              trainerId: clientData.trainerId,
+              clientId: clientId,
+              assignedDate: new Date(),
+              isActive: true,
+            });
+          }
+        } else {
+          // Create new relationship if none exists
+          await tx.insert(TrainerClients).values({
+            trainerId: clientData.trainerId,
+            clientId: clientId,
+            assignedDate: new Date(),
+            isActive: true,
+          });
+        }
+      }
+    });
+
+    // Fetch updated client to return
+    const updatedClient = await getClientById(clientId);
+
+    console.log("Client updated successfully:", clientId);
+    return { success: true, data: updatedClient };
+  } catch (error) {
+    console.error("Error updating client:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
