@@ -44,13 +44,13 @@ export type BMCRecord = {
     quad: number | null;
     ham: number | null;
     // Add new girth measurements
-    waist_girth: number | null;
-    thigh_left_girth: number | null;
-    thigh_right_girth: number | null;
-    arm_left_girth: number | null;
-    arm_right_girth: number | null;
-    hip_girth: number | null;
-    chest_girth: number | null;
+    waistGirth: number | null;
+    leftThighGirth: number | null;
+    rightThighGirth: number | null;
+    leftArmGirth: number | null;
+    rightArmGirth: number | null;
+    hipGirth: number | null;
+    chestGirth: number | null;
     // End of new girth measurements
     bmi: number | null;
     bf: number | null; // Body Fat %
@@ -963,7 +963,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
         size: 100,
     },
     {
-        accessorKey: "waist_girth",
+        accessorKey: "waistGirth",
         header: () => (
             <div className="text-center">
                 <div>Waist</div>
@@ -971,7 +971,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
             </div>
         ),
         cell: ({ row, table }) => {
-            const value = row.getValue("waist_girth") as number | null;
+            const value = row.getValue("waistGirth") as number | null;
             const isEditing = row.original.isEditing;
             const updateData = (table.options.meta as BMCTableMeta | undefined)
                 ?.updateData;
@@ -983,7 +983,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                         isEditing={!!isEditing}
                         onChange={(newValue) => {
                             if (updateData) {
-                                updateData(row.index, "waist_girth", newValue);
+                                updateData(row.index, "waistGirth", newValue);
                             }
                         }}
                     />
@@ -993,7 +993,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
         size: 100,
     },
     {
-        accessorKey: "thigh_left_girth",
+        accessorKey: "leftThighGirth",
         header: () => (
             <div className="text-center">
                 <div>Left Thigh</div>
@@ -1001,7 +1001,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
             </div>
         ),
         cell: ({ row, table }) => {
-            const value = row.getValue("thigh_left_girth") as number | null;
+            const value = row.getValue("leftThighGirth") as number | null;
             const isEditing = row.original.isEditing;
             const updateData = (table.options.meta as BMCTableMeta | undefined)
                 ?.updateData;
@@ -1015,7 +1015,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                             if (updateData) {
                                 updateData(
                                     row.index,
-                                    "thigh_left_girth",
+                                    "leftThighGirth",
                                     newValue
                                 );
                             }
@@ -1027,7 +1027,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
         size: 120,
     },
     {
-        accessorKey: "thigh_right_girth",
+        accessorKey: "rightThighGirth",
         header: () => (
             <div className="text-center">
                 <div>Right Thigh</div>
@@ -1035,7 +1035,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
             </div>
         ),
         cell: ({ row, table }) => {
-            const value = row.getValue("thigh_right_girth") as number | null;
+            const value = row.getValue("rightThighGirth") as number | null;
             const isEditing = row.original.isEditing;
             const updateData = (table.options.meta as BMCTableMeta | undefined)
                 ?.updateData;
@@ -1049,7 +1049,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                             if (updateData) {
                                 updateData(
                                     row.index,
-                                    "thigh_right_girth",
+                                    "rightThighGirth",
                                     newValue
                                 );
                             }
@@ -1061,7 +1061,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
         size: 120,
     },
     {
-        accessorKey: "arm_left_girth",
+        accessorKey: "leftArmGirth",
         header: () => (
             <div className="text-center">
                 <div>Left Arm</div>
@@ -1069,7 +1069,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
             </div>
         ),
         cell: ({ row, table }) => {
-            const value = row.getValue("arm_left_girth") as number | null;
+            const value = row.getValue("leftArmGirth") as number | null;
             const isEditing = row.original.isEditing;
             const updateData = (table.options.meta as BMCTableMeta | undefined)
                 ?.updateData;
@@ -1083,7 +1083,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                             if (updateData) {
                                 updateData(
                                     row.index,
-                                    "arm_left_girth",
+                                    "leftArmGirth",
                                     newValue
                                 );
                             }
@@ -1095,7 +1095,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
         size: 100,
     },
     {
-        accessorKey: "arm_right_girth",
+        accessorKey: "rightArmGirth",
         header: () => (
             <div className="text-center">
                 <div>Right Arm</div>
@@ -1103,7 +1103,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
             </div>
         ),
         cell: ({ row, table }) => {
-            const value = row.getValue("arm_right_girth") as number | null;
+            const value = row.getValue("rightArmGirth") as number | null;
             const isEditing = row.original.isEditing;
             const updateData = (table.options.meta as BMCTableMeta | undefined)
                 ?.updateData;
@@ -1117,7 +1117,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                             if (updateData) {
                                 updateData(
                                     row.index,
-                                    "arm_right_girth",
+                                    "rightArmGirth",
                                     newValue
                                 );
                             }
@@ -1129,7 +1129,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
         size: 100,
     },
     {
-        accessorKey: "hip_girth",
+        accessorKey: "hipGirth",
         header: () => (
             <div className="text-center">
                 <div>Hip</div>
@@ -1137,7 +1137,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
             </div>
         ),
         cell: ({ row, table }) => {
-            const value = row.getValue("hip_girth") as number | null;
+            const value = row.getValue("hipGirth") as number | null;
             const isEditing = row.original.isEditing;
             const updateData = (table.options.meta as BMCTableMeta | undefined)
                 ?.updateData;
@@ -1149,7 +1149,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                         isEditing={!!isEditing}
                         onChange={(newValue) => {
                             if (updateData) {
-                                updateData(row.index, "hip_girth", newValue);
+                                updateData(row.index, "hipGirth", newValue);
                             }
                         }}
                     />
@@ -1159,7 +1159,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
         size: 100,
     },
     {
-        accessorKey: "chest_girth",
+        accessorKey: "chestGirth",
         header: () => (
             <div className="text-center">
                 <div>Chest</div>
@@ -1167,7 +1167,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
             </div>
         ),
         cell: ({ row, table }) => {
-            const value = row.getValue("chest_girth") as number | null;
+            const value = row.getValue("chestGirth") as number | null;
             const isEditing = row.original.isEditing;
             const updateData = (table.options.meta as BMCTableMeta | undefined)
                 ?.updateData;
@@ -1179,7 +1179,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                         isEditing={!!isEditing}
                         onChange={(newValue) => {
                             if (updateData) {
-                                updateData(row.index, "chest_girth", newValue);
+                                updateData(row.index, "chestGirth", newValue);
                             }
                         }}
                     />

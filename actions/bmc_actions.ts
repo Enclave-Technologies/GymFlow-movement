@@ -28,13 +28,13 @@ export type BMCRecordInput = {
     quad: number | null;
     ham: number | null;
     // Add new girth measurements
-    waist_girth: number | null;
-    thigh_left_girth: number | null;
-    thigh_right_girth: number | null;
-    arm_left_girth: number | null;
-    arm_right_girth: number | null;
-    hip_girth: number | null;
-    chest_girth: number | null;
+    waistGirth: number | null;
+    leftThighGirth: number | null;
+    rightThighGirth: number | null;
+    leftArmGirth: number | null;
+    rightArmGirth: number | null;
+    hipGirth: number | null;
+    chestGirth: number | null;
     // End of new girth measurements
     bmi: number | null;
     bf: number | null;
@@ -76,13 +76,13 @@ export async function saveBMCRecord(record: BMCRecordInput) {
                     quad: record.quad,
                     ham: record.ham,
                     // Add new girth measurements
-                    waist_girth: record.waist_girth,
-                    thigh_left_girth: record.thigh_left_girth,
-                    thigh_right_girth: record.thigh_right_girth,
-                    arm_left_girth: record.arm_left_girth,
-                    arm_right_girth: record.arm_right_girth,
-                    hip_girth: record.hip_girth,
-                    chest_girth: record.chest_girth,
+                    waistGirth: record.waistGirth,
+                    leftThighGirth: record.leftThighGirth,
+                    rightThighGirth: record.rightThighGirth,
+                    leftArmGirth: record.leftArmGirth,
+                    rightArmGirth: record.rightArmGirth,
+                    hipGirth: record.hipGirth,
+                    chestGirth: record.chestGirth,
                     // End of new girth measurements
                     bmi: record.bmi,
                     bf: record.bf,
@@ -114,13 +114,13 @@ export async function saveBMCRecord(record: BMCRecordInput) {
                     quad: record.quad,
                     ham: record.ham,
                     // Add new girth measurements
-                    waist_girth: record.waist_girth,
-                    thigh_left_girth: record.thigh_left_girth,
-                    thigh_right_girth: record.thigh_right_girth,
-                    arm_left_girth: record.arm_left_girth,
-                    arm_right_girth: record.arm_right_girth,
-                    hip_girth: record.hip_girth,
-                    chest_girth: record.chest_girth,
+                    waistGirth: record.waistGirth,
+                    leftThighGirth: record.leftThighGirth,
+                    rightThighGirth: record.rightThighGirth,
+                    leftArmGirth: record.leftArmGirth,
+                    rightArmGirth: record.rightArmGirth,
+                    hipGirth: record.hipGirth,
+                    chestGirth: record.chestGirth,
                     // End of new girth measurements
                     bmi: record.bmi,
                     bf: record.bf,
@@ -253,6 +253,10 @@ export async function getClientBMCRecordPaginated(
     ]);
 
     const totalCount = Number(countResult[0]?.count || 0);
+
+    console.log(
+        `[BMC RECORDS] Fetching BMC for ${clientId}, return ${totalCount} records!`
+    );
 
     return {
         data: BMCRecordData,

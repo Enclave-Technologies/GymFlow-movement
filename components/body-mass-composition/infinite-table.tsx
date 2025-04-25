@@ -5,7 +5,7 @@ import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
 import { BMCRecord, BMCRecordResponse } from "./columns";
 import { motion } from "framer-motion";
 import {
-    keepPreviousData,
+    // keepPreviousData,
     useInfiniteQuery,
     useQueryClient,
 } from "@tanstack/react-query";
@@ -179,8 +179,10 @@ export function InfiniteTable({
             // This will be 1, 2, 3, etc. as pages are added
             return allPages.length;
         },
-        refetchOnWindowFocus: false,
-        placeholderData: keepPreviousData,
+        refetchOnWindowFocus: true,
+        refetchOnMount: true,
+        staleTime: 0, // Override the default staleTime to always refetch
+        // placeholderData: keepPreviousData, // Removed to prevent showing stale data
     });
 
     // Flatten the data from all pages and update our state
@@ -222,13 +224,13 @@ export function InfiniteTable({
             quad: null,
             ham: null,
             // Add new girth measurements
-            waist_girth: null,
-            thigh_left_girth: null,
-            thigh_right_girth: null,
-            arm_left_girth: null,
-            arm_right_girth: null,
-            hip_girth: null,
-            chest_girth: null,
+            waistGirth: null,
+            leftThighGirth: null,
+            rightThighGirth: null,
+            leftArmGirth: null,
+            rightArmGirth: null,
+            hipGirth: null,
+            chestGirth: null,
             // End of new girth measurements
             bmi: null,
             bf: null,
@@ -346,13 +348,13 @@ export function InfiniteTable({
                 quad: record.quad,
                 ham: record.ham,
                 // Add new girth measurements
-                waist_girth: record.waist_girth,
-                thigh_left_girth: record.thigh_left_girth,
-                thigh_right_girth: record.thigh_right_girth,
-                arm_left_girth: record.arm_left_girth,
-                arm_right_girth: record.arm_right_girth,
-                hip_girth: record.hip_girth,
-                chest_girth: record.chest_girth,
+                waistGirth: record.waistGirth,
+                leftThighGirth: record.leftThighGirth,
+                rightThighGirth: record.rightThighGirth,
+                leftArmGirth: record.leftArmGirth,
+                rightArmGirth: record.rightArmGirth,
+                hipGirth: record.hipGirth,
+                chestGirth: record.chestGirth,
                 // End of new girth measurements
                 bmi: record.bmi,
                 bf: record.bf,
@@ -494,11 +496,16 @@ export function InfiniteTable({
                     old.filter((r) => r.measurementId !== record.measurementId)
                 );
 
-                // Force a refetch to ensure data consistency
-                await queryClient.refetchQueries({
-                    queryKey: ["bmcRecords", queryId, clientId, flipState],
-                    exact: true,
+                // Add a small delay to ensure the deletion is committed
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Invalidate the entire cache for BMC records
+                await queryClient.invalidateQueries({
+                    queryKey: ["bmcRecords"],
                 });
+
+                // Toggle flipState to force a complete re-fetch with a new query key
+                setFlipState((prevState) => !prevState);
             } else {
                 toast.error(result.message);
             }
@@ -509,7 +516,6 @@ export function InfiniteTable({
                 }`
             );
         } finally {
-            setFlipState((prevState) => !prevState);
             setIsSaving(false);
             setDeleteDialogOpen(false);
             setDeleteTarget(null);
