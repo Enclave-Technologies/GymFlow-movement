@@ -40,6 +40,8 @@ interface InfiniteDataTableProps<TData, TValue> {
     loadMoreRef?: React.RefObject<HTMLDivElement>;
     height?: string;
     onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+    headerJustifyContent?: string; // NEW: control header justify
+    cellJustifyContent?: string;   // NEW: control cell justify
 }
 
 export function InfiniteDataTable<TData, TValue>({
@@ -57,6 +59,8 @@ export function InfiniteDataTable<TData, TValue>({
     loadMoreRef,
     height = "calc(100vh - 200px)",
     onScroll,
+    headerJustifyContent = "left", // Default to left align
+    cellJustifyContent = "left",   // Default to left align
 }: InfiniteDataTableProps<TData, TValue>) {
     const virtualItems = rowVirtualizer.getVirtualItems();
 
@@ -113,6 +117,7 @@ export function InfiniteDataTable<TData, TValue>({
                                                 ? header.getSize()
                                                 : "auto",
                                         alignItems: "center",
+                                        justifyContent: headerJustifyContent,
                                     }}
                                 >
                                     {header.isPlaceholder
@@ -183,6 +188,7 @@ export function InfiniteDataTable<TData, TValue>({
                                                             ? cell.column.getSize()
                                                             : "auto",
                                                     alignItems: "center",
+                                                    justifyContent: cellJustifyContent,
                                                 }}
                                             >
                                                 {flexRender(

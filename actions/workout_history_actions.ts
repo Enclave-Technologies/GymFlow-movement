@@ -3,6 +3,7 @@
 import { db } from "@/db/xata";
 import { WorkoutSessionDetails, WorkoutSessionsLog } from "@/db/schemas";
 import { eq, desc, sql, and } from "drizzle-orm";
+import "server-only";
 
 /**
  * Fetch a page of workout history details.

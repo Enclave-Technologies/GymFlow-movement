@@ -27,6 +27,15 @@ export type BMCRecordInput = {
     calf: number | null;
     quad: number | null;
     ham: number | null;
+    // Add new girth measurements
+    waistGirth: number | null;
+    leftThighGirth: number | null;
+    rightThighGirth: number | null;
+    leftArmGirth: number | null;
+    rightArmGirth: number | null;
+    hipGirth: number | null;
+    chestGirth: number | null;
+    // End of new girth measurements
     bmi: number | null;
     bf: number | null;
     lm: number | null;
@@ -66,6 +75,15 @@ export async function saveBMCRecord(record: BMCRecordInput) {
                     calf: record.calf,
                     quad: record.quad,
                     ham: record.ham,
+                    // Add new girth measurements
+                    waistGirth: record.waistGirth,
+                    leftThighGirth: record.leftThighGirth,
+                    rightThighGirth: record.rightThighGirth,
+                    leftArmGirth: record.leftArmGirth,
+                    rightArmGirth: record.rightArmGirth,
+                    hipGirth: record.hipGirth,
+                    chestGirth: record.chestGirth,
+                    // End of new girth measurements
                     bmi: record.bmi,
                     bf: record.bf,
                     lm: record.lm,
@@ -95,6 +113,15 @@ export async function saveBMCRecord(record: BMCRecordInput) {
                     calf: record.calf,
                     quad: record.quad,
                     ham: record.ham,
+                    // Add new girth measurements
+                    waistGirth: record.waistGirth,
+                    leftThighGirth: record.leftThighGirth,
+                    rightThighGirth: record.rightThighGirth,
+                    leftArmGirth: record.leftArmGirth,
+                    rightArmGirth: record.rightArmGirth,
+                    hipGirth: record.hipGirth,
+                    chestGirth: record.chestGirth,
+                    // End of new girth measurements
                     bmi: record.bmi,
                     bf: record.bf,
                     lm: record.lm,
@@ -180,8 +207,6 @@ export async function deleteBMCRecord(measurementId: string) {
 export async function getClientBMCRecordPaginated(
     params: Record<string, unknown> = {}
 ) {
-    console.log("PARAMS RECEIVED IN BMC FETCH\n", JSON.stringify(params));
-
     const clientId =
         typeof params.clientId === "string" ? params.clientId : null;
 
@@ -213,8 +238,6 @@ export async function getClientBMCRecordPaginated(
             ? parseInt(params.pageSize, 10)
             : 10;
 
-    console.log("APPLIED THE FOLLOWING FILTERS", pageIndex, pageSize);
-
     const [countResult, BMCRecordData] = await Promise.all([
         db
             .select({ count: sql<number>`count(*)` })
@@ -231,7 +254,9 @@ export async function getClientBMCRecordPaginated(
 
     const totalCount = Number(countResult[0]?.count || 0);
 
-    console.log("TOTAL COUNTS OF BMC FOR USER: ", totalCount);
+    console.log(
+        `[BMC RECORDS] Fetching BMC for ${clientId}, return ${totalCount} records!`
+    );
 
     return {
         data: BMCRecordData,

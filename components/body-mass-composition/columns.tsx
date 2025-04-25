@@ -19,7 +19,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { MoreHorizontal, Edit, Save, X } from "lucide-react"; // Removed CalendarIcon
+import { MoreHorizontal, Edit, Save, X, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 // Define the BMC record type to match what comes from the database
@@ -43,6 +43,15 @@ export type BMCRecord = {
     calf: number | null;
     quad: number | null;
     ham: number | null;
+    // Add new girth measurements
+    waistGirth: number | null;
+    leftThighGirth: number | null;
+    rightThighGirth: number | null;
+    leftArmGirth: number | null;
+    rightArmGirth: number | null;
+    hipGirth: number | null;
+    chestGirth: number | null;
+    // End of new girth measurements
     bmi: number | null;
     bf: number | null; // Body Fat %
     lm: number | null; // Lean Mass
@@ -65,6 +74,7 @@ export interface BMCTableMeta {
     onEdit: (rowIndex: number) => void;
     onSave: (rowIndex: number) => void;
     onCancel: (rowIndex: number) => void;
+    onDelete: (rowIndex: number) => void;
     age?: number | null; // Add age from meta
     idealWeight?: number | null; // Add idealWeight from meta
 }
@@ -115,11 +125,13 @@ function ActionsCell({
     onEdit,
     onSave,
     onCancel,
+    onDelete,
 }: {
     row: Row<BMCRecord>;
     onEdit: () => void;
     onSave: () => void;
     onCancel: () => void;
+    onDelete: () => void;
 }) {
     const isEditing = row.original.isEditing;
     const isDirty = row.original.isDirty;
@@ -161,6 +173,12 @@ function ActionsCell({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onEdit}>
                     <Edit className="mr-2 h-4 w-4" /> Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    onClick={onDelete}
+                    className="text-red-600 focus:text-red-700"
+                >
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
@@ -207,7 +225,6 @@ export const columns: ColumnDef<BMCRecord>[] = [
                                     !value && "text-muted-foreground"
                                 )}
                             >
-                                {/* <CalendarIcon className="mr-2 h-4 w-4" /> */}
                                 {value ? (
                                     format(new Date(value), "MMM d, yyyy")
                                 ) : (
@@ -234,7 +251,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
             }
 
             return (
-                <div className="text-center">
+                <div className="text-center flex justify-center">
                     {value ? format(new Date(value), "MMM d, yyyy") : "—"}
                 </div>
             );
@@ -243,7 +260,12 @@ export const columns: ColumnDef<BMCRecord>[] = [
     },
     {
         accessorKey: "height",
-        header: () => <div className="text-center">Height (cm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Height</div>
+                <div className="text-xs font-normal">(cm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("height") as number | null;
             const isEditing = row.original.isEditing;
@@ -251,23 +273,30 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    autoFocus={true} // Pass autoFocus prop for height column
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "height", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        autoFocus={true} // Pass autoFocus prop for height column
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "height", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "weight",
-        header: () => <div className="text-center">Weight (kg)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Weight</div>
+                <div className="text-xs font-normal">(kg)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("weight") as number | null;
             const isEditing = row.original.isEditing;
@@ -275,15 +304,17 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "weight", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "weight", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
@@ -304,7 +335,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
             }
 
             return (
-                <div className="text-center">
+                <div className="text-center flex justify-center">
                     {bmi === null ? "—" : bmi.toFixed(1)}
                 </div>
             );
@@ -313,7 +344,12 @@ export const columns: ColumnDef<BMCRecord>[] = [
     },
     {
         accessorKey: "bf",
-        header: () => <div className="text-center">Body Fat %</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Body Fat</div>
+                <div className="text-xs font-normal"> (%)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const meta = table.options.meta as BMCTableMeta | undefined;
             const age = meta?.age;
@@ -352,7 +388,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 weight === null ||
                 requiredSkinfolds.some((sf) => sf === null)
             ) {
-                return <div className="text-center">—</div>;
+                return <div className="text-center flex justify-center">—</div>;
             }
 
             // Calculate idealWeight if not provided
@@ -366,7 +402,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
 
             // Ensure calculated idealWeight is valid
             if (idealWeight === null || idealWeight === undefined) {
-                return <div className="text-center">—</div>;
+                return <div className="text-center flex justify-center">—</div>;
             }
 
             // Calculate BF% step-by-step
@@ -388,20 +424,33 @@ export const columns: ColumnDef<BMCRecord>[] = [
 
                 // Check for NaN or Infinity
                 if (!Number.isFinite(bf)) {
-                    return <div className="text-center">—</div>;
+                    return (
+                        <div className="text-center flex justify-center">—</div>
+                    );
                 }
 
-                return <div className="text-center">{bf.toFixed(1)}</div>;
+                return (
+                    <div className="text-center flex justify-center">
+                        {bf.toFixed(1)}
+                    </div>
+                );
             } catch (error) {
                 console.error("Error calculating BF%:", error);
-                return <div className="text-center">Error</div>; // Indicate calculation error
+                return (
+                    <div className="text-center flex justify-center">Error</div>
+                );
             }
         },
         size: 100,
     },
     {
         accessorKey: "lm",
-        header: () => <div className="text-center">Lean Mass (kg)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Lean Mass</div>
+                <div className="text-xs font-normal"> (kg)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const meta = table.options.meta as BMCTableMeta | undefined;
             const age = meta?.age;
@@ -440,7 +489,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 weight === null ||
                 requiredSkinfolds.some((sf) => sf === null)
             ) {
-                return <div className="text-center">—</div>;
+                return <div className="text-center flex justify-center">—</div>;
             }
 
             // Calculate idealWeight if not provided
@@ -450,7 +499,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
 
             // Ensure calculated idealWeight is valid
             if (idealWeight === null || idealWeight === undefined) {
-                return <div className="text-center">—</div>;
+                return <div className="text-center flex justify-center">—</div>;
             }
 
             // Recalculate BF% to ensure consistency
@@ -486,16 +535,21 @@ export const columns: ColumnDef<BMCRecord>[] = [
             }
 
             return (
-                <div className="text-center">
+                <div className="text-center flex justify-center">
                     {lm === null ? "—" : lm.toFixed(1)}
                 </div>
             );
         },
-        size: 120,
+        size: 100,
     },
     {
         accessorKey: "chin",
-        header: () => <div className="text-center">Chin (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Chin</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("chin") as number | null;
             const isEditing = row.original.isEditing;
@@ -503,22 +557,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "chin", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "chin", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "cheek",
-        header: () => <div className="text-center">Cheek (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Cheek</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("cheek") as number | null;
             const isEditing = row.original.isEditing;
@@ -526,22 +587,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "cheek", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "cheek", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "pec",
-        header: () => <div className="text-center">Pec (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Pec</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("pec") as number | null;
             const isEditing = row.original.isEditing;
@@ -549,22 +617,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "pec", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "pec", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "biceps",
-        header: () => <div className="text-center">Biceps (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Biceps</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("biceps") as number | null;
             const isEditing = row.original.isEditing;
@@ -572,22 +647,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "biceps", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "biceps", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "triceps",
-        header: () => <div className="text-center">Triceps (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Triceps</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("triceps") as number | null;
             const isEditing = row.original.isEditing;
@@ -595,22 +677,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "triceps", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "triceps", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "subscap",
-        header: () => <div className="text-center">Subscap (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Subscap</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("subscap") as number | null;
             const isEditing = row.original.isEditing;
@@ -618,22 +707,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "subscap", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "subscap", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "midax",
-        header: () => <div className="text-center">Midax (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Midax</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("midax") as number | null;
             const isEditing = row.original.isEditing;
@@ -641,22 +737,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "midax", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "midax", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "supra",
-        header: () => <div className="text-center">Supra (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Supra</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("supra") as number | null;
             const isEditing = row.original.isEditing;
@@ -664,22 +767,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "supra", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "supra", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "upperThigh",
-        header: () => <div className="text-center">Upper Thigh (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Upper Thigh</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("upperThigh") as number | null;
             const isEditing = row.original.isEditing;
@@ -687,22 +797,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "upperThigh", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "upperThigh", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 120,
     },
     {
         accessorKey: "ubmil",
-        header: () => <div className="text-center">Umbilical (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Umbilical</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("ubmil") as number | null;
             const isEditing = row.original.isEditing;
@@ -710,22 +827,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "ubmil", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "ubmil", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "knee",
-        header: () => <div className="text-center">Knee (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Knee</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("knee") as number | null;
             const isEditing = row.original.isEditing;
@@ -733,22 +857,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "knee", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "knee", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "calf",
-        header: () => <div className="text-center">Calf (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Calf</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("calf") as number | null;
             const isEditing = row.original.isEditing;
@@ -756,22 +887,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "calf", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "calf", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "quad",
-        header: () => <div className="text-center">Quad (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Quad</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("quad") as number | null;
             const isEditing = row.original.isEditing;
@@ -779,22 +917,29 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "quad", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "quad", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
     {
         accessorKey: "ham",
-        header: () => <div className="text-center">Ham (mm)</div>,
+        header: () => (
+            <div className="text-center">
+                <div>Ham</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
         cell: ({ row, table }) => {
             const value = row.getValue("ham") as number | null;
             const isEditing = row.original.isEditing;
@@ -802,19 +947,248 @@ export const columns: ColumnDef<BMCRecord>[] = [
                 ?.updateData;
 
             return (
-                <EditableCell
-                    value={value}
-                    isEditing={!!isEditing}
-                    onChange={(newValue) => {
-                        if (updateData) {
-                            updateData(row.index, "ham", newValue);
-                        }
-                    }}
-                />
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "ham", newValue);
+                            }
+                        }}
+                    />
+                </div>
             );
         },
         size: 100,
     },
+    {
+        accessorKey: "waistGirth",
+        header: () => (
+            <div className="text-center">
+                <div>Waist</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
+        cell: ({ row, table }) => {
+            const value = row.getValue("waistGirth") as number | null;
+            const isEditing = row.original.isEditing;
+            const updateData = (table.options.meta as BMCTableMeta | undefined)
+                ?.updateData;
+
+            return (
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "waistGirth", newValue);
+                            }
+                        }}
+                    />
+                </div>
+            );
+        },
+        size: 100,
+    },
+    {
+        accessorKey: "leftThighGirth",
+        header: () => (
+            <div className="text-center">
+                <div>Left Thigh</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
+        cell: ({ row, table }) => {
+            const value = row.getValue("leftThighGirth") as number | null;
+            const isEditing = row.original.isEditing;
+            const updateData = (table.options.meta as BMCTableMeta | undefined)
+                ?.updateData;
+
+            return (
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(
+                                    row.index,
+                                    "leftThighGirth",
+                                    newValue
+                                );
+                            }
+                        }}
+                    />
+                </div>
+            );
+        },
+        size: 120,
+    },
+    {
+        accessorKey: "rightThighGirth",
+        header: () => (
+            <div className="text-center">
+                <div>Right Thigh</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
+        cell: ({ row, table }) => {
+            const value = row.getValue("rightThighGirth") as number | null;
+            const isEditing = row.original.isEditing;
+            const updateData = (table.options.meta as BMCTableMeta | undefined)
+                ?.updateData;
+
+            return (
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(
+                                    row.index,
+                                    "rightThighGirth",
+                                    newValue
+                                );
+                            }
+                        }}
+                    />
+                </div>
+            );
+        },
+        size: 120,
+    },
+    {
+        accessorKey: "leftArmGirth",
+        header: () => (
+            <div className="text-center">
+                <div>Left Arm</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
+        cell: ({ row, table }) => {
+            const value = row.getValue("leftArmGirth") as number | null;
+            const isEditing = row.original.isEditing;
+            const updateData = (table.options.meta as BMCTableMeta | undefined)
+                ?.updateData;
+
+            return (
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(
+                                    row.index,
+                                    "leftArmGirth",
+                                    newValue
+                                );
+                            }
+                        }}
+                    />
+                </div>
+            );
+        },
+        size: 100,
+    },
+    {
+        accessorKey: "rightArmGirth",
+        header: () => (
+            <div className="text-center">
+                <div>Right Arm</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
+        cell: ({ row, table }) => {
+            const value = row.getValue("rightArmGirth") as number | null;
+            const isEditing = row.original.isEditing;
+            const updateData = (table.options.meta as BMCTableMeta | undefined)
+                ?.updateData;
+
+            return (
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(
+                                    row.index,
+                                    "rightArmGirth",
+                                    newValue
+                                );
+                            }
+                        }}
+                    />
+                </div>
+            );
+        },
+        size: 100,
+    },
+    {
+        accessorKey: "hipGirth",
+        header: () => (
+            <div className="text-center">
+                <div>Hip</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
+        cell: ({ row, table }) => {
+            const value = row.getValue("hipGirth") as number | null;
+            const isEditing = row.original.isEditing;
+            const updateData = (table.options.meta as BMCTableMeta | undefined)
+                ?.updateData;
+
+            return (
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "hipGirth", newValue);
+                            }
+                        }}
+                    />
+                </div>
+            );
+        },
+        size: 100,
+    },
+    {
+        accessorKey: "chestGirth",
+        header: () => (
+            <div className="text-center">
+                <div>Chest</div>
+                <div className="text-xs font-normal">(mm)</div>
+            </div>
+        ),
+        cell: ({ row, table }) => {
+            const value = row.getValue("chestGirth") as number | null;
+            const isEditing = row.original.isEditing;
+            const updateData = (table.options.meta as BMCTableMeta | undefined)
+                ?.updateData;
+
+            return (
+                <div className="text-center flex justify-center">
+                    <EditableCell
+                        value={value}
+                        isEditing={!!isEditing}
+                        onChange={(newValue) => {
+                            if (updateData) {
+                                updateData(row.index, "chestGirth", newValue);
+                            }
+                        }}
+                    />
+                </div>
+            );
+        },
+        size: 100,
+    },
+    // End of new girth measurement columns
     {
         id: "actions",
         header: () => <div className="text-center">Actions</div>,
@@ -828,6 +1202,7 @@ export const columns: ColumnDef<BMCRecord>[] = [
                         onEdit={() => meta?.onEdit?.(row.index)}
                         onSave={() => meta?.onSave?.(row.index)}
                         onCancel={() => meta?.onCancel?.(row.index)}
+                        onDelete={() => meta?.onDelete?.(row.index)}
                     />
                 </div>
             );
