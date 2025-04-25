@@ -14,52 +14,59 @@ import { MOVEMENT_SESSION_NAME } from "@/lib/constants";
 import { authenticated_or_login } from "@/actions/appwrite_actions";
 import Image from "next/image";
 import { Calendar, Mail, Pencil, Phone, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import ClientTabs from "@/components/client-tabs/client-tabs";
-import Link from "next/link";
 type PageProps = {
-  params: Promise<{
-    id: string;
-  }>;
+    params: Promise<{
+        id: string;
+    }>;
 };
 
 export default async function ClientProfilePage({ params }: PageProps) {
-  const resolvedParams = await params;
-  await checkGuestApproval();
+    const resolvedParams = await params;
+    await checkGuestApproval();
 
-  const session = (await cookies()).get(MOVEMENT_SESSION_NAME)?.value || null;
-  const result = await authenticated_or_login(session);
+    const session = (await cookies()).get(MOVEMENT_SESSION_NAME)?.value || null;
+    const result = await authenticated_or_login(session);
 
-  if (result && "error" in result) {
-    console.error("Error in Trainer:", result.error);
-    redirect("/login?error=user_fetch_error");
-  }
+    if (result && "error" in result) {
+        console.error("Error in Trainer:", result.error);
+        redirect("/login?error=user_fetch_error");
+    }
 
-  if (!result || (!("error" in result) && !result)) {
-    redirect("/login");
-  }
+    if (!result || (!("error" in result) && !result)) {
+        redirect("/login");
+    }
 
-  const client = await getClientById(resolvedParams.id);
+    const client = await getClientById(resolvedParams.id);
 
-  if (!client) {
-    return (
-      <div className="container mx-auto py-10">
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle>Client Not Found</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
+    if (!client) {
+        return (
+            <div className="container mx-auto py-10">
+                <Card>
+                    <CardHeader className="text-center">
+                        <CardTitle>Client Not Found</CardTitle>
+                    </CardHeader>
+                </Card>
+            </div>
+        );
+    }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((part) => part.charAt(0))
-      .join("")
-      .toUpperCase()
-      .substring(0, 2);
-  };
+    const getInitials = (name: string) => {
+        return name
+            .split(" ")
+            .map((part) => part.charAt(0))
+            .join("")
+            .toUpperCase()
+            .substring(0, 2);
+    };
+
+    const formatGender = (gender: string | null) => {
+        if (!gender) return "Not specified";
+        return (
+            gender.charAt(0).toUpperCase() + gender.slice(1).replace("-", " ")
+        );
+    };
 
     return (
         <div className="container mx-auto py-2 md:py-6">
@@ -215,94 +222,12 @@ export default async function ClientProfilePage({ params }: PageProps) {
                     </CardContent>
                 </Card>
 
-        <Card className="flex flex-col justify-center p-3 md:col-span-1 h-48">
-          <CardContent className="flex flex-col h-full p-0">
-            <div className="grid grid-cols-2 gap-2 text-center mb-auto">
-              <div className="flex flex-col items-center">
-                <Mail className="h-5 w-5 text-muted-foreground mb-1" />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="text-xs text-muted-foreground truncate w-full px-1">
-                        {client.email || "- -"}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{client.email || "- -"}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <div className="flex flex-col items-center">
-                <Phone className="h-5 w-5 text-muted-foreground mb-1" />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="text-xs text-muted-foreground truncate w-full px-1">
-                        {client.phone || "- -"}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{client.phone || "- -"}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <div className="flex flex-col items-center">
-                <User className="h-5 w-5 text-muted-foreground mb-1" />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="text-xs text-muted-foreground truncate w-full px-1">
-                        {formatGender(client.gender)}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{formatGender(client.gender)}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <div className="flex flex-col items-center">
-                <Calendar className="h-5 w-5 text-muted-foreground mb-1" />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="text-xs text-muted-foreground truncate w-full px-1">
-                        {client.registrationDate
-                          ? formatDate(client.registrationDate)
-                          : "Unknown"}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        {client.registrationDate
-                          ? formatDate(client.registrationDate)
-                          : "Unknown"}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+                <Card className="flex flex-col p-4 h-[800px] md:col-span-5">
+                    <CardContent className="h-full p-0">
+                        <ClientTabs params={{ userdata: client }} />
+                    </CardContent>
+                </Card>
             </div>
-            <div className="flex justify-center mt-2">
-              <Link
-                href={`/onboard-users?id=${client.userId}`}
-                className="h-full w-full flex items-center justify-center p-2 border border-muted rounded-md gap-2"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                Edit
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="flex flex-col p-4 h-[800px] md:col-span-5">
-          <CardContent className="h-full p-0">
-            <ClientTabs params={{ userdata: client }} />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+        </div>
+    );
 }
