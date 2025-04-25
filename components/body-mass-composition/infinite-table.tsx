@@ -134,6 +134,7 @@ export function InfiniteTable({
     age, // Destructure age
     idealWeight, // Destructure idealWeight
 }: InfiniteTableProps) {
+    const [flipState, setFlipState] = React.useState(true);
     const queryClient = useQueryClient();
     // Reference to the scrolling element
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
@@ -161,7 +162,7 @@ export function InfiniteTable({
         isFetchingNextPage,
         isLoading,
     } = useInfiniteQuery<BMCRecordResponse>({
-        queryKey: ["bmcRecords", queryId, clientId], //refetch when these change
+        queryKey: ["bmcRecords", queryId, clientId, flipState], //refetch when these change
         queryFn: async ({ pageParam = 0 }) => {
             // Add pageIndex and pageSize to params but don't include them in URL
             const params = {
@@ -421,7 +422,7 @@ export function InfiniteTable({
 
                 // Force a refetch to ensure data consistency
                 await queryClient.refetchQueries({
-                    queryKey: ["bmcRecords", queryId, clientId],
+                    queryKey: ["bmcRecords", queryId, clientId, flipState],
                     exact: true,
                 });
             } else {
@@ -486,16 +487,16 @@ export function InfiniteTable({
             const result = await deleteBMCRecord(record.measurementId);
             if (result.success) {
                 toast.success(result.message);
-                
+
                 // Remove the record from local state
                 setData((old) => old.filter((_, idx) => idx !== rowIndex));
                 setOriginalData((old) =>
                     old.filter((r) => r.measurementId !== record.measurementId)
                 );
-                
+
                 // Force a refetch to ensure data consistency
                 await queryClient.refetchQueries({
-                    queryKey: ["bmcRecords", queryId, clientId],
+                    queryKey: ["bmcRecords", queryId, clientId, flipState],
                     exact: true,
                 });
             } else {
@@ -508,6 +509,7 @@ export function InfiniteTable({
                 }`
             );
         } finally {
+            setFlipState((prevState) => !prevState);
             setIsSaving(false);
             setDeleteDialogOpen(false);
             setDeleteTarget(null);
