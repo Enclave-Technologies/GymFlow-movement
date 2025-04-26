@@ -22,8 +22,7 @@ import {
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { addRoleToUser } from "@/actions/client_actions";
-import { register } from "@/actions/auth_actions";
+import { addRoleToUser, registerInternalUser } from "@/actions/client_actions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -81,27 +80,20 @@ export default function AddTrainerForm() {
         setLoading(true);
 
         try {
-            // Register new user with Appwrite and create database entry
-            // Using "password" as the default password
-            const registerResult = await register("", {
-                email: newUserForm.email,
-                password: "password", // Default password
+            // Register new user with our internal function
+            const result = await registerInternalUser({
                 fullName: newUserForm.fullName,
+                email: newUserForm.email,
+                phoneNumber: newUserForm.phoneNumber,
+                gender: newUserForm.gender as "male" | "female" | "non-binary" | "prefer-not-to-say",
+                dateOfBirth: newUserForm.dateOfBirth,
+                jobTitle: newUserForm.jobTitle,
+                role: newUserForm.role
             });
-
-            if (registerResult !== "success") {
-                throw new Error(registerResult || "Failed to register user");
-            }
-
-            // Add the selected role to the user
-            const result = await addRoleToUser(
-                newUserForm.email,
-                newUserForm.role
-            );
 
             if (!result.success) {
                 throw new Error(
-                    result.error || `Failed to add ${newUserForm.role} role`
+                    result.error || `Failed to register ${newUserForm.role}`
                 );
             }
 

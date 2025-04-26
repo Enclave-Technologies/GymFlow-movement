@@ -817,8 +817,9 @@ export async function getClientById(clientId: string) {
  * @returns The created client data or error
  */
 export async function createClient(clientData: {
-    firstName: string;
-    lastName: string;
+    fullName?: string;
+    firstName?: string;
+    lastName?: string;
     email?: string;
     phoneNumber?: string;
     coachNotes?: string;
@@ -826,18 +827,24 @@ export async function createClient(clientData: {
     dateOfBirth?: Date;
     idealWeight?: number;
     trainerId: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
 }) {
     await requireTrainerOrAdmin();
     try {
         console.log("Creating new client:", clientData);
 
-        // Create fullName from firstName and lastName
-        const fullName =
-            `${clientData.firstName} ${clientData.lastName}`.trim();
+        // Create fullName from firstName and lastName or use provided fullName
+        let fullName = clientData.fullName || "";
+        if (!fullName && (clientData.firstName || clientData.lastName)) {
+            fullName = `${clientData.firstName || ""} ${
+                clientData.lastName || ""
+            }`.trim();
+        }
 
         // Determine if this client will have authentication
         const hasEmail = !!clientData.email;
-        
+
         // Check if a user with this email already exists
         let existingUser = null;
         if (hasEmail && clientData.email) {
@@ -850,25 +857,28 @@ export async function createClient(clientData: {
                 .from(Users)
                 .where(eq(Users.email, clientData.email))
                 .limit(1);
-            
+
             if (existingUsers.length > 0) {
                 existingUser = existingUsers[0];
-                console.log(`Found existing user with email ${clientData.email}:`, existingUser);
+                console.log(
+                    `Found existing user with email ${clientData.email}:`,
+                    existingUser
+                );
             }
         }
-        
+
         // Generate a unique ID for user if not existing
         const userId = existingUser ? existingUser.userId : randomUUID();
-        
+
         // If client has email and doesn't exist yet, create Appwrite account
         if (hasEmail && clientData.email && !existingUser) {
             try {
                 // Create a temporary password for the user
                 const tempPassword = ID.unique();
-                
+
                 // Get Appwrite admin client
                 const { appwrite_user } = await createAdminClient();
-                
+
                 // Create Appwrite user
                 await appwrite_user.create(
                     userId, // userId
@@ -877,13 +887,15 @@ export async function createClient(clientData: {
                     tempPassword, // password
                     fullName // name
                 );
-                
+
                 console.log(`Created Appwrite account for client: ${userId}`);
             } catch (error) {
                 // Handle Appwrite account creation errors
                 if (error instanceof AppwriteException) {
                     if (error.code === 409) {
-                        throw new Error("Email already exists in Appwrite but not in our database");
+                        throw new Error(
+                            "Email already exists in Appwrite but not in our database"
+                        );
                     }
                 }
                 console.error("Error creating Appwrite account:", error);
@@ -894,7 +906,7 @@ export async function createClient(clientData: {
         // Insert new user or add client role to existing user
         const newClient = await db.transaction(async (tx) => {
             let user;
-            
+
             if (existingUser) {
                 // Use existing user
                 [user] = await tx
@@ -902,7 +914,7 @@ export async function createClient(clientData: {
                     .from(Users)
                     .where(eq(Users.userId, existingUser.userId))
                     .limit(1);
-                
+
                 // Update user details if needed
                 await tx
                     .update(Users)
@@ -1030,6 +1042,124 @@ export async function createClient(clientData: {
  * @returns Success status and updated client data
  */
 /**
+ * Register a new user from within the app (for admin/trainer use)
+ * @param userData - User data including personal details and role
+ * @returns Success status and user data
+ */
+export async function registerInternalUser(userData: {
+    fullName: string;
+    email: string;
+    password?: string;
+    phoneNumber?: string;
+    gender?: "male" | "female" | "non-binary" | "prefer-not-to-say";
+    dateOfBirth?: Date;
+    jobTitle?: string;
+    role: string; // "Trainer", "Admin", "Guest"
+}) {
+    await requireTrainerOrAdmin();
+    // Define user_id outside try block so it's available in catch block
+    let user_id: string = ID.unique();
+
+    try {
+        console.log(`Registering new ${userData.role}:`, userData.email);
+
+        // Use a default password if not provided
+        const password = userData.password || "password";
+        user_id = ID.unique();
+
+        // 1. Create Appwrite account
+        try {
+            const { appwrite_user } = await createAdminClient();
+            await appwrite_user.create(
+                user_id,
+                userData.email,
+                undefined, // phone (optional)
+                password,
+                userData.fullName
+            );
+            console.log(
+                `Created Appwrite account for ${userData.role}: ${user_id}`
+            );
+        } catch (error) {
+            if (error instanceof AppwriteException) {
+                if (error.code === 409) {
+                    return {
+                        success: false,
+                        error: "Email already exists",
+                    };
+                }
+            }
+            console.error("Error creating Appwrite account:", error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+            };
+        }
+
+        // 2. Create user in database with all provided fields
+        await db.transaction(async (tx) => {
+            // Insert user
+            await tx.insert(Users).values({
+                userId: user_id,
+                appwrite_id: user_id,
+                has_auth: true,
+                fullName: userData.fullName,
+                email: userData.email,
+                phone: userData.phoneNumber || null,
+                gender: userData.gender || null,
+                dob: userData.dateOfBirth || null,
+                jobTitle: userData.jobTitle || null,
+                registrationDate: new Date(),
+            });
+
+            // Get role ID
+            const role = await tx
+                .select({ roleId: Roles.roleId })
+                .from(Roles)
+                .where(eq(Roles.roleName, userData.role))
+                .limit(1);
+
+            if (role.length === 0) {
+                throw new Error(`Role ${userData.role} not found`);
+            }
+
+            // Add role to user
+            await tx.insert(UserRoles).values({
+                userId: user_id,
+                roleId: role[0].roleId,
+                approvedByAdmin: true, // Auto-approve since this is done by admin/trainer
+            });
+        });
+
+        return {
+            success: true,
+            message: `${userData.role} registered successfully`,
+            data: {
+                userId: user_id,
+                fullName: userData.fullName,
+                email: userData.email,
+                role: userData.role,
+            },
+        };
+    } catch (error) {
+        console.error(`Error registering ${userData.role}:`, error);
+
+        // Try to clean up the Appwrite user if database transaction failed
+        try {
+            const { appwrite_user } = await createAdminClient();
+            await appwrite_user.delete(user_id);
+        } catch (cleanupError) {
+            console.error("Error cleaning up Appwrite user:", cleanupError);
+        }
+
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+        };
+    }
+}
+
+/**
  * Add a role to an existing user
  * @param email - Email of the existing user
  * @param roleName - Name of the role to add (e.g., "Client", "Trainer", "Admin")
@@ -1039,7 +1169,7 @@ export async function addRoleToUser(email: string, roleName: string) {
     await requireTrainerOrAdmin();
     try {
         console.log(`Adding role ${roleName} to user with email ${email}`);
-        
+
         // 1. Check if user exists
         const existingUsers = await db
             .select({
@@ -1051,16 +1181,16 @@ export async function addRoleToUser(email: string, roleName: string) {
             .from(Users)
             .where(eq(Users.email, email))
             .limit(1);
-        
+
         if (existingUsers.length === 0) {
             return {
                 success: false,
                 error: `User with email ${email} not found`,
             };
         }
-        
+
         const user = existingUsers[0];
-        
+
         // 2. Validate role transition (Client without auth -> Trainer)
         if (roleName === "Trainer" && !user.has_auth) {
             return {
@@ -1068,23 +1198,23 @@ export async function addRoleToUser(email: string, roleName: string) {
                 error: "Cannot assign Trainer role to a client without authentication",
             };
         }
-        
+
         // 3. Get role ID
         const roles = await db
             .select({ roleId: Roles.roleId })
             .from(Roles)
             .where(eq(Roles.roleName, roleName))
             .limit(1);
-        
+
         if (roles.length === 0) {
             return {
                 success: false,
                 error: `Role ${roleName} not found`,
             };
         }
-        
+
         const roleId = roles[0].roleId;
-        
+
         // 4. Check if user already has this role
         const existingRole = await db
             .select()
@@ -1096,23 +1226,25 @@ export async function addRoleToUser(email: string, roleName: string) {
                 )
             )
             .limit(1);
-        
+
         if (existingRole.length > 0) {
             return {
                 success: false,
                 error: `User already has the ${roleName} role`,
             };
         }
-        
+
         // 5. Add role to user
         await db.insert(UserRoles).values({
             userId: user.userId,
             roleId: roleId,
             approvedByAdmin: true, // Assuming admin approval since this is done by admin/trainer
         });
-        
-        console.log(`Successfully added ${roleName} role to user ${user.userId} (${user.fullName})`);
-        
+
+        console.log(
+            `Successfully added ${roleName} role to user ${user.userId} (${user.fullName})`
+        );
+
         return {
             success: true,
             message: `Successfully added ${roleName} role to user`,
@@ -1134,8 +1266,9 @@ export async function addRoleToUser(email: string, roleName: string) {
 export async function updateClient(
     clientId: string,
     clientData: {
-        firstName: string;
-        lastName: string;
+        fullName?: string;
+        firstName?: string;
+        lastName?: string;
         email?: string;
         phoneNumber?: string;
         coachNotes?: string;
@@ -1143,15 +1276,21 @@ export async function updateClient(
         dateOfBirth?: Date;
         idealWeight?: number;
         trainerId?: string;
+        emergencyContactName?: string;
+        emergencyContactPhone?: string;
     }
 ) {
     await requireTrainerOrAdmin();
     try {
         console.log("Updating client:", clientId, clientData);
 
-        // Create fullName from firstName and lastName
-        const fullName =
-            `${clientData.firstName} ${clientData.lastName}`.trim();
+        // Create fullName from firstName and lastName or use provided fullName
+        let fullName = clientData.fullName || "";
+        if (!fullName && (clientData.firstName || clientData.lastName)) {
+            fullName = `${clientData.firstName || ""} ${
+                clientData.lastName || ""
+            }`.trim();
+        }
 
         // Update user record
         await db.transaction(async (tx) => {
