@@ -22,48 +22,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  Edit,
-  GripVertical,
-  Plus,
-  Save,
-  Trash2,
-} from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ChevronDown, ChevronUp, Copy, Edit, Plus, Trash2 } from "lucide-react";
 import { getWorkoutPlanByClientId } from "@/actions/workout_plan_actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-interface Exercise {
-  id: string;
-  order: string;
-  motion: string;
-  targetArea: string;
-  description: string;
-  sets?: string;
-  reps?: string;
-  tut?: string;
-  tempo?: string;
-  rest?: string;
-  additionalInfo?: string;
-  duration?: number;
-}
-
-interface Session {
-  id: string;
-  name: string;
-  duration: number;
-  exercises: Exercise[];
-  isExpanded: boolean;
-}
-
-interface Phase {
-  id: string;
-  name: string;
-  isActive: boolean;
-  sessions: Session[];
-  isExpanded: boolean;
-}
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+import { Exercise, Session, Phase } from "./types";
+import DraggableSession from "./draggable-session";
 
 export default function WorkoutPlanner({ client_id }: { client_id: string }) {
   const [phases, setPhases] = useState<Phase[]>([]);
@@ -479,6 +451,89 @@ export default function WorkoutPlanner({ client_id }: { client_id: string }) {
     }
   };
 
+  // Function to move a session within a phase
+  const moveSession = (
+    phaseId: string,
+    dragIndex: number,
+    hoverIndex: number
+  ) => {
+    setPhases(
+      phases.map((phase) => {
+        if (phase.id !== phaseId) return phase;
+
+        const newSessions = [...phase.sessions];
+        const draggedSession = newSessions[dragIndex];
+        newSessions.splice(dragIndex, 1);
+        newSessions.splice(hoverIndex, 0, draggedSession);
+
+        return {
+          ...phase,
+          sessions: newSessions,
+        };
+      })
+    );
+  };
+
+  const renderExercisesTable = (phase: Phase, session: Session) => (
+    <div className="mt-2">
+      <Table>
+        <TableHeader className="bg-muted">
+          <TableRow>
+            <TableHead className="w-[80px]">Order</TableHead>
+            <TableHead>Motion</TableHead>
+            <TableHead>Target Area</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead>Sets</TableHead>
+            <TableHead>Reps</TableHead>
+            <TableHead>TUT</TableHead>
+            <TableHead>Tempo</TableHead>
+            <TableHead>Rest</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {session.exercises.map((exercise: Exercise) => (
+            <TableRow key={exercise.id}>
+              <TableCell>{exercise.order}</TableCell>
+              <TableCell>{exercise.motion}</TableCell>
+              <TableCell>{exercise.targetArea}</TableCell>
+              <TableCell>{exercise.description}</TableCell>
+              <TableCell>{exercise.sets || "-"}</TableCell>
+              <TableCell>{exercise.reps || "-"}</TableCell>
+              <TableCell>{exercise.tut || "-"}</TableCell>
+              <TableCell>{exercise.tempo || "-"}</TableCell>
+              <TableCell>{exercise.rest || "-"}</TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      startEditExercise(phase.id, session.id, exercise)
+                    }
+                    className="h-8 w-8 cursor-pointer"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      deleteExercise(phase.id, session.id, exercise.id)
+                    }
+                    className="h-8 w-8"
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   return (
     <div className="w-full max-w-6xl mx-auto rounded-lg shadow-sm border text-accent-foreground">
       <div className="w-full p-4">
@@ -498,324 +553,139 @@ export default function WorkoutPlanner({ client_id }: { client_id: string }) {
             </div>
           </div>
         ) : phases.length > 0 ? (
-          phases.map((phase) => (
-            <Card key={phase.id} className="mb-4">
-              <CardContent className="p-0">
-                <div className="flex items-center justify-between p-4 border-b">
-                  <div className="flex items-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => togglePhaseExpansion(phase.id)}
-                      className="p-1 h-auto mr-2 cursor-pointer"
-                    >
-                      {phase.isExpanded ? (
-                        <ChevronDown className="h-5 w-5" />
-                      ) : (
-                        <ChevronUp className="h-5 w-5" />
-                      )}
-                    </Button>
-                    {editingPhase === phase.id ? (
-                      <div className="flex items-center">
-                        <Input
-                          value={editPhaseValue}
-                          onChange={(e) => setEditPhaseValue(e.target.value)}
-                          className="h-8 w-48"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={savePhaseEdit}
-                          className="ml-2 cursor-pointer"
-                        >
-                          Save
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="font-semibold text-lg">
-                        {phase.name}
-                        {/* {phase.isActive && (
-                          <span className="ml-2 text-xs bg-green-600 text-white px-2 py-0.5 rounded-full">
-                            Active
-                          </span>
-                        )} */}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => startEditPhase(phase.id, phase.name)}
-                      className="h-8 w-8 cursor-pointer"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deletePhase(phase.id)}
-                      className="h-8 w-8 cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => duplicatePhase(phase.id)}
-                      className="h-8 w-8 cursor-pointer"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => addSession(phase.id)}
-                      className="h-8 w-8 cursor-pointer"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                    <div className="flex items-center ml-4">
-                      <div className="flex flex-col">
+          <DndProvider backend={HTML5Backend}>
+            {phases.map((phase) => (
+              <Card key={phase.id} className="mb-4">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between p-4 border-b">
+                    <div className="flex items-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => togglePhaseExpansion(phase.id)}
+                        className="p-1 h-auto mr-2 cursor-pointer"
+                      >
+                        {phase.isExpanded ? (
+                          <ChevronDown className="h-5 w-5" />
+                        ) : (
+                          <ChevronUp className="h-5 w-5" />
+                        )}
+                      </Button>
+                      {editingPhase === phase.id ? (
                         <div className="flex items-center">
-                          <Switch
-                            checked={phase.isActive}
-                            onCheckedChange={() =>
-                              togglePhaseActivation(phase.id)
-                            }
-                            id={`activate-${phase.id}`}
+                          <Input
+                            value={editPhaseValue}
+                            onChange={(e) => setEditPhaseValue(e.target.value)}
+                            className="h-8 w-48"
                           />
-                          <Label
-                            htmlFor={`activate-${phase.id}`}
-                            className="ml-2"
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={savePhaseEdit}
+                            className="ml-2 cursor-pointer"
                           >
-                            {phase.isActive
-                              ? "Deactivate Phase"
-                              : "Activate Phase"}
-                          </Label>
+                            Save
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-lg">
+                          {phase.name}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => startEditPhase(phase.id, phase.name)}
+                        className="h-8 w-8 cursor-pointer"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deletePhase(phase.id)}
+                        className="h-8 w-8 cursor-pointer"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => duplicatePhase(phase.id)}
+                        className="h-8 w-8 cursor-pointer"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => addSession(phase.id)}
+                        className="h-8 w-8 cursor-pointer"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                      <div className="flex items-center ml-4">
+                        <div className="flex flex-col">
+                          <div className="flex items-center">
+                            <Switch
+                              checked={phase.isActive}
+                              onCheckedChange={() =>
+                                togglePhaseActivation(phase.id)
+                              }
+                              id={`activate-${phase.id}`}
+                            />
+                            <Label
+                              htmlFor={`activate-${phase.id}`}
+                              className="ml-2"
+                            >
+                              {phase.isActive
+                                ? "Deactivate Phase"
+                                : "Activate Phase"}
+                            </Label>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {phase.isExpanded && (
-                  <div className="p-4">
-                    {phase.sessions.map((session) => (
-                      <div key={session.id} className="border rounded-md mb-4">
-                        <div className="flex items-center justify-between p-3 bg-muted">
-                          <div className="flex items-center">
-                            <GripVertical className="h-4 w-4 text-muted-foreground mr-2" />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                toggleSessionExpansion(phase.id, session.id)
-                              }
-                              className="p-1 h-auto mr-2 cursor-pointer"
-                            >
-                              {session.isExpanded ? (
-                                <ChevronDown className="h-5 w-5" />
-                              ) : (
-                                <ChevronUp className="h-5 w-5" />
-                              )}
-                            </Button>
-                            {editingSession === session.id ? (
-                              <div className="flex items-center">
-                                <Input
-                                  value={editSessionValue}
-                                  onChange={(e) =>
-                                    setEditSessionValue(e.target.value)
-                                  }
-                                  className="h-8 w-48"
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={saveSessionEdit}
-                                  className="ml-2 cursor-pointer"
-                                >
-                                  Save
-                                </Button>
-                              </div>
-                            ) : (
-                              <span className="font-medium">
-                                {session.name}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                startEditSession(session.id, session.name)
-                              }
-                              className="h-8 w-8 cursor-pointer"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                deleteSession(phase.id, session.id)
-                              }
-                              className="h-8 w-8 cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                duplicateSession(phase.id, session.id)
-                              }
-                              className="h-8 w-8 cursor-pointer"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => addExercise(phase.id, session.id)}
-                              className="h-8 w-8 cursor-pointer"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => saveSession(phase.id, session.id)}
-                              className="h-8 w-8 cursor-pointer"
-                              disabled={savingSessionId === session.id}
-                            >
-                              {savingSessionId === session.id ? (
-                                <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
-                              ) : (
-                                <Save className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="default"
-                              className="ml-4 cursor-pointer"
-                              disabled={
-                                !phase.isActive ||
-                                session.exercises.length === 0 ||
-                                startingSessionId === session.id
-                              }
-                              onClick={() => startSession(session.id, phase.id)}
-                            >
-                              {startingSessionId === session.id ? (
-                                <>
-                                  <div className="h-4 w-4 mr-2 rounded-full border-2 border-background border-t-transparent animate-spin"></div>
-                                  Please wait...
-                                </>
-                              ) : (
-                                <>Start Session ({session.duration} mins)</>
-                              )}
-                            </Button>
-                          </div>
+                  {phase.isExpanded && (
+                    <div className="p-4">
+                      {phase.sessions.map((session, index) => (
+                        <DraggableSession
+                          key={session.id}
+                          phase={phase}
+                          session={session}
+                          index={index}
+                          toggleSessionExpansion={toggleSessionExpansion}
+                          deleteSession={deleteSession}
+                          duplicateSession={duplicateSession}
+                          addExercise={addExercise}
+                          startSession={startSession}
+                          saveSession={saveSession}
+                          startingSessionId={startingSessionId}
+                          savingSessionId={savingSessionId}
+                          startEditSession={startEditSession}
+                          moveSession={moveSession}
+                          renderExercisesTable={renderExercisesTable}
+                          editingSession={editingSession}
+                          editSessionValue={editSessionValue}
+                          saveSessionEdit={saveSessionEdit}
+                          setEditSessionValue={setEditSessionValue}
+                        />
+                      ))}
+                      {phase.sessions.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No sessions added. Click + to add.
                         </div>
-
-                        {session.isExpanded && session.exercises.length > 0 && (
-                          <div className="mt-2">
-                            <Table>
-                              <TableHeader className="bg-muted">
-                                <TableRow>
-                                  <TableHead className="w-[80px]">
-                                    Order
-                                  </TableHead>
-                                  <TableHead>Motion</TableHead>
-                                  <TableHead>Target Area</TableHead>
-                                  <TableHead>Description</TableHead>
-                                  <TableHead>Sets</TableHead>
-                                  <TableHead>Reps</TableHead>
-                                  <TableHead>TUT</TableHead>
-                                  <TableHead>Tempo</TableHead>
-                                  <TableHead>Rest</TableHead>
-                                  <TableHead className="text-right">
-                                    Actions
-                                  </TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {session.exercises.map((exercise) => (
-                                  <TableRow key={exercise.id}>
-                                    <TableCell>{exercise.order}</TableCell>
-                                    <TableCell>{exercise.motion}</TableCell>
-                                    <TableCell>{exercise.targetArea}</TableCell>
-                                    <TableCell>
-                                      {exercise.description}
-                                    </TableCell>
-                                    <TableCell>
-                                      {exercise.sets || "-"}
-                                    </TableCell>
-                                    <TableCell>
-                                      {exercise.reps || "-"}
-                                    </TableCell>
-                                    <TableCell>{exercise.tut || "-"}</TableCell>
-                                    <TableCell>
-                                      {exercise.tempo || "-"}
-                                    </TableCell>
-                                    <TableCell>
-                                      {exercise.rest || "-"}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      <div className="flex justify-end gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() =>
-                                            startEditExercise(
-                                              phase.id,
-                                              session.id,
-                                              exercise
-                                            )
-                                          }
-                                          className="h-8 w-8 cursor-pointer"
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() =>
-                                            deleteExercise(
-                                              phase.id,
-                                              session.id,
-                                              exercise.id
-                                            )
-                                          }
-                                          className="h-8 w-8"
-                                        >
-                                          <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
-                        {session.exercises.length === 0 && (
-                          <div className="text-center py-8 text-muted-foreground">
-                            No exercises. Click + to add one.
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {phase.sessions.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No sessions added. Click + to add.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </DndProvider>
         ) : (
           <div className="flex flex-col items-center justify-center p-10">
             <div className="text-center mb-6">
@@ -830,7 +700,7 @@ export default function WorkoutPlanner({ client_id }: { client_id: string }) {
         )}
       </div>
 
-      {/* Exercise Edit/Add Dialog - Moved outside of the list for better accessibility */}
+      {/* Exercise Edit/Add Dialog */}
       <Dialog
         open={!!editingExercise}
         onOpenChange={(open) => !open && setEditingExercise(null)}
@@ -858,61 +728,82 @@ export default function WorkoutPlanner({ client_id }: { client_id: string }) {
 
                 <div className="space-y-2">
                   <Label htmlFor="motion">Motion</Label>
-                  <select
-                    id="motion"
-                    className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                  <Select
                     value={editingExercise.exercise.motion}
-                    onChange={(e) =>
-                      handleExerciseFormChange("motion", e.target.value)
+                    onValueChange={(value) =>
+                      handleExerciseFormChange("motion", value)
                     }
                   >
-                    <option value="">Select Motion</option>
-                    <option value="Upper Body Pull">Upper Body Pull</option>
-                    <option value="Upper Body Push">Upper Body Push</option>
-                    <option value="Lower Body Pull">Lower Body Pull</option>
-                    <option value="Lower Body Push">Lower Body Push</option>
-                    <option value="Core">Core</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Motion" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Upper Body Pull">
+                        Upper Body Pull
+                      </SelectItem>
+                      <SelectItem value="Upper Body Push">
+                        Upper Body Push
+                      </SelectItem>
+                      <SelectItem value="Lower Body Pull">
+                        Lower Body Pull
+                      </SelectItem>
+                      <SelectItem value="Lower Body Push">
+                        Lower Body Push
+                      </SelectItem>
+                      <SelectItem value="Core">Core</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="targetArea">Target Area</Label>
-                  <select
-                    id="targetArea"
-                    className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                  <Select
                     value={editingExercise.exercise.targetArea}
-                    onChange={(e) =>
-                      handleExerciseFormChange("targetArea", e.target.value)
+                    onValueChange={(value) =>
+                      handleExerciseFormChange("targetArea", value)
                     }
                   >
-                    <option value="">Select Target Area</option>
-                    <option value="Chest">Chest</option>
-                    <option value="Back">Back</option>
-                    <option value="Shoulders">Shoulders</option>
-                    <option value="Biceps">Biceps</option>
-                    <option value="Triceps">Triceps</option>
-                    <option value="Legs">Legs</option>
-                    <option value="Calves">Calves</option>
-                    <option value="Abs">Abs</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Target Area" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Chest">Chest</SelectItem>
+                      <SelectItem value="Back">Back</SelectItem>
+                      <SelectItem value="Shoulders">Shoulders</SelectItem>
+                      <SelectItem value="Biceps">Biceps</SelectItem>
+                      <SelectItem value="Triceps">Triceps</SelectItem>
+                      <SelectItem value="Legs">Legs</SelectItem>
+                      <SelectItem value="Calves">Calves</SelectItem>
+                      <SelectItem value="Abs">Abs</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    placeholder="Exercise description"
+                  <Select
                     value={editingExercise.exercise.description}
-                    onChange={(e) =>
-                      handleExerciseFormChange("description", e.target.value)
+                    onValueChange={(value) =>
+                      handleExerciseFormChange("description", value)
                     }
-                  />
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Exercise" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Chin Up">Chin Up</SelectItem>
+                      <SelectItem value="Cable Dumbell">
+                        Cable Dumbell
+                      </SelectItem>
+                      <SelectItem value="Inverted Row">Inverted Row</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              <div className="border-t pt-4">
+              <div className="pt-4">
                 <h3 className="text-sm font-medium mb-3">
                   Exercise Parameters
                 </h3>
