@@ -13,10 +13,13 @@ import { randomUUID } from "crypto";
  * @param idealWeight - The ideal weight to set
  * @returns Success status and message
  */
+import { requireTrainerOrAdmin } from "@/lib/auth-utils";
+
 export async function updateUserIdealWeight(
   userId: string,
   idealWeight: number
 ) {
+  await requireTrainerOrAdmin();
   try {
     await db.update(Users).set({ idealWeight }).where(eq(Users.userId, userId));
     return {
@@ -35,6 +38,7 @@ export async function updateUserIdealWeight(
 }
 
 export async function userRoleTable() {
+  await requireTrainerOrAdmin();
   const userRoleData = await db
     .select({
       userId: Users.userId,
@@ -54,6 +58,7 @@ export async function userRoleTable() {
  * @returns Array of Users being managed by this trainer
  */
 export async function getClientsManagedByUser(trainerAppwriteId: string) {
+  await requireTrainerOrAdmin();
   console.log(`Fetching all clients for trainer: ${trainerAppwriteId}`);
 
   // First, get the trainer's name
@@ -133,6 +138,7 @@ export async function getClientsManagedByUserPaginated(
   params: Record<string, unknown> | number = 0,
   pageSize: number = 10
 ) {
+  await requireTrainerOrAdmin();
   // Handle both new params object and old separate parameters
   let page = 0;
   let size = pageSize;
@@ -405,6 +411,7 @@ export async function getAllClientsPaginated(
   params: Record<string, unknown> | number = 0,
   pageSize: number = 10
 ) {
+  await requireTrainerOrAdmin();
   // Handle both new params object and old separate parameters
   let page = 0;
   let size = pageSize;
@@ -683,6 +690,7 @@ export async function bulkDeleteClientRelationships(
   trainerAppwriteId: string,
   clientIds: string[]
 ) {
+  await requireTrainerOrAdmin();
   console.log(
     `Bulk deleting ${clientIds.length} client relationships for trainer: ${trainerAppwriteId}`
   );
@@ -733,6 +741,7 @@ export async function bulkDeleteClientRelationships(
 }
 
 export async function getClientById(clientId: string) {
+  await requireTrainerOrAdmin();
   const client = await db
     .select({
       userId: Users.userId,
@@ -775,6 +784,7 @@ export async function createClient(clientData: {
   idealWeight?: number;
   trainerId: string;
 }) {
+  await requireTrainerOrAdmin();
   try {
     console.log("Creating new client:", clientData);
 
@@ -871,6 +881,7 @@ export async function updateClient(
     trainerId?: string;
   }
 ) {
+  await requireTrainerOrAdmin();
   try {
     console.log("Updating client:", clientId, clientData);
 

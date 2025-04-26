@@ -1,7 +1,5 @@
 import { get_logged_in_user } from "@/actions/logged_in_user_actions";
-// import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-// import { MOVEMENT_SESSION_NAME } from "./constants";
 
 /**
  * Checks if the current user is a Guest and not approved by admin.
@@ -12,14 +10,39 @@ export async function checkGuestApproval() {
     const user = await get_logged_in_user();
 
     if (!user) {
-        // (await cookies()).delete(MOVEMENT_SESSION_NAME);
-        // User is not logged in, redirect to login page
         redirect("/login");
     }
 
-    // Check if user is a Guest and not approved by admin
     if (user.role === "Guest" && !user.approvedByAdmin) {
         redirect("/awaiting-approval");
+    }
+
+    return user;
+}
+
+/**
+ * Checks if the current user is a Trainer or Admin.
+ * If not logged in, redirects to login.
+ * If not authorized, redirects to login or returns unauthorized error.
+ * Use this at the top of all server actions to enforce access control.
+ * @param {boolean} [throwInsteadOfRedirect=false] - If true, throws an error instead of redirecting (for pure logic functions).
+ * @returns {Promise<object>} The user object if authorized, otherwise never (redirects or throws).
+ */
+export async function requireTrainerOrAdmin(throwInsteadOfRedirect = false) {
+    const user = await get_logged_in_user();
+
+    if (!user) {
+        if (throwInsteadOfRedirect) {
+            throw new Error("Unauthorized: Not logged in");
+        }
+        redirect("/login");
+    }
+
+    if (user.role !== "Trainer" && user.role !== "Admin") {
+        if (throwInsteadOfRedirect) {
+            throw new Error("Unauthorized: Insufficient role");
+        }
+        redirect("/login");
     }
 
     return user;

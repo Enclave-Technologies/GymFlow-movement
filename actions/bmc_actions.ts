@@ -47,7 +47,10 @@ export type BMCRecordInput = {
  * @param record - The BMC record to save
  * @returns The saved BMC record
  */
+import { requireTrainerOrAdmin } from "@/lib/auth-utils";
+
 export async function saveBMCRecord(record: BMCRecordInput) {
+    await requireTrainerOrAdmin();
     try {
         // Note: BMI, BF%, and LM are now calculated client-side in the updateData function
         // and passed in the record parameter. No need to recalculate here.
@@ -184,6 +187,7 @@ export async function saveBMCRecord(record: BMCRecordInput) {
  * @returns Success status and message
  */
 export async function deleteBMCRecord(measurementId: string) {
+    await requireTrainerOrAdmin();
     try {
         await db
             .delete(BMCMeasurements)
@@ -207,6 +211,7 @@ export async function deleteBMCRecord(measurementId: string) {
 export async function getClientBMCRecordPaginated(
     params: Record<string, unknown> = {}
 ) {
+    await requireTrainerOrAdmin();
     const clientId =
         typeof params.clientId === "string" ? params.clientId : null;
 
