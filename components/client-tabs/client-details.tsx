@@ -4,8 +4,9 @@ import WorkoutPlan from "@/components/workout-planning/workout-plan";
 import GoalList from "@/components/goals/goal-list";
 import BodyMassComposition from "@/components/body-mass-composition/body-mass-composition";
 import WorkoutHistoryList from "../workout-history/workout-history-list";
+import { ClientType } from "./client-tabs";
 
-const ClientDetails = ({ client_id }: { client_id: string }) => {
+const ClientDetails = ({ client_id, userdata }: { client_id: string, userdata: ClientType }) => {
     console.log("ClientDetails", client_id);
 
     return (
@@ -50,7 +51,7 @@ const ClientDetails = ({ client_id }: { client_id: string }) => {
                     <WorkoutPlan client_id={client_id} />
                 </TabsContent>
                 <TabsContent value="goal-list">
-                    <GoalList client_id={client_id} />
+                    <GoalList client_id={client_id} userdata={userdata} />
                 </TabsContent>
                 <TabsContent value="body-mass-composition">
                     <BodyMassComposition client_id={client_id} />

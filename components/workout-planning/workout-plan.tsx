@@ -4,782 +4,1094 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    ChevronDown,
-    ChevronUp,
-    Clipboard,
-    Copy,
-    Edit,
-    GripVertical,
-    Plus,
-    Trash2,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Edit,
+  GripVertical,
+  Plus,
+  Save,
+  Trash2,
 } from "lucide-react";
 import { getWorkoutPlanByClientId } from "@/actions/workout_plan_actions";
-
-// Types
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 interface Exercise {
-    id: string;
-    order: string;
-    motion: string;
-    targetArea: string;
-    description: string;
+  id: string;
+  order: string;
+  motion: string;
+  targetArea: string;
+  description: string;
+  sets?: string;
+  reps?: string;
+  tut?: string;
+  tempo?: string;
+  rest?: string;
+  additionalInfo?: string;
+  duration?: number;
 }
 
 interface Session {
-    id: string;
-    name: string;
-    duration: number;
-    exercises: Exercise[];
-    isExpanded: boolean;
+  id: string;
+  name: string;
+  duration: number;
+  exercises: Exercise[];
+  isExpanded: boolean;
 }
 
 interface Phase {
-    id: string;
-    name: string;
-    isActive: boolean;
-    sessions: Session[];
-    isExpanded: boolean;
+  id: string;
+  name: string;
+  isActive: boolean;
+  sessions: Session[];
+  isExpanded: boolean;
 }
 
 export default function WorkoutPlanner({ client_id }: { client_id: string }) {
-    const [phases, setPhases] = useState<Phase[]>([
-        {
-            id: "phase-1",
-            name: "Phase Bulking",
-            isActive: false,
-            isExpanded: true,
-            sessions: [
-                {
-                    id: "session-1",
-                    name: "Session 1: Back",
-                    duration: 56,
-                    isExpanded: true,
-                    exercises: [
-                        {
-                            id: "ex-1",
-                            order: "A1",
-                            motion: "Upper Body Pull",
-                            targetArea: "Back",
-                            description: "Pull Up",
-                        },
-                        {
-                            id: "ex-2",
-                            order: "A2",
-                            motion: "Upper Body Pull",
-                            targetArea: "Back",
-                            description: "Face Pull",
-                        },
-                        {
-                            id: "ex-3",
-                            order: "B1",
-                            motion: "Upper Body Pull",
-                            targetArea: "Back",
-                            description: "Bent Over Row - Barbell",
-                        },
-                        {
-                            id: "ex-4",
-                            order: "B2",
-                            motion: "Upper Body Pull",
-                            targetArea: "Back",
-                            description: "Bent Over Row - Dumbbell",
-                        },
-                        {
-                            id: "ex-5",
-                            order: "C1",
-                            motion: "Upper Body Pull",
-                            targetArea: "Biceps",
-                            description: "EZ Bar Curl",
-                        },
-                        {
-                            id: "ex-6",
-                            order: "C2",
-                            motion: "Upper Body Pull",
-                            targetArea: "Biceps",
-                            description: "Single Arm Cable Bicep Curls",
-                        },
-                        {
-                            id: "ex-7",
-                            order: "C3",
-                            motion: "Upper Body Push",
-                            targetArea: "Chest",
-                            description: "Cable Chest Fly",
-                        },
-                    ],
-                },
-            ],
-        },
-    ]);
+  const [phases, setPhases] = useState<Phase[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [startingSessionId, setStartingSessionId] = useState<string | null>(
+    null
+  );
+  const [savingSessionId, setSavingSessionId] = useState<string | null>(null);
+  const [editingExercise, setEditingExercise] = useState<{
+    phaseId: string;
+    sessionId: string;
+    exerciseId: string;
+    exercise: Exercise;
+    isNew: boolean;
+  } | null>(null);
 
-    useEffect(() => {
-        async function getWorkout() {
-            const plan = await getWorkoutPlanByClientId(client_id);
-            const mapped = plan.map((phase) => ({
-                id: phase.id,
-                name: phase.name,
-                isActive: phase.isActive,
-                isExpanded: phase.isExpanded,
-                sessions: phase.sessions.map((session) => ({
-                    id: session.id,
-                    name: session.name,
-                    duration: session.duration ?? 0,
-                    isExpanded: session.isExpanded,
-                    exercises: session.exercises.map((e) => ({
-                        id: e.id,
-                        order: e.order,
-                        motion: e.motion ?? "",
-                        targetArea: e.targetArea ?? "",
-                        description: e.description ?? "",
-                    })),
-                })),
-            }));
+  const router = useRouter();
 
-            console.log(mapped);
+  useEffect(() => {
+    async function getWorkout() {
+      setIsLoading(true);
+      try {
+        const plan = await getWorkoutPlanByClientId(client_id);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mapped = plan.map((phase: Record<string, any>) => ({
+          id: phase.id,
+          name: phase.name,
+          isActive: phase.isActive,
+          isExpanded: phase.isExpanded,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          sessions: phase.sessions.map((session: Record<string, any>) => {
+            // Map exercises with safe defaults
+            const exercises = session.exercises.map(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (e: Record<string, any>) => {
+                const exercise: Exercise = {
+                  id: e.id,
+                  order: e.order,
+                  motion: e.motion ?? "",
+                  targetArea: e.targetArea ?? "",
+                  description: e.description ?? "",
+                  // Include additional properties if they exist
+                  ...(e.sets && { sets: e.sets }),
+                  ...(e.reps && { reps: e.reps }),
+                  ...(e.tut && { tut: e.tut }),
+                  ...(e.tempo && { tempo: e.tempo }),
+                  ...(e.rest && { rest: e.rest }),
+                  ...(e.additionalInfo && { additionalInfo: e.additionalInfo }),
+                  duration: 8, // Default duration
+                };
 
-            setPhases(mapped);
-        }
-        getWorkout();
-    }, [client_id]);
+                // Set the duration if available
+                if (e.duration && typeof e.duration === "number") {
+                  exercise.duration = e.duration;
+                }
 
-    const addPhase = () => {
-        const newPhase: Phase = {
-            id: `phase-${phases.length + 1}`,
-            name: `New Phase`,
-            isActive: false,
-            isExpanded: true,
-            sessions: [],
+                return exercise;
+              }
+            );
+
+            // Calculate total session duration
+            const calculatedDuration = exercises.reduce(
+              (total: number, ex: Exercise) => total + (ex.duration || 8),
+              0
+            );
+
+            return {
+              id: session.id,
+              name: session.name,
+              duration: calculatedDuration,
+              isExpanded: Boolean(session.isExpanded),
+              exercises,
+            };
+          }),
+        }));
+
+        console.log(mapped);
+        setPhases(mapped);
+      } catch (error) {
+        console.error("Error fetching workout plan:", error);
+        // Fallback to empty data
+        setPhases([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    getWorkout();
+  }, [client_id]);
+
+  const addPhase = () => {
+    const newPhase: Phase = {
+      id: `phase-${phases.length + 1}`,
+      name: `New Phase`,
+      isActive: false,
+      isExpanded: true,
+      sessions: [],
+    };
+    setPhases([...phases, newPhase]);
+  };
+
+  const togglePhaseExpansion = (phaseId: string) => {
+    setPhases(
+      phases.map((phase) =>
+        phase.id === phaseId
+          ? { ...phase, isExpanded: !phase.isExpanded }
+          : phase
+      )
+    );
+  };
+
+  const toggleSessionExpansion = (phaseId: string, sessionId: string) => {
+    setPhases(
+      phases.map((phase) => {
+        if (phase.id !== phaseId) return phase;
+        return {
+          ...phase,
+          sessions: phase.sessions.map((session) =>
+            session.id === sessionId
+              ? { ...session, isExpanded: !session.isExpanded }
+              : session
+          ),
         };
-        setPhases([...phases, newPhase]);
-    };
+      })
+    );
+  };
 
-    const togglePhaseExpansion = (phaseId: string) => {
-        setPhases(
-            phases.map((phase) =>
-                phase.id === phaseId
-                    ? { ...phase, isExpanded: !phase.isExpanded }
-                    : phase
-            )
-        );
-    };
+  const togglePhaseActivation = (phaseId: string) => {
+    setPhases(
+      phases.map((phase) =>
+        phase.id === phaseId
+          ? { ...phase, isActive: !phase.isActive }
+          : { ...phase, isActive: false }
+      )
+    );
+  };
 
-    const toggleSessionExpansion = (phaseId: string, sessionId: string) => {
-        setPhases(
-            phases.map((phase) => {
-                if (phase.id !== phaseId) return phase;
-                return {
-                    ...phase,
-                    sessions: phase.sessions.map((session) =>
-                        session.id === sessionId
-                            ? { ...session, isExpanded: !session.isExpanded }
-                            : session
-                    ),
-                };
-            })
-        );
-    };
-
-    const togglePhaseActivation = (phaseId: string) => {
-        setPhases(
-            phases.map((phase) =>
-                phase.id === phaseId
-                    ? { ...phase, isActive: !phase.isActive }
-                    : { ...phase, isActive: false }
-            )
-        );
-    };
-
-    const addSession = (phaseId: string) => {
-        setPhases(
-            phases.map((phase) => {
-                if (phase.id !== phaseId) return phase;
-                const count = phase.sessions.length + 1;
-                const newSession: Session = {
-                    id: `session-${Date.now()}`,
-                    name: `Session ${count}: New`,
-                    duration: 45,
-                    isExpanded: true,
-                    exercises: [],
-                };
-                return { ...phase, sessions: [...phase.sessions, newSession] };
-            })
-        );
-    };
-
-    const addExercise = (phaseId: string, sessionId: string) => {
-        setPhases(
-            phases.map((phase) => {
-                if (phase.id !== phaseId) return phase;
-                return {
-                    ...phase,
-                    sessions: phase.sessions.map((session) => {
-                        if (session.id !== sessionId) return session;
-                        const count = session.exercises.length;
-                        const groups = ["A", "B", "C", "D", "E", "F"];
-                        const group = groups[Math.floor(count / 3)];
-                        const number = (count % 3) + 1;
-                        const ex: Exercise = {
-                            id: `ex-${Date.now()}`,
-                            order: `${group}${number}`,
-                            motion: "Select Motion",
-                            targetArea: "Select Area",
-                            description: "New Exercise",
-                        };
-                        return {
-                            ...session,
-                            exercises: [...session.exercises, ex],
-                        };
-                    }),
-                };
-            })
-        );
-    };
-
-    const deletePhase = (phaseId: string) =>
-        setPhases(phases.filter((phase) => phase.id !== phaseId));
-
-    const deleteSession = (phaseId: string, sessionId: string) =>
-        setPhases(
-            phases.map((phase) =>
-                phase.id !== phaseId
-                    ? phase
-                    : {
-                          ...phase,
-                          sessions: phase.sessions.filter(
-                              (s) => s.id !== sessionId
-                          ),
-                      }
-            )
-        );
-
-    const deleteExercise = (
-        phaseId: string,
-        sessionId: string,
-        exerciseId: string
-    ) =>
-        setPhases(
-            phases.map((phase) =>
-                phase.id !== phaseId
-                    ? phase
-                    : {
-                          ...phase,
-                          sessions: phase.sessions.map((session) =>
-                              session.id !== sessionId
-                                  ? session
-                                  : {
-                                        ...session,
-                                        exercises: session.exercises.filter(
-                                            (e) => e.id !== exerciseId
-                                        ),
-                                    }
-                          ),
-                      }
-            )
-        );
-
-    const duplicatePhase = (phaseId: string) => {
-        const target = phases.find((p) => p.id === phaseId);
-        if (!target) return;
-        const copy: Phase = {
-            ...target,
-            id: `phase-${Date.now()}`,
-            name: `${target.name} (Copy)`,
-            isActive: false,
+  const addSession = (phaseId: string) => {
+    setPhases(
+      phases.map((phase) => {
+        if (phase.id !== phaseId) return phase;
+        const count = phase.sessions.length + 1;
+        const newSession: Session = {
+          id: `session-${Date.now()}`,
+          name: `Session ${count}: New`,
+          duration: 0,
+          isExpanded: true,
+          exercises: [],
         };
-        setPhases([...phases, copy]);
-    };
+        return { ...phase, sessions: [...phase.sessions, newSession] };
+      })
+    );
+  };
 
-    const duplicateSession = (phaseId: string, sessionId: string) => {
-        setPhases(
-            phases.map((phase) => {
-                if (phase.id !== phaseId) return phase;
-                const target = phase.sessions.find((s) => s.id === sessionId);
-                if (!target) return phase;
-                const copy: Session = {
-                    ...target,
-                    id: `session-${Date.now()}`,
-                    name: `${target.name} (Copy)`,
+  const addExercise = (phaseId: string, sessionId: string) => {
+    console.log("addExercise", !!editingExercise);
+    setEditingExercise({
+      phaseId,
+      sessionId,
+      exerciseId: `new-${Date.now()}`,
+      exercise: {
+        id: `new-${Date.now()}`,
+        order: "",
+        motion: "",
+        targetArea: "",
+        description: "",
+        duration: 8,
+      },
+      isNew: true,
+    });
+  };
+
+  const deletePhase = (phaseId: string) =>
+    setPhases(phases.filter((phase) => phase.id !== phaseId));
+
+  const deleteSession = (phaseId: string, sessionId: string) =>
+    setPhases(
+      phases.map((phase) =>
+        phase.id !== phaseId
+          ? phase
+          : {
+              ...phase,
+              sessions: phase.sessions.filter((s) => s.id !== sessionId),
+            }
+      )
+    );
+
+  const deleteExercise = (
+    phaseId: string,
+    sessionId: string,
+    exerciseId: string
+  ) =>
+    setPhases(
+      phases.map((phase) =>
+        phase.id !== phaseId
+          ? phase
+          : {
+              ...phase,
+              sessions: phase.sessions.map((session) => {
+                if (session.id !== sessionId) return session;
+
+                // Remove the exercise
+                const updatedExercises = session.exercises.filter(
+                  (e) => e.id !== exerciseId
+                );
+
+                // Recalculate total session duration
+                const totalDuration =
+                  calculateSessionDuration(updatedExercises);
+
+                return {
+                  ...session,
+                  exercises: updatedExercises,
+                  duration: totalDuration,
                 };
-                return { ...phase, sessions: [...phase.sessions, copy] };
-            })
-        );
-    };
+              }),
+            }
+      )
+    );
 
-    const [editingPhase, setEditingPhase] = useState<string | null>(null);
-    const [editPhaseValue, setEditPhaseValue] = useState("");
-    const startEditPhase = (id: string, name: string) => {
-        setEditingPhase(id);
-        setEditPhaseValue(name);
+  const duplicatePhase = (phaseId: string) => {
+    const target = phases.find((p) => p.id === phaseId);
+    if (!target) return;
+    const copy: Phase = {
+      ...target,
+      id: `phase-${Date.now()}`,
+      name: `${target.name} (Copy)`,
+      isActive: false,
     };
-    const savePhaseEdit = () => {
-        if (!editingPhase) return;
-        setPhases(
-            phases.map((p) =>
-                p.id === editingPhase ? { ...p, name: editPhaseValue } : p
-            )
-        );
-        setEditingPhase(null);
-    };
+    setPhases([...phases, copy]);
+  };
 
-    const [editingSession, setEditingSession] = useState<string | null>(null);
-    const [editSessionValue, setEditSessionValue] = useState("");
-    const startEditSession = (id: string, name: string) => {
-        setEditingSession(id);
-        setEditSessionValue(name);
-    };
-    const saveSessionEdit = () => {
-        if (!editingSession) return;
-        setPhases(
-            phases.map((phase) => ({
+  const duplicateSession = (phaseId: string, sessionId: string) => {
+    setPhases(
+      phases.map((phase) => {
+        if (phase.id !== phaseId) return phase;
+        const target = phase.sessions.find((s) => s.id === sessionId);
+        if (!target) return phase;
+        const copy: Session = {
+          ...target,
+          id: `session-${Date.now()}`,
+          name: `${target.name} (Copy)`,
+        };
+        return { ...phase, sessions: [...phase.sessions, copy] };
+      })
+    );
+  };
+
+  const [editingPhase, setEditingPhase] = useState<string | null>(null);
+  const [editPhaseValue, setEditPhaseValue] = useState("");
+  const startEditPhase = (id: string, name: string) => {
+    setEditingPhase(id);
+    setEditPhaseValue(name);
+  };
+  const savePhaseEdit = () => {
+    if (!editingPhase) return;
+    setPhases(
+      phases.map((p) =>
+        p.id === editingPhase ? { ...p, name: editPhaseValue } : p
+      )
+    );
+    setEditingPhase(null);
+  };
+
+  const [editingSession, setEditingSession] = useState<string | null>(null);
+  const [editSessionValue, setEditSessionValue] = useState("");
+  const startEditSession = (id: string, name: string) => {
+    setEditingSession(id);
+    setEditSessionValue(name);
+  };
+  const saveSessionEdit = () => {
+    if (!editingSession) return;
+    setPhases(
+      phases.map((phase) => ({
+        ...phase,
+        sessions: phase.sessions.map((s) =>
+          s.id === editingSession ? { ...s, name: editSessionValue } : s
+        ),
+      }))
+    );
+    setEditingSession(null);
+  };
+
+  const startEditExercise = (
+    phaseId: string,
+    sessionId: string,
+    exercise: Exercise
+  ) => {
+    setEditingExercise({
+      phaseId,
+      sessionId,
+      exerciseId: exercise.id,
+      exercise,
+      isNew: false,
+    });
+  };
+  const saveExerciseEdit = async () => {
+    if (!editingExercise) return;
+
+    // Validate form - at minimum we need order and description
+    if (
+      !editingExercise.exercise.order ||
+      !editingExercise.exercise.description
+    ) {
+      return; // Show validation error in a real implementation
+    }
+
+    setIsSaving(true);
+    try {
+      // API call
+
+      setPhases(
+        phases.map((phase) =>
+          phase.id !== editingExercise.phaseId
+            ? phase
+            : {
                 ...phase,
-                sessions: phase.sessions.map((s) =>
-                    s.id === editingSession
-                        ? { ...s, name: editSessionValue }
-                        : s
-                ),
-            }))
-        );
-        setEditingSession(null);
-    };
+                sessions: phase.sessions.map((session) => {
+                  // Handle adding or updating exercise
+                  const updatedExercises = editingExercise.isNew
+                    ? [...session.exercises, editingExercise.exercise]
+                    : session.exercises.map((e) =>
+                        e.id === editingExercise.exerciseId
+                          ? editingExercise.exercise
+                          : e
+                      );
 
-    const [editingExercise, setEditingExercise] = useState<{
-        phaseId: string;
-        sessionId: string;
-        exerciseId: string;
-        exercise: Exercise;
-    } | null>(null);
-    const startEditExercise = (
-        phaseId: string,
-        sessionId: string,
-        exercise: Exercise
-    ) => {
-        setEditingExercise({
-            phaseId,
-            sessionId,
-            exerciseId: exercise.id,
-            exercise,
-        });
-    };
-    const saveExerciseEdit = () => {
-        if (!editingExercise) return;
-        setPhases(
-            phases.map((phase) =>
-                phase.id !== editingExercise.phaseId
-                    ? phase
+                  // Recalculate session duration when exercises change
+                  const totalDuration =
+                    calculateSessionDuration(updatedExercises);
+
+                  return session.id !== editingExercise.sessionId
+                    ? session
                     : {
-                          ...phase,
-                          sessions: phase.sessions.map((session) =>
-                              session.id !== editingExercise.sessionId
-                                  ? session
-                                  : {
-                                        ...session,
-                                        exercises: session.exercises.map((e) =>
-                                            e.id === editingExercise.exerciseId
-                                                ? editingExercise.exercise
-                                                : e
-                                        ),
-                                    }
-                          ),
-                      }
-            )
-        );
-        setEditingExercise(null);
-    };
+                        ...session,
+                        exercises: updatedExercises,
+                        duration: totalDuration,
+                      };
+                }),
+              }
+        )
+      );
 
-    return (
-        <div className="w-full max-w-6xl mx-auto rounded-lg shadow-sm border text-accent-foreground">
-            <div className="w-full p-4">
-                {client_id}
-                <div className="mb-6">
-                    <Button onClick={addPhase}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Phase
+      // API call
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      setEditingExercise(null);
+    } catch (error) {
+      console.error("Error saving exercise:", error);
+      toast.error("Error saving exercise");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Calculate session duration based on exercises
+  const calculateSessionDuration = (exercises: Exercise[]): number => {
+    if (!exercises.length) return 0;
+
+    return exercises.reduce(
+      (total, exercise) => total + (exercise.duration || 8),
+      0
+    );
+  };
+
+  const handleExerciseFormChange = (field: keyof Exercise, value: string) => {
+    if (!editingExercise) return;
+
+    setEditingExercise({
+      ...editingExercise,
+      exercise: {
+        ...editingExercise.exercise,
+        [field]: value,
+      },
+    });
+  };
+
+  // Handle starting a session
+  const startSession = async (sessionId: string, phaseId: string) => {
+    setStartingSessionId(sessionId);
+    try {
+      // API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      router.push(
+        `/record-workout?sessionId=${sessionId}&phaseId=${phaseId}&clientId=${client_id}`
+      );
+    } catch (error) {
+      console.error("Error starting session:", error);
+    } finally {
+      setStartingSessionId(null);
+    }
+  };
+
+  // Save a single session
+  const saveSession = async (phaseId: string, sessionId: string) => {
+    setSavingSessionId(sessionId);
+    try {
+      // API call
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      const phaseToSave = phases.find((p) => p.id === phaseId);
+      const sessionToSave = phaseToSave?.sessions.find(
+        (s) => s.id === sessionId
+      );
+
+      console.log("Saving session:", sessionToSave);
+    } catch (error) {
+      console.error("Error saving session:", error);
+      toast.error("Error saving session");
+    } finally {
+      setSavingSessionId(null);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-6xl mx-auto rounded-lg shadow-sm border text-accent-foreground">
+      <div className="w-full p-4">
+        <div className="mb-6 flex items-start">
+          <Button onClick={addPhase} className="cursor-pointer">
+            <Plus className="h-4 w-4 mr-2" /> Add Phase
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="flex flex-col items-center">
+              <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Please wait...
+              </p>
+            </div>
+          </div>
+        ) : phases.length > 0 ? (
+          phases.map((phase) => (
+            <Card key={phase.id} className="mb-4">
+              <CardContent className="p-0">
+                <div className="flex items-center justify-between p-4 border-b">
+                  <div className="flex items-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => togglePhaseExpansion(phase.id)}
+                      className="p-1 h-auto mr-2 cursor-pointer"
+                    >
+                      {phase.isExpanded ? (
+                        <ChevronDown className="h-5 w-5" />
+                      ) : (
+                        <ChevronUp className="h-5 w-5" />
+                      )}
                     </Button>
+                    {editingPhase === phase.id ? (
+                      <div className="flex items-center">
+                        <Input
+                          value={editPhaseValue}
+                          onChange={(e) => setEditPhaseValue(e.target.value)}
+                          className="h-8 w-48"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={savePhaseEdit}
+                          className="ml-2 cursor-pointer"
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="font-semibold text-lg">
+                        {phase.name}
+                        {/* {phase.isActive && (
+                          <span className="ml-2 text-xs bg-green-600 text-white px-2 py-0.5 rounded-full">
+                            Active
+                          </span>
+                        )} */}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => startEditPhase(phase.id, phase.name)}
+                      className="h-8 w-8 cursor-pointer"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deletePhase(phase.id)}
+                      className="h-8 w-8 cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => duplicatePhase(phase.id)}
+                      className="h-8 w-8 cursor-pointer"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => addSession(phase.id)}
+                      className="h-8 w-8 cursor-pointer"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                    <div className="flex items-center ml-4">
+                      <div className="flex flex-col">
+                        <div className="flex items-center">
+                          <Switch
+                            checked={phase.isActive}
+                            onCheckedChange={() =>
+                              togglePhaseActivation(phase.id)
+                            }
+                            id={`activate-${phase.id}`}
+                          />
+                          <Label
+                            htmlFor={`activate-${phase.id}`}
+                            className="ml-2"
+                          >
+                            {phase.isActive
+                              ? "Deactivate Phase"
+                              : "Activate Phase"}
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {phases.map((phase) => (
-                    <Card key={phase.id} className="mb-4">
-                        <CardContent className="p-0">
-                            <div className="flex items-center justify-between p-4 border-b">
-                                <div className="flex items-center">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() =>
-                                            togglePhaseExpansion(phase.id)
-                                        }
-                                        className="p-1 h-auto mr-2"
-                                    >
-                                        {phase.isExpanded ? (
-                                            <ChevronDown className="h-5 w-5" />
-                                        ) : (
-                                            <ChevronUp className="h-5 w-5" />
-                                        )}
-                                    </Button>
-                                    {editingPhase === phase.id ? (
-                                        <div className="flex items-center">
-                                            <Input
-                                                value={editPhaseValue}
-                                                onChange={(e) =>
-                                                    setEditPhaseValue(
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="h-8 w-48"
-                                            />
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={savePhaseEdit}
-                                                className="ml-2"
-                                            >
-                                                Save
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <span className="font-semibold text-lg">
-                                            {phase.name}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() =>
-                                            startEditPhase(phase.id, phase.name)
-                                        }
-                                        className="h-8 w-8"
-                                    >
-                                        <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => deletePhase(phase.id)}
-                                        className="h-8 w-8"
-                                    >
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => duplicatePhase(phase.id)}
-                                        className="h-8 w-8"
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => addSession(phase.id)}
-                                        className="h-8 w-8"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                    </Button>
-                                    <div className="flex items-center ml-4">
-                                        <Switch
-                                            checked={phase.isActive}
-                                            onCheckedChange={() =>
-                                                togglePhaseActivation(phase.id)
-                                            }
-                                            id={`activate-${phase.id}`}
-                                        />
-                                        <Label
-                                            htmlFor={`activate-${phase.id}`}
-                                            className="ml-2"
-                                        >
-                                            Activate Phase
-                                        </Label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {phase.isExpanded && (
-                                <div className="p-4">
-                                    {phase.sessions.map((session) => (
-                                        <div
-                                            key={session.id}
-                                            className="border rounded-md mb-4"
-                                        >
-                                            <div className="flex items-center justify-between p-3 bg-muted">
-                                                <div className="flex items-center">
-                                                    <GripVertical className="h-4 w-4 text-muted-foreground mr-2" />
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            toggleSessionExpansion(
-                                                                phase.id,
-                                                                session.id
-                                                            )
-                                                        }
-                                                        className="p-1 h-auto mr-2"
-                                                    >
-                                                        {session.isExpanded ? (
-                                                            <ChevronDown className="h-5 w-5" />
-                                                        ) : (
-                                                            <ChevronUp className="h-5 w-5" />
-                                                        )}
-                                                    </Button>
-                                                    {editingSession ===
-                                                    session.id ? (
-                                                        <div className="flex items-center">
-                                                            <Input
-                                                                value={
-                                                                    editSessionValue
-                                                                }
-                                                                onChange={(e) =>
-                                                                    setEditSessionValue(
-                                                                        e.target
-                                                                            .value
-                                                                    )
-                                                                }
-                                                                className="h-8 w-48"
-                                                            />
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={
-                                                                    saveSessionEdit
-                                                                }
-                                                                className="ml-2"
-                                                            >
-                                                                Save
-                                                            </Button>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="font-medium">
-                                                            {session.name}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            startEditSession(
-                                                                session.id,
-                                                                session.name
-                                                            )
-                                                        }
-                                                        className="h-8 w-8"
-                                                    >
-                                                        <Edit className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            deleteSession(
-                                                                phase.id,
-                                                                session.id
-                                                            )
-                                                        }
-                                                        className="h-8 w-8"
-                                                    >
-                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            duplicateSession(
-                                                                phase.id,
-                                                                session.id
-                                                            )
-                                                        }
-                                                        className="h-8 w-8"
-                                                    >
-                                                        <Copy className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            addExercise(
-                                                                phase.id,
-                                                                session.id
-                                                            )
-                                                        }
-                                                        className="h-8 w-8"
-                                                    >
-                                                        <Plus className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8"
-                                                    >
-                                                        <Clipboard className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="secondary"
-                                                        className="ml-4"
-                                                    >
-                                                        Start Session (
-                                                        {session.duration} mins)
-                                                    </Button>
-                                                </div>
-                                            </div>
-
-                                            {session.isExpanded &&
-                                                session.exercises.length >
-                                                    0 && (
-                                                    <div className="mt-2">
-                                                        <Table>
-                                                            <TableHeader className="bg-muted">
-                                                                <TableRow>
-                                                                    <TableHead className="w-[80px]">
-                                                                        Order
-                                                                    </TableHead>
-                                                                    <TableHead>
-                                                                        Motion
-                                                                    </TableHead>
-                                                                    <TableHead>
-                                                                        Target
-                                                                        Area
-                                                                    </TableHead>
-                                                                    <TableHead>
-                                                                        Description
-                                                                    </TableHead>
-                                                                    <TableHead className="text-right">
-                                                                        Actions
-                                                                    </TableHead>
-                                                                </TableRow>
-                                                            </TableHeader>
-                                                            <TableBody>
-                                                                {session.exercises.map(
-                                                                    (
-                                                                        exercise
-                                                                    ) => (
-                                                                        <TableRow
-                                                                            key={
-                                                                                exercise.id
-                                                                            }
-                                                                        >
-                                                                            <TableCell>
-                                                                                {
-                                                                                    exercise.order
-                                                                                }
-                                                                            </TableCell>
-                                                                            <TableCell>
-                                                                                {
-                                                                                    exercise.motion
-                                                                                }
-                                                                            </TableCell>
-                                                                            <TableCell>
-                                                                                {
-                                                                                    exercise.targetArea
-                                                                                }
-                                                                            </TableCell>
-                                                                            <TableCell>
-                                                                                {
-                                                                                    exercise.description
-                                                                                }
-                                                                            </TableCell>
-                                                                            <TableCell className="text-right">
-                                                                                <div className="flex justify-end gap-1">
-                                                                                    <Dialog>
-                                                                                        <DialogTrigger
-                                                                                            asChild
-                                                                                        >
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="icon"
-                                                                                                onClick={() =>
-                                                                                                    startEditExercise(
-                                                                                                        phase.id,
-                                                                                                        session.id,
-                                                                                                        exercise
-                                                                                                    )
-                                                                                                }
-                                                                                                className="h-8 w-8"
-                                                                                            >
-                                                                                                <Edit className="h-4 w-4" />
-                                                                                            </Button>
-                                                                                        </DialogTrigger>
-                                                                                        <DialogContent>
-                                                                                            <DialogHeader>
-                                                                                                <DialogTitle>
-                                                                                                    Edit
-                                                                                                    Exercise
-                                                                                                </DialogTitle>
-                                                                                            </DialogHeader>
-                                                                                            {editingExercise && (
-                                                                                                <div className="grid gap-4 py-4">
-                                                                                                    {/* fields */}
-                                                                                                </div>
-                                                                                            )}
-                                                                                            <DialogFooter>
-                                                                                                <Button
-                                                                                                    onClick={
-                                                                                                        saveExerciseEdit
-                                                                                                    }
-                                                                                                >
-                                                                                                    Save
-                                                                                                    changes
-                                                                                                </Button>
-                                                                                            </DialogFooter>
-                                                                                        </DialogContent>
-                                                                                    </Dialog>
-                                                                                    <Button
-                                                                                        variant="ghost"
-                                                                                        size="icon"
-                                                                                        onClick={() =>
-                                                                                            deleteExercise(
-                                                                                                phase.id,
-                                                                                                session.id,
-                                                                                                exercise.id
-                                                                                            )
-                                                                                        }
-                                                                                        className="h-8 w-8"
-                                                                                    >
-                                                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                                                    </Button>
-                                                                                </div>
-                                                                            </TableCell>
-                                                                        </TableRow>
-                                                                    )
-                                                                )}
-                                                            </TableBody>
-                                                        </Table>
-                                                    </div>
-                                                )}
-                                            {session.exercises.length === 0 && (
-                                                <div className="text-center py-8 text-muted-foreground">
-                                                    No exercises. Add one above.
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                    {phase.sessions.length === 0 && (
-                                        <div className="text-center py-8 text-muted-foreground">
-                                            No sessions added. Click + to add.
-                                        </div>
-                                    )}
-                                </div>
+                {phase.isExpanded && (
+                  <div className="p-4">
+                    {phase.sessions.map((session) => (
+                      <div key={session.id} className="border rounded-md mb-4">
+                        <div className="flex items-center justify-between p-3 bg-muted">
+                          <div className="flex items-center">
+                            <GripVertical className="h-4 w-4 text-muted-foreground mr-2" />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                toggleSessionExpansion(phase.id, session.id)
+                              }
+                              className="p-1 h-auto mr-2 cursor-pointer"
+                            >
+                              {session.isExpanded ? (
+                                <ChevronDown className="h-5 w-5" />
+                              ) : (
+                                <ChevronUp className="h-5 w-5" />
+                              )}
+                            </Button>
+                            {editingSession === session.id ? (
+                              <div className="flex items-center">
+                                <Input
+                                  value={editSessionValue}
+                                  onChange={(e) =>
+                                    setEditSessionValue(e.target.value)
+                                  }
+                                  className="h-8 w-48"
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={saveSessionEdit}
+                                  className="ml-2 cursor-pointer"
+                                >
+                                  Save
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="font-medium">
+                                {session.name}
+                              </span>
                             )}
-                        </CardContent>
-                    </Card>
-                ))}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                startEditSession(session.id, session.name)
+                              }
+                              className="h-8 w-8 cursor-pointer"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                deleteSession(phase.id, session.id)
+                              }
+                              className="h-8 w-8 cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                duplicateSession(phase.id, session.id)
+                              }
+                              className="h-8 w-8 cursor-pointer"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => addExercise(phase.id, session.id)}
+                              className="h-8 w-8 cursor-pointer"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => saveSession(phase.id, session.id)}
+                              className="h-8 w-8 cursor-pointer"
+                              disabled={savingSessionId === session.id}
+                            >
+                              {savingSessionId === session.id ? (
+                                <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
+                              ) : (
+                                <Save className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="default"
+                              className="ml-4 cursor-pointer"
+                              disabled={
+                                !phase.isActive ||
+                                session.exercises.length === 0 ||
+                                startingSessionId === session.id
+                              }
+                              onClick={() => startSession(session.id, phase.id)}
+                            >
+                              {startingSessionId === session.id ? (
+                                <>
+                                  <div className="h-4 w-4 mr-2 rounded-full border-2 border-background border-t-transparent animate-spin"></div>
+                                  Please wait...
+                                </>
+                              ) : (
+                                <>Start Session ({session.duration} mins)</>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {session.isExpanded && session.exercises.length > 0 && (
+                          <div className="mt-2">
+                            <Table>
+                              <TableHeader className="bg-muted">
+                                <TableRow>
+                                  <TableHead className="w-[80px]">
+                                    Order
+                                  </TableHead>
+                                  <TableHead>Motion</TableHead>
+                                  <TableHead>Target Area</TableHead>
+                                  <TableHead>Description</TableHead>
+                                  <TableHead>Sets</TableHead>
+                                  <TableHead>Reps</TableHead>
+                                  <TableHead>TUT</TableHead>
+                                  <TableHead>Tempo</TableHead>
+                                  <TableHead>Rest</TableHead>
+                                  <TableHead className="text-right">
+                                    Actions
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {session.exercises.map((exercise) => (
+                                  <TableRow key={exercise.id}>
+                                    <TableCell>{exercise.order}</TableCell>
+                                    <TableCell>{exercise.motion}</TableCell>
+                                    <TableCell>{exercise.targetArea}</TableCell>
+                                    <TableCell>
+                                      {exercise.description}
+                                    </TableCell>
+                                    <TableCell>
+                                      {exercise.sets || "-"}
+                                    </TableCell>
+                                    <TableCell>
+                                      {exercise.reps || "-"}
+                                    </TableCell>
+                                    <TableCell>{exercise.tut || "-"}</TableCell>
+                                    <TableCell>
+                                      {exercise.tempo || "-"}
+                                    </TableCell>
+                                    <TableCell>
+                                      {exercise.rest || "-"}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex justify-end gap-1">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() =>
+                                            startEditExercise(
+                                              phase.id,
+                                              session.id,
+                                              exercise
+                                            )
+                                          }
+                                          className="h-8 w-8 cursor-pointer"
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() =>
+                                            deleteExercise(
+                                              phase.id,
+                                              session.id,
+                                              exercise.id
+                                            )
+                                          }
+                                          className="h-8 w-8"
+                                        >
+                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                        {session.exercises.length === 0 && (
+                          <div className="text-center py-8 text-muted-foreground">
+                            No exercises. Click + to add one.
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {phase.sessions.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No sessions added. Click + to add.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <div className="flex flex-col items-center justify-center p-10">
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-semibold mb-2 text-foreground">
+                No phases added yet
+              </h3>
+              <p className="text-muted-foreground">
+                Click &quot;Add Phase&quot; to get started
+              </p>
             </div>
-        </div>
-    );
+          </div>
+        )}
+      </div>
+
+      {/* Exercise Edit/Add Dialog - Moved outside of the list for better accessibility */}
+      <Dialog
+        open={!!editingExercise}
+        onOpenChange={(open) => !open && setEditingExercise(null)}
+      >
+        <DialogContent className="sm:max-w-[650px]">
+          <DialogHeader>
+            <DialogTitle className="text-center">
+              {editingExercise?.isNew ? "Add Exercise" : "Edit Exercise"}
+            </DialogTitle>
+          </DialogHeader>
+          {editingExercise && (
+            <div className="grid gap-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="order">Order</Label>
+                  <Input
+                    id="order"
+                    placeholder="A1, B1, etc."
+                    value={editingExercise.exercise.order}
+                    onChange={(e) =>
+                      handleExerciseFormChange("order", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="motion">Motion</Label>
+                  <select
+                    id="motion"
+                    className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    value={editingExercise.exercise.motion}
+                    onChange={(e) =>
+                      handleExerciseFormChange("motion", e.target.value)
+                    }
+                  >
+                    <option value="">Select Motion</option>
+                    <option value="Upper Body Pull">Upper Body Pull</option>
+                    <option value="Upper Body Push">Upper Body Push</option>
+                    <option value="Lower Body Pull">Lower Body Pull</option>
+                    <option value="Lower Body Push">Lower Body Push</option>
+                    <option value="Core">Core</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="targetArea">Target Area</Label>
+                  <select
+                    id="targetArea"
+                    className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    value={editingExercise.exercise.targetArea}
+                    onChange={(e) =>
+                      handleExerciseFormChange("targetArea", e.target.value)
+                    }
+                  >
+                    <option value="">Select Target Area</option>
+                    <option value="Chest">Chest</option>
+                    <option value="Back">Back</option>
+                    <option value="Shoulders">Shoulders</option>
+                    <option value="Biceps">Biceps</option>
+                    <option value="Triceps">Triceps</option>
+                    <option value="Legs">Legs</option>
+                    <option value="Calves">Calves</option>
+                    <option value="Abs">Abs</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Input
+                    id="description"
+                    placeholder="Exercise description"
+                    value={editingExercise.exercise.description}
+                    onChange={(e) =>
+                      handleExerciseFormChange("description", e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium mb-3">
+                  Exercise Parameters
+                </h3>
+                <div className="grid grid-cols-5 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="sets">Sets</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        id="sets-min"
+                        placeholder="Min"
+                        className="w-20"
+                        value={
+                          editingExercise.exercise.sets?.split("-")[0] || ""
+                        }
+                        onChange={(e) => {
+                          const max =
+                            editingExercise.exercise.sets?.split("-")[1] || "";
+                          handleExerciseFormChange(
+                            "sets",
+                            `${e.target.value}${max ? "-" + max : ""}`
+                          );
+                        }}
+                      />
+                      <span>-</span>
+                      <Input
+                        id="sets-max"
+                        placeholder="Max"
+                        className="w-20"
+                        value={
+                          editingExercise.exercise.sets?.split("-")[1] || ""
+                        }
+                        onChange={(e) => {
+                          const min =
+                            editingExercise.exercise.sets?.split("-")[0] || "";
+                          handleExerciseFormChange(
+                            "sets",
+                            `${min ? min + "-" : ""}${e.target.value}`
+                          );
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reps">Reps</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        id="reps-min"
+                        placeholder="Min"
+                        className="w-20"
+                        value={
+                          editingExercise.exercise.reps?.split("-")[0] || ""
+                        }
+                        onChange={(e) => {
+                          const max =
+                            editingExercise.exercise.reps?.split("-")[1] || "";
+                          handleExerciseFormChange(
+                            "reps",
+                            `${e.target.value}${max ? "-" + max : ""}`
+                          );
+                        }}
+                      />
+                      <span>-</span>
+                      <Input
+                        id="reps-max"
+                        placeholder="Max"
+                        className="w-20"
+                        value={
+                          editingExercise.exercise.reps?.split("-")[1] || ""
+                        }
+                        onChange={(e) => {
+                          const min =
+                            editingExercise.exercise.reps?.split("-")[0] || "";
+                          handleExerciseFormChange(
+                            "reps",
+                            `${min ? min + "-" : ""}${e.target.value}`
+                          );
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tut">TUT</Label>
+                    <Input
+                      id="tut"
+                      placeholder="Time under tension"
+                      value={editingExercise.exercise.tut || ""}
+                      onChange={(e) =>
+                        handleExerciseFormChange("tut", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tempo">Tempo</Label>
+                    <Input
+                      id="tempo"
+                      placeholder="E.g. 3-1-1"
+                      value={editingExercise.exercise.tempo || ""}
+                      onChange={(e) =>
+                        handleExerciseFormChange("tempo", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="rest">Rest</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        id="rest-min"
+                        placeholder="Min"
+                        className="w-20"
+                        value={
+                          editingExercise.exercise.rest?.split("-")[0] || ""
+                        }
+                        onChange={(e) => {
+                          const max =
+                            editingExercise.exercise.rest?.split("-")[1] || "";
+                          handleExerciseFormChange(
+                            "rest",
+                            `${e.target.value}${max ? "-" + max : ""}`
+                          );
+                        }}
+                      />
+                      <span>-</span>
+                      <Input
+                        id="rest-max"
+                        placeholder="Max"
+                        className="w-20"
+                        value={
+                          editingExercise.exercise.rest?.split("-")[1] || ""
+                        }
+                        onChange={(e) => {
+                          const min =
+                            editingExercise.exercise.rest?.split("-")[0] || "";
+                          handleExerciseFormChange(
+                            "rest",
+                            `${min ? min + "-" : ""}${e.target.value}`
+                          );
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="additionalInfo">Additional Information</Label>
+                <Input
+                  id="additionalInfo"
+                  placeholder="Additional notes for this exercise"
+                  value={editingExercise.exercise.additionalInfo || ""}
+                  onChange={(e) =>
+                    handleExerciseFormChange("additionalInfo", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingExercise(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveExerciseEdit} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <div className="h-4 w-4 mr-2 rounded-full border-2 border-background border-t-transparent animate-spin"></div>
+                  Please wait...
+                </>
+              ) : editingExercise?.isNew ? (
+                "Add Exercise"
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
