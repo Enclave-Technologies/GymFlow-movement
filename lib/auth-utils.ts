@@ -13,7 +13,7 @@ export async function checkGuestApproval() {
         redirect("/login");
     }
 
-    if (user.role === "Guest" && !user.approvedByAdmin) {
+    if (user.roles?.includes("Guest") && !user.approvedByAdmin) {
         redirect("/awaiting-approval");
     }
 
@@ -38,7 +38,7 @@ export async function requireTrainerOrAdmin(throwInsteadOfRedirect = false) {
         redirect("/login");
     }
 
-    if (user.role !== "Trainer" && user.role !== "Admin") {
+    if (!user.roles?.includes("Trainer") && !user.roles?.includes("Admin")) {
         if (throwInsteadOfRedirect) {
             throw new Error("Unauthorized: Insufficient role");
         }

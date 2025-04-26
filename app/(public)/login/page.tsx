@@ -17,7 +17,11 @@ export default async function Page() {
             const user = await get_logged_in_user();
 
             // Check if user is a Guest and not approved
-            if (user && user.role === "Guest" && !user.approvedByAdmin) {
+            if (
+                user &&
+                user.roles?.includes("Guest") &&
+                !user.approvedByAdmin
+            ) {
                 redirect("/awaiting-approval");
             } else {
                 redirect("/my-clients");
