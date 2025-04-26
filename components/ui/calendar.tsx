@@ -2,10 +2,12 @@
 
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DayPicker } from "react-day-picker";
+import { DayPicker, useDayPicker, useNavigation } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { format, setMonth } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "./select";
 
 function Calendar({
     className,
@@ -73,6 +75,99 @@ function Calendar({
                         {...props}
                     />
                 ),
+                Dropdown: (props) => {
+                    const {
+                        fromDate,
+                        fromMonth,
+                        fromYear,
+                        toDate,
+                        toMonth,
+                        toYear,
+                    } = useDayPicker();
+                    const { goToMonth, currentMonth } = useNavigation();
+                    if (props.name === "months") {
+                        const selectItems = Array.from(
+                            { length: 12 },
+                            (_, i) => ({
+                                value: i.toString(),
+                                label: format(setMonth(new Date(), i), "MMM"),
+                            })
+                        );
+                        return (
+                            <Select
+                                onValueChange={(newValue) => {
+                                    const newDate = new Date(currentMonth);
+                                    newDate.setMonth(parseInt(newValue));
+                                    goToMonth(newDate);
+                                }}
+                                value={props.value?.toString()}
+                            >
+                                <SelectTrigger>
+                                    {format(currentMonth, "MMM")}
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {selectItems.map((item) => (
+                                        <SelectItem
+                                            key={item.value}
+                                            value={item.value}
+                                        >
+                                            {item.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        );
+                    } else if (props.name === "years") {
+                        const earliestYear =
+                            fromYear ||
+                            fromMonth?.getFullYear() ||
+                            fromDate?.getFullYear();
+                        const latestYear =
+                            toYear ||
+                            toMonth?.getFullYear() ||
+                            toDate?.getFullYear();
+
+                        let selectItems: { label: string; value: string }[] =
+                            [];
+
+                        if (earliestYear && latestYear) {
+                            const numYears = latestYear - earliestYear + 1;
+                            selectItems = Array.from(
+                                { length: numYears },
+                                (_, i) => ({
+                                    value: (earliestYear + i).toString(),
+                                    label: (earliestYear + i).toString(),
+                                })
+                            );
+                        }
+
+                        return (
+                            <Select
+                                onValueChange={(newValue) => {
+                                    const newDate = new Date(currentMonth);
+                                    newDate.setFullYear(parseInt(newValue));
+                                    goToMonth(newDate);
+                                }}
+                                value={props.value?.toString()}
+                            >
+                                <SelectTrigger>
+                                    {currentMonth.getFullYear()}
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {selectItems.map((item) => (
+                                        <SelectItem
+                                            key={item.value}
+                                            value={item.value}
+                                        >
+                                            {item.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        );
+                    }
+                    return null;
+                },
             }}
             {...props}
         />
