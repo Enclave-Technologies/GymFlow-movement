@@ -6,59 +6,59 @@ import BodyMassComposition from "@/components/body-mass-composition/body-mass-co
 import WorkoutHistoryList from "../workout-history/workout-history-list";
 import { ClientType } from "./client-tabs";
 
-const ClientDetails = ({ client_id, userdata }: { client_id: string, userdata: ClientType }) => {
-    console.log("ClientDetails", client_id);
+type ClientDetailsProps = {
+  client_id: string;
+  userdata: ClientType;
+};
 
-    return (
-        <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 h-full">
-            <Tabs
-                defaultValue="workout-history"
-                className="w-full h-full flex flex-col"
-            >
-                <TabsList className="flex w-full space-x-2 overflow-x-auto sm:grid sm:grid-cols-4">
-                    <TabsTrigger
-                        className="flex-shrink-0 whitespace-nowrap"
-                        value="workout-history"
-                    >
-                        Workout History
-                    </TabsTrigger>
-                    <TabsTrigger
-                        className="flex-shrink-0 whitespace-nowrap"
-                        value="workout-plan"
-                    >
-                        Workout Plan
-                    </TabsTrigger>
-                    <TabsTrigger
-                        className="flex-shrink-0 whitespace-nowrap"
-                        value="goal-list"
-                    >
-                        Goal List
-                    </TabsTrigger>
-                    <TabsTrigger
-                        className="flex-shrink-0 whitespace-nowrap"
-                        value="body-mass-composition"
-                    >
-                        Body Mass Composition
-                    </TabsTrigger>
-                </TabsList>
-                <TabsContent
-                    value="workout-history"
-                    className="flex-1 overflow-hidden"
-                >
-                    <WorkoutHistoryList client_id={client_id} />
-                </TabsContent>
-                <TabsContent value="workout-plan">
-                    <WorkoutPlan client_id={client_id} />
-                </TabsContent>
-                <TabsContent value="goal-list">
-                    <GoalList client_id={client_id} userdata={userdata} />
-                </TabsContent>
-                <TabsContent value="body-mass-composition">
-                    <BodyMassComposition client_id={client_id} />
-                </TabsContent>
-            </Tabs>
-        </div>
-    );
+const ClientDetails = ({ client_id, userdata }: ClientDetailsProps) => {
+  return (
+    <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 h-full">
+      <Tabs
+        defaultValue="workout-history"
+        className="w-full h-full flex flex-col"
+      >
+        <TabsList className="flex w-full space-x-2 overflow-x-auto sm:grid sm:grid-cols-4">
+          <TabsTrigger
+            className="flex-shrink-0 whitespace-nowrap"
+            value="workout-history"
+          >
+            Workout History
+          </TabsTrigger>
+          <TabsTrigger
+            className="flex-shrink-0 whitespace-nowrap"
+            value="workout-plan"
+          >
+            Workout Plan
+          </TabsTrigger>
+          <TabsTrigger
+            className="flex-shrink-0 whitespace-nowrap"
+            value="goal-list"
+          >
+            Goal List
+          </TabsTrigger>
+          <TabsTrigger
+            className="flex-shrink-0 whitespace-nowrap"
+            value="body-mass-composition"
+          >
+            Body Mass Composition
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="workout-history" className="flex-1 overflow-hidden">
+          <WorkoutHistoryList client_id={client_id} />
+        </TabsContent>
+        <TabsContent value="workout-plan">
+          <WorkoutPlan client_id={client_id} />
+        </TabsContent>
+        <TabsContent value="goal-list">
+          <GoalList client_id={client_id} userdata={userdata} />
+        </TabsContent>
+        <TabsContent value="body-mass-composition">
+          <BodyMassComposition client_id={client_id} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 };
 
 export default ClientDetails;
