@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { AlertCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+// import { AlertCircle } from "lucide-react";
+// import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
     updateUser,
     updatePassword,
@@ -109,6 +109,23 @@ export function SettingsForm({ user: initialUser }: SettingsFormProps) {
         return () => subscription.unsubscribe();
     }, [settingsForm, user, imageFile]);
 
+    // Reset form when user data changes
+    useEffect(() => {
+        settingsForm.reset({
+            fullName: user.fullName || "",
+            email: user.email || "",
+            phone: user.phone || "",
+            gender:
+                (user.gender as
+                    | "male"
+                    | "female"
+                    | "non-binary"
+                    | "prefer-not-to-say"
+                    | undefined) || undefined,
+            jobTitle: user.jobTitle || "",
+        });
+    }, [user, settingsForm]);
+
     // Handle image upload
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -182,22 +199,36 @@ export function SettingsForm({ user: initialUser }: SettingsFormProps) {
                 // Create updated user object
                 const updatedUser = {
                     ...user,
-                    fullName: (formData.get("fullName") as string) || user.fullName,
+                    fullName:
+                        (formData.get("fullName") as string) || user.fullName,
                     email: (formData.get("email") as string) || user.email,
                     phone: (formData.get("phone") as string) || user.phone,
-                    gender: (formData.get("gender") as "male" | "female" | "non-binary" | "prefer-not-to-say" | undefined) || user.gender,
-                    jobTitle: (formData.get("job_title") as string) || user.jobTitle,
+                    gender:
+                        (formData.get("gender") as
+                            | "male"
+                            | "female"
+                            | "non-binary"
+                            | "prefer-not-to-say"
+                            | undefined) || user.gender,
+                    jobTitle:
+                        (formData.get("job_title") as string) || user.jobTitle,
                 };
-                
+
                 // Update the user state with the new values
                 setUser(updatedUser);
-                
+
                 // Update the form's default values to match the new values
                 const updatedValues = {
                     fullName: updatedUser.fullName || "",
                     email: updatedUser.email || "",
                     phone: updatedUser.phone || "",
-                    gender: (updatedUser.gender as "male" | "female" | "non-binary" | "prefer-not-to-say" | undefined) || undefined,
+                    gender:
+                        (updatedUser.gender as
+                            | "male"
+                            | "female"
+                            | "non-binary"
+                            | "prefer-not-to-say"
+                            | undefined) || undefined,
                     jobTitle: updatedUser.jobTitle || "",
                 };
 
@@ -209,6 +240,9 @@ export function SettingsForm({ user: initialUser }: SettingsFormProps) {
                     keepValues: false,
                     keepDefaultValues: false,
                 });
+
+                // Reset the imageFile state to null
+                setImageFile(null);
 
                 // Set hasUnsavedChanges to false
                 setHasUnsavedChanges(false);
@@ -264,9 +298,12 @@ export function SettingsForm({ user: initialUser }: SettingsFormProps) {
                     setImagePreview(result.imageUrl);
                     setUser({
                         ...user,
-                        imageUrl: result.imageUrl
+                        imageUrl: result.imageUrl,
                     });
                 }
+
+                // Reset the unsaved changes flag after successful image upload
+                setHasUnsavedChanges(false);
             } else {
                 toast.error("Error", {
                     description: result.message || "Failed to upload image.",
@@ -316,13 +353,18 @@ export function SettingsForm({ user: initialUser }: SettingsFormProps) {
         <div className="space-y-6">
             {/* Unsaved changes alert */}
             {hasUnsavedChanges && (
-                <Alert className="bg-amber-50 border-amber-200">
-                    <AlertCircle className="h-4 w-4 text-amber-600" />
-                    <AlertDescription className="text-amber-800">
-                        You have unsaved changes. Don&apos;t forget to save your
-                        settings.
-                    </AlertDescription>
-                </Alert>
+                // <Alert className="bg-amber-50 border-amber-200">
+                //     <AlertCircle className="h-4 w-4 text-amber-600" />
+                //     <AlertDescription className="text-amber-800">
+                //         You have unsaved changes. Don&apos;t forget to save your
+                //         settings.
+                //     </AlertDescription>
+                // </Alert>
+                <div className="flex items-center text-sm text-muted-foreground">
+                    <span className="ml-2 text-yellow-600 font-medium">
+                        * You have unsaved changes
+                    </span>
+                </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

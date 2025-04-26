@@ -592,6 +592,11 @@ export async function uploadUserImage(
                 .update(User)
                 .set({ imageUrl: fileUrl })
                 .where(eq(User.userId, dbUser.userId));
+            
+            // Revalidate paths to bust the sidebar cache
+            revalidatePath("/");
+            revalidatePath("/settings");
+            revalidatePath("/settings/team");
 
             return {
                 success: true,
