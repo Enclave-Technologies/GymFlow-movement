@@ -30,7 +30,8 @@ export const Users = pgTable("Users", {
     userId: text("user_id")
         .primaryKey()
         .default(sql`uuid_generate_v4()`),
-    appwrite_id: text("appwrite_id").unique().notNull(),
+    appwrite_id: text("appwrite_id").unique(),
+    has_auth: boolean("has_auth").default(false),
     fullName: text("full_name").notNull(),
     email: text("email").unique(),
     registrationDate: timestamp("registration_date").defaultNow().notNull(),
