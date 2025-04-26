@@ -52,6 +52,15 @@ export function SettingsClient() {
         {}
     );
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Recalculate unsaved-changes flag after data load and on data changes
+    useEffect(() => {
+        if (isLoading) return;
+        const changed =
+            JSON.stringify(accountData) !== JSON.stringify(originalAccountData);
+        setHasUnsavedChanges(changed);
+    }, [accountData, originalAccountData, isLoading]);
 
     const [formState, formAction] = React.useActionState(updateUser, null);
     const [passwordFormState, passwordFormAction] = React.useActionState(
@@ -78,7 +87,6 @@ export function SettingsClient() {
         confirmPassword: "",
     });
 
-    const [isLoading, setIsLoading] = useState(true);
     const [roles, setRoles] = useState<RoleOption[]>([]);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
@@ -104,12 +112,15 @@ export function SettingsClient() {
             if (formState.success) {
                 setFormStatus("success");
                 toast.success(formState.message);
+                // Reset original data and clear unsaved-changes indicator
+                setOriginalAccountData(accountData);
+                setHasUnsavedChanges(false);
             } else if (formState.message) {
                 setFormStatus("error");
                 toast.error(formState.message);
             }
         }
-    }, [formState]);
+    }, [formState, accountData]);
 
     useEffect(() => {
         if (passwordFormState) {
@@ -138,10 +149,14 @@ export function SettingsClient() {
                 );
 
                 if (imageFormState.imageUrl) {
-                    setAccountData((prev) => ({
-                        ...prev,
+                    const updated = {
+                        ...accountData,
                         imageUrl: imageFormState.imageUrl,
-                    }));
+                    };
+                    setAccountData(updated);
+                    // Reset original data and clear unsaved changes
+                    setOriginalAccountData(updated);
+                    setHasUnsavedChanges(false);
                 }
             } else if (imageFormState.message) {
                 setImageUploadStatus("error");
@@ -154,27 +169,14 @@ export function SettingsClient() {
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
     ) => {
         const { name, value } = e.target;
-        const newData = { ...accountData, [name]: value };
-        setAccountData(newData);
-        checkForChanges(newData);
+        setAccountData((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleSelectChange = (name: string, value: string) => {
-        const newData = { ...accountData, [name]: value };
-        setAccountData(newData);
-        checkForChanges(newData);
+        setAccountData((prev) => ({ ...prev, [name]: value }));
     };
 
-    // Function to check if there are unsaved changes
-    const checkForChanges = (currentData: UserData) => {
-        const hasChanges =
-            currentData.fullName !== originalAccountData.fullName ||
-            currentData.phone !== originalAccountData.phone ||
-            currentData.job_title !== originalAccountData.job_title ||
-            currentData.gender !== originalAccountData.gender;
-
-        setHasUnsavedChanges(hasChanges);
-    };
+    // Removed manual change-checking: effect handles unsaved changes
 
     const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
