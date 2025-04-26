@@ -21,6 +21,7 @@ import {
 import { eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { revalidatePath } from "next/cache";
+import sharp from "sharp";
 
 export async function get_user_account() {
     const session = (await cookies()).get(MOVEMENT_SESSION_NAME)?.value || null;
@@ -426,7 +427,6 @@ export async function updateUser(
         // Revalidate root path so sidebar picks up updated profile
         revalidatePath("/");
         revalidatePath("/settings");
-        revalidatePath("/settings/team");
 
         return { success: true, message: "User updated successfully" };
     } catch (error) {
@@ -546,6 +546,21 @@ export async function uploadUserImage(
             };
         }
 
+        // Then in your function, before creating apiFormData:
+        // Convert image to WebP
+        const webpBuffer = await sharp(await file.arrayBuffer())
+            .webp({ quality: 80 })
+            .toBuffer();
+
+        // Create a new File object with the WebP data
+        const webpFile = new File(
+            [webpBuffer],
+            `${file.name.split(".")[0]}.webp`,
+            {
+                type: "image/webp",
+            }
+        );
+
         const dbUser = await getUserById(appwriteUser.$id);
         if (!dbUser || !dbUser.userId) {
             return { success: false, message: "User not found in database" };
@@ -561,7 +576,7 @@ export async function uploadUserImage(
             // Create a new FormData to send the file
             const apiFormData = new FormData();
             apiFormData.append("fileId", fileId);
-            apiFormData.append("file", file);
+            apiFormData.append("file", webpFile);
 
             // Use the session token for authentication instead of API key
             const headers = {
@@ -592,11 +607,10 @@ export async function uploadUserImage(
                 .update(User)
                 .set({ imageUrl: fileUrl })
                 .where(eq(User.userId, dbUser.userId));
-            
+
             // Revalidate paths to bust the sidebar cache
             revalidatePath("/");
             revalidatePath("/settings");
-            revalidatePath("/settings/team");
 
             return {
                 success: true,
