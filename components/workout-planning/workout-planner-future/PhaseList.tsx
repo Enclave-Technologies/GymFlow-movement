@@ -1,4 +1,4 @@
-import { Phase, Exercise } from "./types";
+import { Phase, Exercise } from "../types";
 import PhaseCard from "./PhaseCard";
 
 interface PhaseListProps {

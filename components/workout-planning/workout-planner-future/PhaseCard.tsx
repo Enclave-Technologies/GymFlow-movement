@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Phase, Exercise } from "./types";
+import { Phase, Exercise } from "../types";
 import SessionList from "./SessionList";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, Edit, Trash2, Copy, Plus } from "lucide-react";

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Phase } from "./types";
+import { Phase } from "../types";
 
 export function useUndoRedo(initialState: Phase[]) {
     const [phases, setPhases] = useState<Phase[]>(initialState);

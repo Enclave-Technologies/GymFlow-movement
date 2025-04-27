@@ -1,4 +1,4 @@
-import { Phase } from "./types";
+import { Phase } from "../types";
 import {
     Dialog,
     DialogContent,
@@ -25,7 +25,6 @@ interface ConfirmDeleteDialogProps {
 export default function ConfirmDeleteDialog({
     showConfirm,
     closeDialog,
-    setPhases,
     pushHistory,
     setIsDirty,
     phases,

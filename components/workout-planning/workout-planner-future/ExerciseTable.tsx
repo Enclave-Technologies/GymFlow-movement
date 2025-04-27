@@ -1,4 +1,4 @@
-import { Session, Exercise } from "./types";
+import { Session, Exercise } from "../types";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2 } from "lucide-react";
 

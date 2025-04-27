@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Session, Exercise } from "./types";
+import { Session, Exercise } from "../types";
 import ExerciseTable from "./ExerciseTable";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, Edit, Trash2, Copy, Plus } from "lucide-react";
