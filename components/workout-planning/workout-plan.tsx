@@ -529,12 +529,32 @@ export default function WorkoutPlanner({
     const duplicatePhase = (phaseId: string) => {
         const target = phases.find((p) => p.id === phaseId);
         if (!target) return;
+        
+        // Create deep copies of sessions and exercises with new IDs
+        const copiedSessions = target.sessions.map(session => {
+            // Create deep copies of exercises with new IDs
+            const copiedExercises = session.exercises.map(exercise => ({
+                ...exercise,
+                id: uuidv4() // Generate new ID for each exercise
+            }));
+            
+            // Create a new session with a new ID and the copied exercises
+            return {
+                ...session,
+                id: uuidv4(), // Generate new ID for the session
+                exercises: copiedExercises
+            };
+        });
+        
+        // Create the copied phase with new sessions
         const copy: Phase = {
             ...target,
-            id: uuidv4(),
+            id: uuidv4(), // Generate new ID for the phase
             name: `${target.name} (Copy)`,
             isActive: false,
+            sessions: copiedSessions
         };
+        
         setPhases([...phases, copy]);
         setHasUnsavedChanges(true);
     };
@@ -547,7 +567,7 @@ export default function WorkoutPlanner({
                 const count = phase.sessions.length + 1;
                 const newSession: Session = {
                     id: uuidv4(),
-                    name: `Session ${count}: New`,
+                    name: `Untitled Session ${count}`,
                     duration: 0,
                     isExpanded: true,
                     exercises: [],
@@ -600,11 +620,21 @@ export default function WorkoutPlanner({
                 if (phase.id !== phaseId) return phase;
                 const target = phase.sessions.find((s) => s.id === sessionId);
                 if (!target) return phase;
+                
+                // Create deep copies of exercises with new IDs
+                const copiedExercises = target.exercises.map(exercise => ({
+                    ...exercise,
+                    id: uuidv4() // Generate new ID for each exercise
+                }));
+                
+                // Create a new session with a new ID and the copied exercises
                 const copy: Session = {
                     ...target,
-                    id: uuidv4(),
+                    id: uuidv4(), // Generate new ID for the session
                     name: `${target.name} (Copy)`,
+                    exercises: copiedExercises
                 };
+                
                 return { ...phase, sessions: [...phase.sessions, copy] };
             })
         );
