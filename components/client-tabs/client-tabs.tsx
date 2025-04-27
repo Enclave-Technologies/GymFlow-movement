@@ -1,12 +1,7 @@
-// "use client";
-// import { useEffect, useState } from "react";
-// import Image from "next/image";
-// import { Edit } from "lucide-react";
-// import RightModal from "@/components/pure-components/RightModal";
-// import EditUserForm from "@/components/forms/edit-user-form";
+import { SelectExercise } from "@/db/schemas";
 import ClientDetails from "./client-details";
 
-type ClientType = {
+export type ClientType = {
     userId: string;
     fullName: string;
     email: string | null;
@@ -19,13 +14,22 @@ type ClientType = {
     registrationDate: Date | null;
 };
 
-const ClientTabs = ({ params }: { params: { userdata: ClientType } }) => {
+type ClientTabsProps = {
+    params: { userdata: ClientType };
+    exercises: Array<SelectExercise>;
+};
+
+const ClientTabs = ({ params, exercises }: ClientTabsProps) => {
     const { userdata } = params;
 
     return (
-        <div className="flex flex-col items-center justify-between text-black w-full h-full">
-            <div className="text-center flex flex-col gap-8 w-full h-full">
-                <ClientDetails client_id={userdata.userId} />
+        <div className="flex flex-col items-center justify-between w-full h-full">
+            <div className="flex flex-col w-full h-full">
+                <ClientDetails
+                    client_id={userdata.userId}
+                    userdata={userdata}
+                    exercises={exercises}
+                />
             </div>
         </div>
     );

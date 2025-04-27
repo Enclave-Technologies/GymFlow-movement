@@ -5,7 +5,6 @@ import { db } from "@/db/xata";
 import { desc, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import "server-only";
-
 import { requireTrainerOrAdmin } from "@/lib/auth-utils";
 
 export async function getAllExercises(params: Record<string, unknown> = {}) {
@@ -102,4 +101,15 @@ export async function getAllExercises(params: Record<string, unknown> = {}) {
             totalRowCount: totalCount,
         },
     };
+}
+
+// New function to get all exercises with complete data for workout planning
+export async function getAllExercisesForWorkoutPlanning() {
+    try {
+        const exercises = await db.select().from(Exercises);
+        return exercises;
+    } catch (error) {
+        console.error("Error fetching exercises for workout planning:", error);
+        return [];
+    }
 }

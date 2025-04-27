@@ -1,6 +1,6 @@
 {
-  "id": "85ff0d25-b554-40ca-95e1-8a118f80f48c",
-  "prevId": "6b38eee2-fed8-4fe0-9e6c-c17e12526eb5",
+  "id": "6304e92f-1eed-47af-b89f-913efac3c4ff",
+  "prevId": "85ff0d25-b554-40ca-95e1-8a118f80f48c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -784,16 +784,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "uniquePhaseOrder": {
-          "name": "uniquePhaseOrder",
-          "nullsNotDistinct": false,
-          "columns": [
-            "phase_id",
-            "order_number"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -976,14 +967,6 @@
           "name": "appwrite_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
-        },
-        "has_auth": {
-          "name": "has_auth",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
           "notNull": true
         },
         "full_name": {

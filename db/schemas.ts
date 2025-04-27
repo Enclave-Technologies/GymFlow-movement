@@ -124,6 +124,7 @@ export const ExercisePlans = pgTable("ExercisePlans", {
             onUpdate: "cascade",
         }),
     createdDate: timestamp("created_date").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(), // Added for optimistic concurrency control
     assignedToUserId: text("assigned_to_user_id") // Changed to text
         .references(() => Users.userId, {
             onDelete: "cascade",
@@ -168,8 +169,8 @@ export const Sessions = pgTable(
         sessionName: text("session_name").notNull(),
         orderNumber: integer("order_number").notNull(), // Keep integer
         sessionTime: real("session_time"),
-    },
-    (table) => [unique("uniquePhaseOrder").on(table.phaseId, table.orderNumber)]
+    }
+    // Removed unique constraint to allow reordering sessions
 );
 
 export type InsertSession = typeof Sessions.$inferInsert;
