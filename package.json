@@ -43,6 +43,7 @@
         "@tanstack/react-query": "^5.74.3",
         "@tanstack/react-table": "^8.21.3",
         "@tanstack/react-virtual": "^3.13.6",
+        "@types/uuid": "^10.0.0",
         "@xata.io/client": "^0.0.0-next.v93343b9646f57a1e5c51c35eccf0767c2bb80baa",
         "appwrite": "^17.0.1",
         "class-variance-authority": "^0.7.1",
@@ -73,6 +74,7 @@
         "tailwindcss-animate": "^1.0.7",
         "tw-animate-css": "^1.2.5",
         "use-debounce": "^10.0.4",
+        "uuid": "^11.1.0",
         "vaul": "^1.1.2",
         "zod": "^3.24.2"
     },
