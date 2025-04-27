@@ -12,6 +12,7 @@ import { eq, or, and, not } from "drizzle-orm";
 import "server-only";
 import { v4 as uuidv4 } from "uuid";
 import { WorkoutPlanActionResponse } from "@/components/workout-planning/types";
+import { revalidatePath } from "next/cache";
 
 // Define types for workout plan data
 interface ExerciseItem {
@@ -20,6 +21,16 @@ interface ExerciseItem {
     motion: string | null;
     targetArea: string | null;
     description: string | null;
+    tut?: string | null;
+    tempo?: string | null;
+    customizations?: string | null;
+    setsMin?: string | null;
+    setsMax?: string | null;
+    repsMin?: string | null;
+    repsMax?: string | null;
+    restMin?: string | null;
+    restMax?: string | null;
+    notes?: string | null;
 }
 
 interface SessionItem {
@@ -65,6 +76,15 @@ export async function getWorkoutPlanByClientId(
             motion: ExercisePlanExercises.motion,
             targetArea: ExercisePlanExercises.targetArea,
             description: Exercises.exerciseName,
+            tut: ExercisePlanExercises.tut,
+            tempo: ExercisePlanExercises.tempo,
+            customizations: ExercisePlanExercises.customizations,
+            setsMin: ExercisePlanExercises.setsMin,
+            setsMax: ExercisePlanExercises.setsMax,
+            repsMin: ExercisePlanExercises.repsMin,
+            repsMax: ExercisePlanExercises.repsMax,
+            restMin: ExercisePlanExercises.restMin,
+            restMax: ExercisePlanExercises.restMax,
         })
         .from(ExercisePlanExercises)
         .innerJoin(
@@ -239,6 +259,21 @@ export async function updatePhaseActivation(
                 .set({ updatedAt: now })
                 .where(eq(ExercisePlans.planId, planId));
 
+            // Get the client ID associated with this plan
+            const plan = await tx
+                .select({ assignedToUserId: ExercisePlans.assignedToUserId })
+                .from(ExercisePlans)
+                .where(eq(ExercisePlans.planId, planId))
+                .limit(1);
+
+            if (plan.length && plan[0].assignedToUserId) {
+                // Invalidate the client cache
+                const clientId = plan[0].assignedToUserId;
+                // This is where we would invalidate the cache for /clients/{id}
+                console.log(`Invalidating cache for client: ${clientId}`);
+                revalidatePath(`/clients/${clientId}`);
+            }
+
             return {
                 success: true,
                 planId: planId,
@@ -390,7 +425,21 @@ export async function updateWorkoutPlan(
                     }
 
                     // Process each exercise in the session
-                    for (const exercise of session.exercises) {
+                    // First, sort exercises by their setOrderMarker (order field) in typographical order
+                    const sortedExercises = [...session.exercises].sort(
+                        (a, b) => {
+                            return a.order.localeCompare(b.order, undefined, {
+                                numeric: true,
+                                sensitivity: "base",
+                            });
+                        }
+                    );
+
+                    // Then assign exerciseOrder values (0, 1, 2, ...) based on the sorted order
+                    for (let i = 0; i < sortedExercises.length; i++) {
+                        const exercise = sortedExercises[i];
+                        const exerciseOrder = i; // 0-based index for the sorted exercises
+
                         // Check if exercise exists
                         const existingExercise = await tx
                             .select({
@@ -413,8 +462,54 @@ export async function updateWorkoutPlan(
                                 .set({
                                     motion: exercise.motion,
                                     targetArea: exercise.targetArea,
-                                    exerciseOrder:
-                                        parseInt(exercise.order, 10) || 0,
+                                    repsMin:
+                                        exercise.repsMin !== undefined &&
+                                        exercise.repsMin !== null &&
+                                        exercise.repsMin !== ""
+                                            ? Number(exercise.repsMin)
+                                            : null,
+                                    repsMax:
+                                        exercise.repsMax !== undefined &&
+                                        exercise.repsMax !== null &&
+                                        exercise.repsMax !== ""
+                                            ? Number(exercise.repsMax)
+                                            : null,
+                                    setsMin:
+                                        exercise.setsMin !== undefined &&
+                                        exercise.setsMin !== null &&
+                                        exercise.setsMin !== ""
+                                            ? Number(exercise.setsMin)
+                                            : null,
+                                    setsMax:
+                                        exercise.setsMax !== undefined &&
+                                        exercise.setsMax !== null &&
+                                        exercise.setsMax !== ""
+                                            ? Number(exercise.setsMax)
+                                            : null,
+                                    tempo: exercise.tempo ?? null,
+                                    tut:
+                                        exercise.tut !== undefined &&
+                                        exercise.tut !== null &&
+                                        exercise.tut !== ""
+                                            ? Number(exercise.tut)
+                                            : null,
+                                    restMin:
+                                        exercise.restMin !== undefined &&
+                                        exercise.restMin !== null &&
+                                        exercise.restMin !== ""
+                                            ? Number(exercise.restMin)
+                                            : null,
+                                    restMax:
+                                        exercise.restMax !== undefined &&
+                                        exercise.restMax !== null &&
+                                        exercise.restMax !== ""
+                                            ? Number(exercise.restMax)
+                                            : null,
+                                    exerciseOrder: exerciseOrder,
+                                    setOrderMarker: exercise.order,
+                                    customizations:
+                                        exercise.customizations ?? null,
+                                    notes: exercise.notes ?? "",
                                 })
                                 .where(
                                     eq(
@@ -446,13 +541,57 @@ export async function updateWorkoutPlan(
                             }
 
                             await tx.insert(ExercisePlanExercises).values({
-                                planExerciseId: exercise.id,
                                 sessionId: session.id,
                                 exerciseId: exerciseId,
-                                motion: exercise.motion || null,
-                                targetArea: exercise.targetArea || null,
-                                exerciseOrder:
-                                    parseInt(exercise.order, 10) || 0,
+                                targetArea: exercise.targetArea ?? null,
+                                motion: exercise.motion ?? null,
+                                repsMin:
+                                    exercise.repsMin !== undefined &&
+                                    exercise.repsMin !== null &&
+                                    exercise.repsMin !== ""
+                                        ? Number(exercise.repsMin)
+                                        : null,
+                                repsMax:
+                                    exercise.repsMax !== undefined &&
+                                    exercise.repsMax !== null &&
+                                    exercise.repsMax !== ""
+                                        ? Number(exercise.repsMax)
+                                        : null,
+                                setsMin:
+                                    exercise.setsMin !== undefined &&
+                                    exercise.setsMin !== null &&
+                                    exercise.setsMin !== ""
+                                        ? Number(exercise.setsMin)
+                                        : null,
+                                setsMax:
+                                    exercise.setsMax !== undefined &&
+                                    exercise.setsMax !== null &&
+                                    exercise.setsMax !== ""
+                                        ? Number(exercise.setsMax)
+                                        : null,
+                                tempo: exercise.tempo ?? null,
+                                tut:
+                                    exercise.tut !== undefined &&
+                                    exercise.tut !== null &&
+                                    exercise.tut !== ""
+                                        ? Number(exercise.tut)
+                                        : null,
+                                restMin:
+                                    exercise.restMin !== undefined &&
+                                    exercise.restMin !== null &&
+                                    exercise.restMin !== ""
+                                        ? Number(exercise.restMin)
+                                        : null,
+                                restMax:
+                                    exercise.restMax !== undefined &&
+                                    exercise.restMax !== null &&
+                                    exercise.restMax !== ""
+                                        ? Number(exercise.restMax)
+                                        : null,
+                                exerciseOrder: exerciseOrder,
+                                setOrderMarker: exercise.order,
+                                customizations: exercise.customizations ?? null,
+                                notes: exercise.notes ?? "",
                             });
                         }
                     }
@@ -533,7 +672,21 @@ export async function createWorkoutPlan(
                     });
 
                     // Process each exercise in the session
-                    for (const exercise of session.exercises) {
+                    // First, sort exercises by their setOrderMarker (order field) in typographical order
+                    const sortedExercises = [...session.exercises].sort(
+                        (a, b) => {
+                            return a.order.localeCompare(b.order, undefined, {
+                                numeric: true,
+                                sensitivity: "base",
+                            });
+                        }
+                    );
+
+                    // Then assign exerciseOrder values (0, 1, 2, ...) based on the sorted order
+                    for (let i = 0; i < sortedExercises.length; i++) {
+                        const exercise = sortedExercises[i];
+                        const exerciseOrder = i; // 0-based index for the sorted exercises
+
                         // For new exercises, we need the actual exerciseId from the Exercises table
                         // Find an existing exercise with the same description if possible
                         let exerciseId = "placeholder-exercise-id";
@@ -555,12 +708,57 @@ export async function createWorkoutPlan(
                         }
 
                         await tx.insert(ExercisePlanExercises).values({
-                            planExerciseId: exercise.id,
                             sessionId: session.id,
                             exerciseId: exerciseId,
-                            motion: exercise.motion || null,
-                            targetArea: exercise.targetArea || null,
-                            exerciseOrder: parseInt(exercise.order, 10) || 0,
+                            motion: exercise.motion ?? null,
+                            targetArea: exercise.targetArea ?? null,
+                            repsMin:
+                                exercise.repsMin !== undefined &&
+                                exercise.repsMin !== null &&
+                                exercise.repsMin !== ""
+                                    ? Number(exercise.repsMin)
+                                    : null,
+                            repsMax:
+                                exercise.repsMax !== undefined &&
+                                exercise.repsMax !== null &&
+                                exercise.repsMax !== ""
+                                    ? Number(exercise.repsMax)
+                                    : null,
+                            setsMin:
+                                exercise.setsMin !== undefined &&
+                                exercise.setsMin !== null &&
+                                exercise.setsMin !== ""
+                                    ? Number(exercise.setsMin)
+                                    : null,
+                            setsMax:
+                                exercise.setsMax !== undefined &&
+                                exercise.setsMax !== null &&
+                                exercise.setsMax !== ""
+                                    ? Number(exercise.setsMax)
+                                    : null,
+                            tempo: exercise.tempo ?? null,
+                            tut:
+                                exercise.tut !== undefined &&
+                                exercise.tut !== null &&
+                                exercise.tut !== ""
+                                    ? Number(exercise.tut)
+                                    : null,
+                            restMin:
+                                exercise.restMin !== undefined &&
+                                exercise.restMin !== null &&
+                                exercise.restMin !== ""
+                                    ? Number(exercise.restMin)
+                                    : null,
+                            restMax:
+                                exercise.restMax !== undefined &&
+                                exercise.restMax !== null &&
+                                exercise.restMax !== ""
+                                    ? Number(exercise.restMax)
+                                    : null,
+                            exerciseOrder: exerciseOrder,
+                            setOrderMarker: exercise.order,
+                            customizations: exercise.customizations ?? null,
+                            notes: exercise.notes ?? "",
                         });
                     }
                 }
@@ -684,13 +882,28 @@ export async function saveSession(
 
             // If there are exercises to update, handle them here
             if (sessionData.exercises && sessionData.exercises.length > 0) {
-                for (const exercise of sessionData.exercises) {
+                // First, sort exercises by their setOrderMarker (order field) in typographical order
+                const sortedExercises = [...sessionData.exercises].sort(
+                    (a, b) => {
+                        return a.order.localeCompare(b.order, undefined, {
+                            numeric: true,
+                            sensitivity: "base",
+                        });
+                    }
+                );
+
+                // Then assign exerciseOrder values (0, 1, 2, ...) based on the sorted order
+                for (let i = 0; i < sortedExercises.length; i++) {
+                    const exercise = sortedExercises[i];
+                    const exerciseOrder = i; // 0-based index for the sorted exercises
+
                     await tx
                         .update(ExercisePlanExercises)
                         .set({
-                            exerciseOrder: parseInt(exercise.order, 10) || 0,
                             motion: exercise.motion,
                             targetArea: exercise.targetArea,
+                            setOrderMarker: exercise.order, // Store the original order marker
+                            exerciseOrder: exerciseOrder, // Store the numeric order
                             // Add other fields as needed
                         })
                         .where(
@@ -707,6 +920,21 @@ export async function saveSession(
                 .update(ExercisePlans)
                 .set({ updatedAt: now })
                 .where(eq(ExercisePlans.planId, planId));
+
+            // Get the client ID associated with this plan
+            const plan = await tx
+                .select({ assignedToUserId: ExercisePlans.assignedToUserId })
+                .from(ExercisePlans)
+                .where(eq(ExercisePlans.planId, planId))
+                .limit(1);
+
+            if (plan.length && plan[0].assignedToUserId) {
+                // Invalidate the client cache
+                const clientId = plan[0].assignedToUserId;
+                // This is where we would invalidate the cache for /clients/{id}
+                console.log(`Invalidating cache for client: ${clientId}`);
+                revalidatePath(`/clients/${clientId}`);
+            }
 
             return {
                 success: true,

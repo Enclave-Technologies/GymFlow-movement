@@ -10,6 +10,7 @@ export interface Exercise {
     tempo?: string;
     rest?: string;
     additionalInfo?: string;
+    customizations?: string;
     duration: number;
     // Additional fields for min-max values
     setsMin?: string;

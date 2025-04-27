@@ -66,6 +66,12 @@ type WorkoutPlanResponse = {
                 tempo?: string;
                 rest?: string;
                 additionalInfo?: string;
+                setsMin?: string;
+                setsMax?: string;
+                repsMin?: string;
+                repsMax?: string;
+                restMin?: string;
+                restMax?: string;
             }>;
         }>;
     }>;
@@ -145,7 +151,7 @@ export default function WorkoutPlanner({
                         isActive: phase.isActive,
                         isExpanded: phase.isExpanded,
                         sessions: phase.sessions.map((session) => {
-                            // Map exercises with safe defaults
+                            // Map exercises with safe defaults and include all fields
                             const exercises = session.exercises?.map((e) => {
                                 if (
                                     !e.id ||
@@ -165,25 +171,26 @@ export default function WorkoutPlanner({
                                     motion: e.motion || "",
                                     targetArea: e.targetArea || "",
                                     description: e.description || "",
-                                    // Include additional properties if they exist
-                                    ...(e.sets && { sets: e.sets }),
-                                    ...(e.reps && { reps: e.reps }),
-                                    ...(e.tut && { tut: e.tut }),
-                                    ...(e.tempo && { tempo: e.tempo }),
-                                    ...(e.rest && { rest: e.rest }),
-                                    ...(e.additionalInfo && {
-                                        additionalInfo: e.additionalInfo,
-                                    }),
-                                    duration: 8, // Default duration
+                                    duration:
+                                        typeof e.duration === "number"
+                                            ? e.duration
+                                            : 8,
+                                    // Include all possible fields from Exercise interface
+                                    sets: e.sets ?? "",
+                                    reps: e.reps ?? "",
+                                    tut: e.tut ?? "",
+                                    tempo: e.tempo ?? "",
+                                    rest: e.rest ?? "",
+                                    additionalInfo: e.additionalInfo ?? "",
+                                    setsMin: e.setsMin ?? "",
+                                    setsMax: e.setsMax ?? "",
+                                    repsMin: e.repsMin ?? "",
+                                    repsMax: e.repsMax ?? "",
+                                    restMin: e.restMin ?? "",
+                                    restMax: e.restMax ?? "",
+                                    // Map additionalInfo to customizations for backend
+                                    customizations: e.additionalInfo ?? "",
                                 };
-
-                                // Set the duration if available
-                                if (
-                                    e.duration &&
-                                    typeof e.duration === "number"
-                                ) {
-                                    exercise.duration = e.duration;
-                                }
 
                                 return exercise;
                             });
@@ -711,6 +718,7 @@ export default function WorkoutPlanner({
                 onEditEnd={handleExerciseEditEnd}
                 onEditExercise={handleEditExercise}
                 exercises={exercises}
+                setHasUnsavedChanges={setHasUnsavedChanges}
             />
         );
     };
