@@ -264,6 +264,95 @@ export default function WorkoutPlanner({
                 setHasUnsavedChanges(false);
                 // Clear any previous conflict errors
                 setConflictError(null);
+                
+                // Force a refetch of the workout plan to ensure we have the latest data
+                const refetchWorkout = async () => {
+                    try {
+                        const response = await getWorkoutPlanByClientId(client_id);
+                        if (response && "planId" in response && "updatedAt" in response) {
+                            setPlanId(response.planId);
+                            setLastKnownUpdatedAt(new Date(response.updatedAt));
+                            
+                            // Map the phases from the response
+                            const mapped = (response as WorkoutPlanResponse).phases.map(
+                                // ... (same mapping logic as in the useEffect)
+                                (phase) => ({
+                                    id: phase.id,
+                                    name: phase.name,
+                                    isActive: phase.isActive,
+                                    isExpanded: phase.isExpanded,
+                                    sessions: phase.sessions.map((session) => {
+                                        // Map exercises with safe defaults and include all fields
+                                        const exercises = session.exercises?.map((e) => {
+                                            if (
+                                                !e.id ||
+                                                !e.order ||
+                                                !e.motion ||
+                                                !e.targetArea ||
+                                                !e.description
+                                            ) {
+                                                console.warn(
+                                                    "Missing required exercise properties",
+                                                    e
+                                                );
+                                            }
+                                            const exercise: Exercise = {
+                                                id: e.id || uuidv4(),
+                                                order: e.order || "",
+                                                motion: e.motion || "",
+                                                targetArea: e.targetArea || "",
+                                                description: e.description || "",
+                                                duration:
+                                                    typeof e.duration === "number"
+                                                        ? e.duration
+                                                        : 8,
+                                                // Include all possible fields from Exercise interface
+                                                sets: e.sets ?? "",
+                                                reps: e.reps ?? "",
+                                                tut: e.tut ?? "",
+                                                tempo: e.tempo ?? "",
+                                                rest: e.rest ?? "",
+                                                additionalInfo: e.additionalInfo ?? "",
+                                                setsMin: e.setsMin ?? "",
+                                                setsMax: e.setsMax ?? "",
+                                                repsMin: e.repsMin ?? "",
+                                                repsMax: e.repsMax ?? "",
+                                                restMin: e.restMin ?? "",
+                                                restMax: e.restMax ?? "",
+                                                // Map additionalInfo to customizations for backend
+                                                customizations: e.additionalInfo ?? "",
+                                            };
+
+                                            return exercise;
+                                        });
+
+                                        // Calculate total session duration
+                                        const calculatedDuration =
+                                            exercises?.reduce(
+                                                (total: number, ex: Exercise) =>
+                                                    total + (ex.duration || 8),
+                                                0
+                                            ) || 0;
+
+                                        return {
+                                            id: session.id || uuidv4(),
+                                            name: session.name || "Unnamed Session",
+                                            duration: calculatedDuration,
+                                            isExpanded: Boolean(session.isExpanded),
+                                            exercises: exercises || [],
+                                        };
+                                    }),
+                                })
+                            );
+                            
+                            setPhases(mapped);
+                        }
+                    } catch (error) {
+                        console.error("Error refetching workout plan:", error);
+                    }
+                };
+                
+                refetchWorkout();
             } else {
                 // Handle errors
                 if (result.conflict) {

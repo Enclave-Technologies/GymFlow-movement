@@ -24,6 +24,7 @@ interface ExerciseItem {
     tut?: string | null;
     tempo?: string | null;
     customizations?: string | null;
+    additionalInfo?: string | null; // Added for frontend compatibility
     setsMin?: string | null;
     setsMax?: string | null;
     repsMin?: string | null;
@@ -73,6 +74,7 @@ export async function getWorkoutPlanByClientId(
             sessionOrder: Sessions.orderNumber,
             exerciseId: ExercisePlanExercises.planExerciseId,
             exerciseOrder: ExercisePlanExercises.exerciseOrder,
+            setOrderMarker: ExercisePlanExercises.setOrderMarker,
             motion: ExercisePlanExercises.motion,
             targetArea: ExercisePlanExercises.targetArea,
             description: Exercises.exerciseName,
@@ -154,13 +156,25 @@ export async function getWorkoutPlanByClientId(
             phase.sessions.push(session);
         }
 
-        // add exercise
+        // add exercise with all fields
         session.exercises.push({
             id: row.exerciseId,
-            order: row.exerciseOrder != null ? String(row.exerciseOrder) : "",
+            order:
+                row.setOrderMarker ??
+                (row.exerciseOrder != null ? String(row.exerciseOrder) : ""),
             motion: row.motion,
             targetArea: row.targetArea,
             description: row.description,
+            tut: row.tut != null ? String(row.tut) : undefined,
+            tempo: row.tempo ?? undefined,
+            customizations: row.customizations ?? undefined,
+            additionalInfo: row.customizations ?? undefined, // Map customizations to additionalInfo for frontend
+            setsMin: row.setsMin != null ? String(row.setsMin) : undefined,
+            setsMax: row.setsMax != null ? String(row.setsMax) : undefined,
+            repsMin: row.repsMin != null ? String(row.repsMin) : undefined,
+            repsMax: row.repsMax != null ? String(row.repsMax) : undefined,
+            restMin: row.restMin != null ? String(row.restMin) : undefined,
+            restMax: row.restMax != null ? String(row.restMax) : undefined,
         });
     }
 
@@ -508,7 +522,9 @@ export async function updateWorkoutPlan(
                                     exerciseOrder: exerciseOrder,
                                     setOrderMarker: exercise.order,
                                     customizations:
-                                        exercise.customizations ?? null,
+                                        exercise.additionalInfo ??
+                                        exercise.customizations ??
+                                        null,
                                     notes: exercise.notes ?? "",
                                 })
                                 .where(
@@ -590,7 +606,10 @@ export async function updateWorkoutPlan(
                                         : null,
                                 exerciseOrder: exerciseOrder,
                                 setOrderMarker: exercise.order,
-                                customizations: exercise.customizations ?? null,
+                                customizations:
+                                    exercise.additionalInfo ??
+                                    exercise.customizations ??
+                                    null,
                                 notes: exercise.notes ?? "",
                             });
                         }

@@ -654,9 +654,21 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                                     editingExerciseRow.repsMax ??
                                                         12
                                                 );
-                                                return (
-                                                    tempoSum * setsMax * repsMax
-                                                );
+                                                
+                                                // Calculate TUT and store it in the exercise
+                                                const calculatedTut = tempoSum * setsMax * repsMax;
+                                                
+                                                // Update the tut field in the editing exercise
+                                                if (editingExerciseRow.tut !== String(calculatedTut)) {
+                                                    setTimeout(() => {
+                                                        handleInlineExerciseChange(
+                                                            "tut",
+                                                            String(calculatedTut)
+                                                        );
+                                                    }, 0);
+                                                }
+                                                
+                                                return calculatedTut;
                                             })()}
                                         </TableCell>
                                         {/* Additional Instructions */}
