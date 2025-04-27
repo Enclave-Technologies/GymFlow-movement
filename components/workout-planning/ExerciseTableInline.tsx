@@ -107,6 +107,10 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
     const [searchTerm, setSearchTerm] = useState("");
     const [open, setOpen] = useState(false);
 
+    // Focus management for first cell
+    const firstInputRef = React.useRef<HTMLInputElement>(null);
+    const [shouldFocusFirstCell, setShouldFocusFirstCell] = useState(false);
+
     // When editingExerciseId changes, set editingExerciseRow to the matching exercise
     useEffect(() => {
         if (editingExerciseId) {
@@ -115,11 +119,20 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
             );
             if (exercise) {
                 setEditingExerciseRow({ ...exercise });
+                setShouldFocusFirstCell(true); // Set flag to focus on entering edit mode
             }
         } else {
             setEditingExerciseRow(null);
         }
     }, [editingExerciseId, session.exercises]);
+
+    // Focus the first input when shouldFocusFirstCell is true
+    useEffect(() => {
+        if (shouldFocusFirstCell && firstInputRef.current) {
+            firstInputRef.current.focus();
+            setShouldFocusFirstCell(false);
+        }
+    }, [shouldFocusFirstCell]);
 
     const handleInlineExerciseChange = (
         field: keyof ExerciseRow,
@@ -279,6 +292,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                         {/* Order */}
                                         <TableCell className="w-[180px]">
                                             <Input
+                                                ref={firstInputRef}
                                                 value={editingExerciseRow.order}
                                                 onChange={(e) =>
                                                     handleInlineExerciseChange(

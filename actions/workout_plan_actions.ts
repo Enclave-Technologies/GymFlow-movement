@@ -8,7 +8,7 @@ import {
     ExercisePlanExercises,
     Exercises,
 } from "@/db/schemas";
-import { eq, or, and, not } from "drizzle-orm";
+import { eq, or, and, not, inArray } from "drizzle-orm";
 import "server-only";
 import { v4 as uuidv4 } from "uuid";
 import { WorkoutPlanActionResponse } from "@/components/workout-planning/types";
@@ -370,9 +370,99 @@ export async function updateWorkoutPlan(
             };
         }
 
+        // --- BEGIN: Deletion logic for removed phases, sessions, and exercises ---
+
+        // Fetch current structure from DB
+        const currentPhases = await db
+            .select({ phaseId: Phases.phaseId })
+            .from(Phases)
+            .where(eq(Phases.planId, planId));
+
+        const currentPhaseIds = currentPhases.map((p) => p.phaseId);
+
+        const currentSessions = await db
+            .select({
+                sessionId: Sessions.sessionId,
+                phaseId: Sessions.phaseId,
+            })
+            .from(Sessions)
+            .where(
+                // Only sessions in this plan's phases
+                currentPhaseIds.length > 0
+                    ? inArray(Sessions.phaseId, currentPhaseIds)
+                    : eq(Sessions.phaseId, "__never__") // no sessions if no phases
+            );
+
+        const currentSessionIds = currentSessions.map((s) => s.sessionId);
+
+        const currentExercises = await db
+            .select({
+                planExerciseId: ExercisePlanExercises.planExerciseId,
+                sessionId: ExercisePlanExercises.sessionId,
+            })
+            .from(ExercisePlanExercises)
+            .where(
+                currentSessionIds.length > 0
+                    ? inArray(ExercisePlanExercises.sessionId, currentSessionIds)
+                    : eq(ExercisePlanExercises.sessionId, "__never__")
+            );
+
+        // Get new structure from planData
+        const newPhaseIds = planData.phases.map((p) => p.id);
+        const newSessionIds = planData.phases.flatMap((p) =>
+            p.sessions.map((s) => s.id)
+        );
+        const newExerciseIds = planData.phases.flatMap((p) =>
+            p.sessions.flatMap((s) => s.exercises.map((e) => e.id))
+        );
+
+        // --- END: Deletion logic for removed phases, sessions, and exercises ---
+
         // No conflict, proceed with update using a transaction
         return await db.transaction(async (tx) => {
             const now = new Date();
+
+            // --- BEGIN: Delete removed exercises ---
+            const exercisesToDelete = currentExercises.filter(
+                (ex) => !newExerciseIds.includes(ex.planExerciseId)
+            );
+            if (exercisesToDelete.length > 0) {
+                await tx.delete(ExercisePlanExercises).where(
+                    inArray(
+                        ExercisePlanExercises.planExerciseId,
+                        exercisesToDelete.map((ex) => ex.planExerciseId)
+                    )
+                );
+            }
+            // --- END: Delete removed exercises ---
+
+            // --- BEGIN: Delete removed sessions ---
+            const sessionsToDelete = currentSessions.filter(
+                (s) => !newSessionIds.includes(s.sessionId)
+            );
+            if (sessionsToDelete.length > 0) {
+                await tx.delete(Sessions).where(
+                    inArray(
+                        Sessions.sessionId,
+                        sessionsToDelete.map((s) => s.sessionId)
+                    )
+                );
+            }
+            // --- END: Delete removed sessions ---
+
+            // --- BEGIN: Delete removed phases ---
+            const phasesToDelete = currentPhases.filter(
+                (p) => !newPhaseIds.includes(p.phaseId)
+            );
+            if (phasesToDelete.length > 0) {
+                await tx.delete(Phases).where(
+                    inArray(
+                        Phases.phaseId,
+                        phasesToDelete.map((p) => p.phaseId)
+                    )
+                );
+            }
+            // --- END: Delete removed phases ---
 
             // Update the plan's updatedAt timestamp
             await tx

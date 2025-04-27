@@ -608,6 +608,14 @@ export default function WorkoutPlanner({
             targetArea: "",
             description: "",
             duration: 8,
+            setsMin: "3",
+            setsMax: "5",
+            repsMin: "8",
+            repsMax: "12",
+            tempo: "4-1-2-1",
+            restMin: "45",
+            restMax: "60",
+            additionalInfo: "",
         };
         // Push the new exercise to the correct session in phases
         setPhases(
