@@ -7,6 +7,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getClientById } from "@/actions/client_actions";
+import { getAllExercisesForWorkoutPlanning } from "@/actions/exercise_actions";
 import { formatDate } from "@/lib/utils";
 import { checkGuestApproval } from "@/lib/auth-utils";
 import { cookies } from "next/headers";
@@ -67,6 +68,9 @@ export default async function ClientProfilePage({ params }: PageProps) {
             gender.charAt(0).toUpperCase() + gender.slice(1).replace("-", " ")
         );
     };
+
+    // Fetch exercises for the workout plan with complete data
+    const exercises = await getAllExercisesForWorkoutPlanning();
 
     return (
         <div className="container mx-auto py-2 md:py-6">
@@ -222,9 +226,12 @@ export default async function ClientProfilePage({ params }: PageProps) {
                     </CardContent>
                 </Card>
 
-                <Card className="flex flex-col p-4 h-[800px] md:col-span-5">
+                <Card className="flex flex-col p-4 h-full min-h-[800px] md:col-span-5">
                     <CardContent className="h-full p-0">
-                        <ClientTabs params={{ userdata: client }} />
+                        <ClientTabs
+                            params={{ userdata: client }}
+                            exercises={exercises}
+                        />
                     </CardContent>
                 </Card>
             </div>
