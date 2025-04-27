@@ -1,4 +1,4 @@
-import { Exercise, Phase } from "./types";
+import { Exercise, Phase, Session } from "../types";
 import {
     Dialog,
     DialogContent,
@@ -20,7 +20,6 @@ interface ExerciseDialogProps {
         isNew: boolean;
     } | null;
     closeDialog: () => void;
-    setPhases: (phases: Phase[]) => void;
     pushHistory: (phases: Phase[]) => void;
     setIsDirty: (dirty: boolean) => void;
     phases: Phase[];
@@ -29,7 +28,6 @@ interface ExerciseDialogProps {
 export default function ExerciseDialog({
     editingExercise,
     closeDialog,
-    setPhases,
     pushHistory,
     setIsDirty,
     phases,
@@ -55,14 +53,14 @@ export default function ExerciseDialog({
                 ? phase
                 : {
                       ...phase,
-                      sessions: phase.sessions.map((session) =>
+                      sessions: phase.sessions.map((session: Session) =>
                           session.id !== editingExercise.sessionId
                               ? session
                               : {
                                     ...session,
                                     exercises: editingExercise.isNew
                                         ? [...session.exercises, exercise]
-                                        : session.exercises.map((e) =>
+                                        : session.exercises.map((e: Exercise) =>
                                               e.id ===
                                               editingExercise.exerciseId
                                                   ? exercise

@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 
-import { Exercise, Session, Phase } from "./types";
+import { Exercise, Session, Phase } from "../types";
 import { getWorkoutPlanByClientId } from "@/actions/workout_plan_actions";
 
 // Custom hook for undo/redo functionality
@@ -50,7 +50,6 @@ const useUndoRedo = (initialState: Phase[]) => {
 
     return {
         phases,
-        setPhases,
         history,
         future,
         isDirty,
@@ -81,7 +80,6 @@ export default function WorkoutPlanner({ client_id }: { client_id: string }) {
 
     const {
         phases,
-        setPhases,
         history,
         future,
         isDirty,
@@ -102,7 +100,6 @@ export default function WorkoutPlanner({ client_id }: { client_id: string }) {
                     name: phase.name,
                     isActive: phase.isActive,
                     isExpanded: phase.isExpanded,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     sessions: phase.sessions.map(
                         (session: Partial<Session>) => {
                             // Map exercises with safe defaults
@@ -197,39 +194,6 @@ export default function WorkoutPlanner({ client_id }: { client_id: string }) {
             sessions: [],
         };
         pushHistory([...phases, newPhase]);
-    };
-
-    const openExerciseDialog = (
-        phaseId: string,
-        sessionId: string,
-        exercise?: Exercise
-    ) => {
-        if (exercise) {
-            // Edit existing exercise
-            setEditingExercise({
-                phaseId,
-                sessionId,
-                exerciseId: exercise.id,
-                exercise,
-                isNew: false,
-            });
-        } else {
-            // Add new exercise
-            setEditingExercise({
-                phaseId,
-                sessionId,
-                exerciseId: uuidv4(),
-                exercise: {
-                    id: uuidv4(),
-                    order: "",
-                    motion: "",
-                    targetArea: "",
-                    description: "",
-                    duration: 8,
-                },
-                isNew: true,
-            });
-        }
     };
 
     const openConfirmDialog = (
