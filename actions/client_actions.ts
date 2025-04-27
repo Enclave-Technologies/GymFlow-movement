@@ -874,7 +874,7 @@ export async function createClient(clientData: {
         if (hasEmail && clientData.email && !existingUser) {
             try {
                 // Create a temporary password for the user
-                const tempPassword = ID.unique();
+                // const tempPassword = ID.unique();
 
                 // Get Appwrite admin client
                 const { appwrite_user } = await createAdminClient();
@@ -884,7 +884,7 @@ export async function createClient(clientData: {
                     userId, // userId
                     clientData.email, // email
                     undefined, // phone (optional)
-                    tempPassword, // password
+                    "password", // password
                     fullName // name
                 );
 
@@ -915,25 +915,39 @@ export async function createClient(clientData: {
                     .where(eq(Users.userId, existingUser.userId))
                     .limit(1);
 
-                // Update user details if needed
-                await tx
-                    .update(Users)
-                    .set({
-                        fullName,
-                        phone: clientData.phoneNumber || null,
-                        notes: clientData.coachNotes || null,
-                        gender:
-                            (clientData.gender as
-                                | "male"
-                                | "female"
-                                | "non-binary"
-                                | "prefer-not-to-say") || null,
-                        dob: clientData.dateOfBirth
-                            ? new Date(clientData.dateOfBirth)
-                            : null,
-                        idealWeight: clientData.idealWeight || null,
-                    })
-                    .where(eq(Users.userId, existingUser.userId));
+                // Build update object with only provided fields
+                const updateData: Partial<typeof Users.$inferInsert> = {};
+                if (fullName) updateData.fullName = fullName;
+                if (clientData.phoneNumber !== undefined)
+                    updateData.phone = clientData.phoneNumber;
+                if (clientData.coachNotes !== undefined)
+                    updateData.notes = clientData.coachNotes;
+                if (clientData.gender !== undefined) {
+                    updateData.gender = clientData.gender as
+                        | "male"
+                        | "female"
+                        | "non-binary"
+                        | "prefer-not-to-say";
+                }
+                if (clientData.dateOfBirth !== undefined) {
+                    updateData.dob = clientData.dateOfBirth
+                        ? new Date(clientData.dateOfBirth)
+                        : null;
+                }
+                if (clientData.emergencyContactName !== undefined)
+                    updateData.emergencyContactName =
+                        clientData.emergencyContactName;
+                if (clientData.emergencyContactPhone !== undefined)
+                    updateData.emergencyContactPhone =
+                        clientData.emergencyContactPhone;
+
+                // Only update if there are fields to update
+                if (Object.keys(updateData).length > 0) {
+                    await tx
+                        .update(Users)
+                        .set(updateData)
+                        .where(eq(Users.userId, existingUser.userId));
+                }
             } else {
                 // Create new user
                 [user] = await tx

@@ -25,7 +25,7 @@ import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getCoachesPaginated } from "@/actions/coach_actions";
-import { getClientById } from "@/actions/client_actions";
+import { getClientById, addRoleToUser } from "@/actions/client_actions";
 import { updateClient, createClient } from "@/actions/client_actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -69,6 +69,7 @@ export default function AddClientForm() {
     // Form for existing user
     const [existingUserForm, setExistingUserForm] = useState({
         email: "",
+        trainerId: "", // Added trainer selection for existing users
     });
 
     const [coaches, setCoaches] = useState<Coach[]>([]);
@@ -81,15 +82,20 @@ export default function AddClientForm() {
             setIsLoadingCoaches(true);
             try {
                 const coachesData = await getCoachesPaginated({
-                    page: 1,
-                    limit: 100,
+                    pageIndex: 0,
+                    pageSize: 100,
                     search: "",
                 });
+
+                console.log("Coaches data:", coachesData);
 
                 const coachesWithRole = coachesData.data.map((coach) => ({
                     ...coach,
                     role: "Trainer",
                 })) as Coach[];
+
+                console.log("Coaches with role:", coachesWithRole);
+
                 setCoaches(coachesWithRole);
             } catch (error) {
                 console.error("Error fetching coaches:", error);
@@ -151,6 +157,10 @@ export default function AddClientForm() {
 
     const handleSelectChange = (name: string, value: string) => {
         setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleExistingUserSelectChange = (name: string, value: string) => {
+        setExistingUserForm((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleDateChange = (date: Date | undefined) => {
@@ -216,8 +226,35 @@ export default function AddClientForm() {
         setLoading(true);
 
         try {
-            // Add client role to existing user
-            // This is a placeholder - you'll need to implement the actual functionality
+            // 1. Add Client role to the existing user
+            const roleResult = await addRoleToUser(
+                existingUserForm.email,
+                "Client"
+            );
+
+            if (!roleResult.success) {
+                throw new Error(
+                    roleResult.error || "Failed to add Client role to user"
+                );
+            }
+
+            // 2. If trainer is selected, create a client-trainer relationship
+            if (existingUserForm.trainerId) {
+                // Use the createClient function to establish the trainer relationship
+                // We only need to pass the email and trainerId
+                const clientResult = await createClient({
+                    email: existingUserForm.email,
+                    trainerId: existingUserForm.trainerId,
+                });
+
+                if (!clientResult.success) {
+                    throw new Error(
+                        clientResult.error ||
+                            "Failed to associate client with trainer"
+                    );
+                }
+            }
+
             toast.success("Client role added successfully");
             router.push("/my-clients");
         } catch (error) {
@@ -249,6 +286,14 @@ export default function AddClientForm() {
         (coach) => coach.userId === formData.trainerId
     );
     const selectedCoachName = selectedCoach ? selectedCoach.fullName : "";
+
+    // Find the selected coach for existing user form
+    const selectedExistingCoach = coaches.find(
+        (coach) => coach.userId === existingUserForm.trainerId
+    );
+    const selectedExistingCoachName = selectedExistingCoach
+        ? selectedExistingCoach.fullName
+        : "";
 
     // Add loading state UI
     if (isLoadingData) {
@@ -578,6 +623,72 @@ export default function AddClientForm() {
                                         The user must already exist in the
                                         system and have authentication enabled.
                                     </p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <Label htmlFor="existingTrainerId">
+                                        Select Trainer *
+                                    </Label>
+                                    <Select
+                                        value={existingUserForm.trainerId}
+                                        onValueChange={(value) =>
+                                            handleExistingUserSelectChange(
+                                                "trainerId",
+                                                value
+                                            )
+                                        }
+                                        required
+                                        disabled={isLoadingCoaches}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            {isLoadingCoaches ? (
+                                                <span className="text-muted-foreground">
+                                                    Loading trainers...
+                                                </span>
+                                            ) : (
+                                                <SelectValue placeholder="Select...">
+                                                    {selectedExistingCoachName}
+                                                </SelectValue>
+                                            )}
+                                        </SelectTrigger>
+                                        <SelectContent className="max-h-60">
+                                            {coaches.map((coach) => (
+                                                <SelectItem
+                                                    key={coach.userId}
+                                                    value={coach.userId}
+                                                    className="py-3 px-4"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage
+                                                                src={
+                                                                    coach.imageUrl ||
+                                                                    ""
+                                                                }
+                                                                alt={
+                                                                    coach.fullName
+                                                                }
+                                                            />
+                                                            <AvatarFallback>
+                                                                {getInitials(
+                                                                    coach.fullName
+                                                                )}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="text-sm font-medium">
+                                                                {coach.fullName}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {coach.role ||
+                                                                    "Trainer"}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
 
                                 <div className="flex justify-end space-x-4">
