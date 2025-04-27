@@ -59,11 +59,33 @@ interface WorkoutPlanResponse {
 export async function getWorkoutPlanByClientId(
     clientId: string
 ): Promise<WorkoutPlanResponse | []> {
-    // load all data in one query
+    // Fetch the plan first to ensure we return something even if there are no phases/sessions/exercises
+    const plan = await db
+        .select({
+            planId: ExercisePlans.planId,
+            updatedAt: ExercisePlans.updatedAt,
+        })
+        .from(ExercisePlans)
+        .where(
+            or(
+                eq(ExercisePlans.assignedToUserId, clientId),
+                eq(ExercisePlans.createdByUserId, clientId)
+            )
+        )
+        .limit(1); // Assuming one active plan per client for simplicity, adjust if needed
+
+    if (!plan.length) {
+        return []; // No plan found for this client
+    }
+
+    const planId = plan[0].planId;
+    const planUpdatedAt = plan[0].updatedAt;
+
+    // Now fetch the full structure using LEFT JOINs starting from the plan
     const rows = await db
         .select({
             planId: ExercisePlans.planId,
-            planUpdatedAt: ExercisePlans.updatedAt, // Include updatedAt for concurrency control
+            planUpdatedAt: ExercisePlans.updatedAt,
             phaseId: Phases.phaseId,
             phaseName: Phases.phaseName,
             phaseIsActive: Phases.isActive,
@@ -72,12 +94,12 @@ export async function getWorkoutPlanByClientId(
             sessionName: Sessions.sessionName,
             sessionTime: Sessions.sessionTime,
             sessionOrder: Sessions.orderNumber,
-            exerciseId: ExercisePlanExercises.planExerciseId,
+            planExerciseId: ExercisePlanExercises.planExerciseId, // Renamed from exerciseId for clarity
             exerciseOrder: ExercisePlanExercises.exerciseOrder,
             setOrderMarker: ExercisePlanExercises.setOrderMarker,
             motion: ExercisePlanExercises.motion,
             targetArea: ExercisePlanExercises.targetArea,
-            description: Exercises.exerciseName,
+            exerciseName: Exercises.exerciseName, // Renamed from description
             tut: ExercisePlanExercises.tut,
             tempo: ExercisePlanExercises.tempo,
             customizations: ExercisePlanExercises.customizations,
@@ -87,84 +109,85 @@ export async function getWorkoutPlanByClientId(
             repsMax: ExercisePlanExercises.repsMax,
             restMin: ExercisePlanExercises.restMin,
             restMax: ExercisePlanExercises.restMax,
+            notes: ExercisePlanExercises.notes, // Added notes
         })
-        .from(ExercisePlanExercises)
-        .innerJoin(
-            Sessions,
+        .from(ExercisePlans)
+        .leftJoin(Phases, eq(Phases.planId, ExercisePlans.planId))
+        .leftJoin(Sessions, eq(Sessions.phaseId, Phases.phaseId))
+        .leftJoin(
+            ExercisePlanExercises,
             eq(ExercisePlanExercises.sessionId, Sessions.sessionId)
         )
-        .innerJoin(Phases, eq(Sessions.phaseId, Phases.phaseId))
-        .innerJoin(ExercisePlans, eq(Phases.planId, ExercisePlans.planId))
-        .innerJoin(
+        .leftJoin(
             Exercises,
             eq(ExercisePlanExercises.exerciseId, Exercises.exerciseId)
-        )
-        .where(
-            or(
-                eq(ExercisePlans.assignedToUserId, clientId),
-                eq(ExercisePlans.createdByUserId, clientId)
-            )
-        )
+        ) // Join Exercises based on the FK in ExercisePlanExercises
+        .where(eq(ExercisePlans.planId, planId)) // Filter by the specific plan ID found earlier
         .orderBy(
             Phases.orderNumber,
             Sessions.orderNumber,
             ExercisePlanExercises.exerciseOrder
         );
 
-    if (!rows.length) {
-        return [];
+    // If rows is empty after the join, it means the plan exists but has no phases.
+    // We still need to return the basic plan structure.
+    if (!rows.length || rows[0].phaseId === null) {
+        // Check if the first row indicates no phases joined
+        return {
+            planId: planId,
+            updatedAt: planUpdatedAt,
+            phases: [], // Return empty phases array
+        };
     }
 
-    // No need to redefine types here as they're now defined at the module level
-
-    // Extract plan metadata
-    let planId: string | null = null;
-    let updatedAt: Date | null = null;
-
-    if (rows.length > 0) {
-        planId = rows[0].planId;
-        updatedAt = rows[0].planUpdatedAt;
-    }
-
-    // group into phases -> sessions -> exercises
+    // Group into phases -> sessions -> exercises
     const phasesMap = new Map<string, PhaseItem>();
 
     for (const row of rows) {
-        // initialize phase
+        // If phaseId is null, skip (shouldn't happen with the check above, but safe)
+        if (!row.phaseId || !row.phaseName) continue;
+
+        // Initialize phase
         let phase = phasesMap.get(row.phaseId);
         if (!phase) {
-            phasesMap.set(row.phaseId, {
+            phase = {
                 id: row.phaseId,
                 name: row.phaseName,
                 isActive: row.phaseIsActive ?? false,
-                isExpanded: true,
+                isExpanded: true, // Default to expanded
                 sessions: [],
-            });
-            phase = phasesMap.get(row.phaseId)!;
+            };
+            phasesMap.set(row.phaseId, phase);
         }
 
-        // initialize session
+        // If sessionId is null, it means the phase has no sessions, so skip session/exercise processing for this row
+        if (!row.sessionId || !row.sessionName) continue;
+
+        // Initialize session
         let session = phase.sessions.find((s) => s.id === row.sessionId);
         if (!session) {
             session = {
                 id: row.sessionId,
                 name: row.sessionName,
-                duration: row.sessionTime,
-                isExpanded: true,
+                duration: row.sessionTime, // Use sessionTime directly
+                isExpanded: true, // Default to expanded
                 exercises: [],
             };
             phase.sessions.push(session);
         }
 
-        // add exercise with all fields
+        // If planExerciseId is null, it means the session has no exercises, so skip exercise processing for this row
+        if (!row.planExerciseId || !row.exerciseName) continue;
+
+        // Add exercise with all fields, handling potential nulls from LEFT JOIN
         session.exercises.push({
-            id: row.exerciseId,
+            id: row.planExerciseId,
             order:
                 row.setOrderMarker ??
                 (row.exerciseOrder != null ? String(row.exerciseOrder) : ""),
             motion: row.motion,
             targetArea: row.targetArea,
-            description: row.description,
+            description: row.exerciseName, // Use exerciseName from Exercises table
             tut: row.tut != null ? String(row.tut) : undefined,
             tempo: row.tempo ?? undefined,
             customizations: row.customizations ?? undefined,
@@ -175,13 +198,14 @@ export async function getWorkoutPlanByClientId(
             repsMax: row.repsMax != null ? String(row.repsMax) : undefined,
             restMin: row.restMin != null ? String(row.restMin) : undefined,
             restMax: row.restMax != null ? String(row.restMax) : undefined,
+            notes: row.notes ?? undefined, // Added notes
         });
     }
 
-    // Return with plan metadata
+    // Return the structured plan data
     return {
-        planId: planId || "",
-        updatedAt: updatedAt || new Date(),
+        planId: planId,
+        updatedAt: planUpdatedAt,
         phases: Array.from(phasesMap.values()),
     };
 }
@@ -310,6 +334,138 @@ export async function updatePhaseActivation(
     }
 }
 
+/**
+ * Updates the order of sessions within a phase with optimistic concurrency control
+ * @param phaseId The ID of the phase containing the sessions
+ * @param sessionIds An array of session IDs in the desired order
+ * @param lastKnownUpdatedAt Optional parameter for concurrency control
+ * @returns Success status and error message if applicable
+ */
+export async function updateSessionOrder(
+    phaseId: string,
+    sessionIds: string[],
+    lastKnownUpdatedAt?: Date // Optional parameter for concurrency control
+): Promise<WorkoutPlanActionResponse> {
+    try {
+        // Get the plan ID from the phase
+        const phase = await db
+            .select({
+                planId: Phases.planId,
+            })
+            .from(Phases)
+            .where(eq(Phases.phaseId, phaseId))
+            .limit(1);
+
+        if (!phase.length) {
+            return {
+                success: false,
+                error: "Phase not found",
+                conflict: false,
+                planId: "",
+                updatedAt: new Date(),
+                serverUpdatedAt: new Date(),
+            };
+        }
+
+        const planId = phase[0].planId;
+
+        // If lastKnownUpdatedAt is provided, check for conflicts
+        if (lastKnownUpdatedAt) {
+            const currentPlan = await db
+                .select({ updatedAt: ExercisePlans.updatedAt })
+                .from(ExercisePlans)
+                .where(eq(ExercisePlans.planId, planId))
+                .limit(1);
+
+            if (
+                !currentPlan.length || // Plan deleted?
+                currentPlan[0].updatedAt.toISOString() !==
+                    lastKnownUpdatedAt.toISOString()
+            ) {
+                const serverTime = currentPlan.length
+                    ? currentPlan[0].updatedAt
+                    : new Date();
+                return {
+                    success: false,
+                    error: "Plan has been modified since last fetch",
+                    conflict: true,
+                    serverUpdatedAt: serverTime,
+                    planId: planId,
+                    updatedAt: serverTime,
+                };
+            }
+        }
+
+        // Use a transaction for atomicity
+        return await db.transaction(async (tx) => {
+            const now = new Date();
+
+            // Update the orderNumber for each session based on its index in the array
+            for (let i = 0; i < sessionIds.length; i++) {
+                await tx
+                    .update(Sessions)
+                    .set({ orderNumber: i })
+                    .where(eq(Sessions.sessionId, sessionIds[i]));
+                // We assume the sessionIds provided belong to the correct phaseId
+                // Add .where(eq(Sessions.phaseId, phaseId)) if extra safety needed
+            }
+
+            // Update the plan's updatedAt timestamp to reflect the change
+            await tx
+                .update(ExercisePlans)
+                .set({ updatedAt: now })
+                .where(eq(ExercisePlans.planId, planId));
+
+            // Get the client ID associated with this plan for cache revalidation
+            const planDetails = await tx
+                .select({ assignedToUserId: ExercisePlans.assignedToUserId })
+                .from(ExercisePlans)
+                .where(eq(ExercisePlans.planId, planId))
+                .limit(1);
+
+            if (planDetails.length && planDetails[0].assignedToUserId) {
+                const clientId = planDetails[0].assignedToUserId;
+                console.log(
+                    `Invalidating cache for client due to session reorder: ${clientId}`
+                );
+                revalidatePath(`/clients/${clientId}`);
+            }
+
+            return {
+                success: true,
+                planId: planId,
+                updatedAt: now,
+                conflict: false,
+                error: undefined,
+                serverUpdatedAt: now,
+            };
+        });
+    } catch (error) {
+        console.error("Error updating session order:", error);
+        // Attempt to find planId even in case of error for better response context
+        let planId = "";
+        try {
+            const phase = await db
+                .select({ planId: Phases.planId })
+                .from(Phases)
+                .where(eq(Phases.phaseId, phaseId))
+                .limit(1);
+            if (phase.length) planId = phase[0].planId;
+        } catch {
+            /* ignore */
+        }
+
+        return {
+            success: false,
+            error: "Failed to update session order",
+            conflict: false,
+            planId: planId, // Include planId if found
+            updatedAt: new Date(),
+            serverUpdatedAt: new Date(),
+        };
+    }
+}
+
 interface SessionData {
     name: string;
     exercises?: Array<{
@@ -387,10 +543,9 @@ export async function updateWorkoutPlan(
             })
             .from(Sessions)
             .where(
-                // Only sessions in this plan's phases
-                currentPhaseIds.length > 0
-                    ? inArray(Sessions.phaseId, currentPhaseIds)
-                    : eq(Sessions.phaseId, "__never__") // no sessions if no phases
+                // Only sessions belonging to the current phases.
+                // Let inArray handle the empty array case directly.
+                inArray(Sessions.phaseId, currentPhaseIds)
             );
 
         const currentSessionIds = currentSessions.map((s) => s.sessionId);
@@ -402,9 +557,9 @@ export async function updateWorkoutPlan(
             })
             .from(ExercisePlanExercises)
             .where(
-                currentSessionIds.length > 0
-                    ? inArray(ExercisePlanExercises.sessionId, currentSessionIds)
-                    : eq(ExercisePlanExercises.sessionId, "__never__")
+                // Only exercises belonging to the current sessions.
+                // Let inArray handle the empty array case directly.
+                inArray(ExercisePlanExercises.sessionId, currentSessionIds)
             );
 
         // Get new structure from planData

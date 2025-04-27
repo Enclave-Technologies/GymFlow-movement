@@ -45,6 +45,11 @@ type DraggableSessionProps = {
         dragIndex: number,
         hoverIndex: number
     ) => void;
+    handleDragVisual?: (
+        phaseId: string,
+        dragIndex: number,
+        hoverIndex: number
+    ) => void;
     renderExercisesTable: (phase: Phase, session: Session) => React.ReactNode;
     editingSession: string | null;
     editSessionValue: string;
@@ -69,6 +74,7 @@ const DraggableSession = ({
     editSessionValue,
     saveSessionEdit,
     setEditSessionValue,
+    handleDragVisual,
 }: DraggableSessionProps) => {
     const ref = useRef<HTMLDivElement>(null);
 
@@ -102,11 +108,18 @@ const DraggableSession = ({
                 return;
             }
 
-            // Move the session
-            moveSession(item.phaseId, dragIndex, hoverIndex);
+            // Call handleDragVisual for visual feedback during hover if it exists
+            if (handleDragVisual) {
+                handleDragVisual(item.phaseId, dragIndex, hoverIndex);
+            }
 
-            // Update the item's index for next hover
+            // Update the item's index for the next hover
             item.index = hoverIndex;
+        },
+        drop(item: DragItem) {
+            // Always call moveSession when the drop is completed
+            // This ensures the unsaved changes UI is triggered and the order is saved
+            moveSession(item.phaseId, item.index, index);
         },
     });
 

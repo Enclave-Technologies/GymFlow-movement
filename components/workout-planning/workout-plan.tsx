@@ -32,6 +32,7 @@ import {
     updateWorkoutPlan,
     updatePhaseActivation,
     createWorkoutPlan,
+    updateSessionOrder, // <-- Import the new action
 } from "@/actions/workout_plan_actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -264,17 +265,25 @@ export default function WorkoutPlanner({
                 setHasUnsavedChanges(false);
                 // Clear any previous conflict errors
                 setConflictError(null);
-                
+
                 // Force a refetch of the workout plan to ensure we have the latest data
                 const refetchWorkout = async () => {
                     try {
-                        const response = await getWorkoutPlanByClientId(client_id);
-                        if (response && "planId" in response && "updatedAt" in response) {
+                        const response = await getWorkoutPlanByClientId(
+                            client_id
+                        );
+                        if (
+                            response &&
+                            "planId" in response &&
+                            "updatedAt" in response
+                        ) {
                             setPlanId(response.planId);
                             setLastKnownUpdatedAt(new Date(response.updatedAt));
-                            
+
                             // Map the phases from the response
-                            const mapped = (response as WorkoutPlanResponse).phases.map(
+                            const mapped = (
+                                response as WorkoutPlanResponse
+                            ).phases.map(
                                 // ... (same mapping logic as in the useEffect)
                                 (phase) => ({
                                     id: phase.id,
@@ -283,48 +292,54 @@ export default function WorkoutPlanner({
                                     isExpanded: phase.isExpanded,
                                     sessions: phase.sessions.map((session) => {
                                         // Map exercises with safe defaults and include all fields
-                                        const exercises = session.exercises?.map((e) => {
-                                            if (
-                                                !e.id ||
-                                                !e.order ||
-                                                !e.motion ||
-                                                !e.targetArea ||
-                                                !e.description
-                                            ) {
-                                                console.warn(
-                                                    "Missing required exercise properties",
-                                                    e
-                                                );
-                                            }
-                                            const exercise: Exercise = {
-                                                id: e.id || uuidv4(),
-                                                order: e.order || "",
-                                                motion: e.motion || "",
-                                                targetArea: e.targetArea || "",
-                                                description: e.description || "",
-                                                duration:
-                                                    typeof e.duration === "number"
-                                                        ? e.duration
-                                                        : 8,
-                                                // Include all possible fields from Exercise interface
-                                                sets: e.sets ?? "",
-                                                reps: e.reps ?? "",
-                                                tut: e.tut ?? "",
-                                                tempo: e.tempo ?? "",
-                                                rest: e.rest ?? "",
-                                                additionalInfo: e.additionalInfo ?? "",
-                                                setsMin: e.setsMin ?? "",
-                                                setsMax: e.setsMax ?? "",
-                                                repsMin: e.repsMin ?? "",
-                                                repsMax: e.repsMax ?? "",
-                                                restMin: e.restMin ?? "",
-                                                restMax: e.restMax ?? "",
-                                                // Map additionalInfo to customizations for backend
-                                                customizations: e.additionalInfo ?? "",
-                                            };
+                                        const exercises =
+                                            session.exercises?.map((e) => {
+                                                if (
+                                                    !e.id ||
+                                                    !e.order ||
+                                                    !e.motion ||
+                                                    !e.targetArea ||
+                                                    !e.description
+                                                ) {
+                                                    console.warn(
+                                                        "Missing required exercise properties",
+                                                        e
+                                                    );
+                                                }
+                                                const exercise: Exercise = {
+                                                    id: e.id || uuidv4(),
+                                                    order: e.order || "",
+                                                    motion: e.motion || "",
+                                                    targetArea:
+                                                        e.targetArea || "",
+                                                    description:
+                                                        e.description || "",
+                                                    duration:
+                                                        typeof e.duration ===
+                                                        "number"
+                                                            ? e.duration
+                                                            : 8,
+                                                    // Include all possible fields from Exercise interface
+                                                    sets: e.sets ?? "",
+                                                    reps: e.reps ?? "",
+                                                    tut: e.tut ?? "",
+                                                    tempo: e.tempo ?? "",
+                                                    rest: e.rest ?? "",
+                                                    additionalInfo:
+                                                        e.additionalInfo ?? "",
+                                                    setsMin: e.setsMin ?? "",
+                                                    setsMax: e.setsMax ?? "",
+                                                    repsMin: e.repsMin ?? "",
+                                                    repsMax: e.repsMax ?? "",
+                                                    restMin: e.restMin ?? "",
+                                                    restMax: e.restMax ?? "",
+                                                    // Map additionalInfo to customizations for backend
+                                                    customizations:
+                                                        e.additionalInfo ?? "",
+                                                };
 
-                                            return exercise;
-                                        });
+                                                return exercise;
+                                            });
 
                                         // Calculate total session duration
                                         const calculatedDuration =
@@ -336,22 +351,26 @@ export default function WorkoutPlanner({
 
                                         return {
                                             id: session.id || uuidv4(),
-                                            name: session.name || "Unnamed Session",
+                                            name:
+                                                session.name ||
+                                                "Unnamed Session",
                                             duration: calculatedDuration,
-                                            isExpanded: Boolean(session.isExpanded),
+                                            isExpanded: Boolean(
+                                                session.isExpanded
+                                            ),
                                             exercises: exercises || [],
                                         };
                                     }),
                                 })
                             );
-                            
+
                             setPhases(mapped);
                         }
                     } catch (error) {
                         console.error("Error refetching workout plan:", error);
                     }
                 };
-                
+
                 refetchWorkout();
             } else {
                 // Handle errors
@@ -553,6 +572,7 @@ export default function WorkoutPlanner({
                 };
             })
         );
+        setHasUnsavedChanges(true); // Mark changes as unsaved
     };
 
     const deleteSession = (phaseId: string, sessionId: string) =>
@@ -764,12 +784,13 @@ export default function WorkoutPlanner({
 
     // Save a single session (removed)
 
-    // Function to move a session within a phase
-    const moveSession = (
+    // Function to handle visual updates during drag operations
+    const handleDragVisual = (
         phaseId: string,
         dragIndex: number,
         hoverIndex: number
     ) => {
+        // This function only updates the UI for visual feedback during dragging
         setPhases(
             phases.map((phase) => {
                 if (phase.id !== phaseId) return phase;
@@ -785,6 +806,112 @@ export default function WorkoutPlanner({
                 };
             })
         );
+    };
+
+    // Function to move a session within a phase and update the order in DB
+    // This is called when the drag operation is completed (on drop)
+    const moveSession = async (
+        phaseId: string,
+        dragIndex: number,
+        hoverIndex: number
+    ) => {
+        // First update the UI (this might be redundant if handleDragVisual was called during drag)
+        // but we include it for safety to ensure the final state is correct
+        const updatedPhases = phases.map((phase) => {
+            if (phase.id !== phaseId) return phase;
+
+            const newSessions = [...phase.sessions];
+            const draggedSession = newSessions[dragIndex];
+            newSessions.splice(dragIndex, 1);
+            newSessions.splice(hoverIndex, 0, draggedSession);
+
+            return {
+                ...phase,
+                sessions: newSessions,
+            };
+        });
+
+        // Update the state with the new phases
+        setPhases(updatedPhases);
+
+        // Mark as having unsaved changes
+        setHasUnsavedChanges(true);
+
+        // Log the operation for debugging
+        console.log(
+            `Moving session from index ${dragIndex} to ${hoverIndex} in phase ${phaseId}`
+        );
+
+        // --- BEGIN: Call server action to update order ---
+        // Find the updated phase from our new state to get the correct session order
+        const updatedPhase = updatedPhases.find((p) => p.id === phaseId);
+        if (!updatedPhase) {
+            console.error("Could not find updated phase after move.");
+            toast.error(
+                "An internal error occurred while reordering sessions."
+            );
+            return; // Should not happen if setPhases worked
+        }
+
+        // Get the ordered session IDs from the updated phase
+        const orderedSessionIds = updatedPhase.sessions.map((s) => s.id);
+
+        // Set saving state visually (optional, maybe too quick for DnD)
+        // setSaving(true); // Consider adding a specific 'isReordering' state if needed
+
+        try {
+            const result = await updateSessionOrder(
+                phaseId,
+                orderedSessionIds,
+                lastKnownUpdatedAt || undefined
+            );
+
+            if (result.success) {
+                // Update the last known timestamp to prevent conflicts on subsequent saves
+                setLastKnownUpdatedAt(new Date(result.updatedAt ?? Date.now()));
+                setConflictError(null); // Clear any previous conflict
+
+                // If the server save was successful, we can clear the unsaved changes flag
+                // but only for this specific change - if there were other unsaved changes,
+                // we should keep the flag set
+                if (!hasUnsavedChanges) {
+                    setHasUnsavedChanges(false);
+                }
+
+                // toast.success("Session order updated"); // Optional: Might be too noisy
+            } else {
+                // Handle errors (conflict or other)
+                if (result.conflict) {
+                    setConflictError({
+                        message:
+                            result.error ||
+                            "Plan modified by another user during reorder",
+                        // Ensure serverUpdatedAt exists before creating Date
+                        serverTime: result.serverUpdatedAt
+                            ? new Date(result.serverUpdatedAt)
+                            : new Date(),
+                    });
+                    toast.error(
+                        "Conflict: Plan modified elsewhere. Please save all changes to resolve."
+                    );
+                    // We already set hasUnsavedChanges to true above
+                } else {
+                    toast.error(
+                        result.error || "Failed to update session order"
+                    );
+                    // We already set hasUnsavedChanges to true above
+                }
+            }
+        } catch (error) {
+            console.error("Error calling updateSessionOrder:", error);
+            toast.error("An error occurred while updating session order.");
+            setHasUnsavedChanges(true); // Re-set unsaved changes flag on error
+        } finally {
+            // setSaving(false); // Clear saving state if used
+        }
+        // --- END: Call server action ---
+
+        // We've already set hasUnsavedChanges at the beginning of this function
     };
 
     // Inline editing state and functions are now handled by the ExerciseTableInline component
@@ -1079,6 +1206,9 @@ export default function WorkoutPlanner({
                                                         }
                                                         moveSession={
                                                             moveSession
+                                                        }
+                                                        handleDragVisual={
+                                                            handleDragVisual
                                                         }
                                                         renderExercisesTable={
                                                             renderExercisesTable
