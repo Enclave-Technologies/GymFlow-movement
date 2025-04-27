@@ -247,7 +247,7 @@ export function InfiniteTable({
                 showNewButton={true}
                 onNewClick={() => {
                     console.log("New button clicked");
-                    router.push("/onboard-users");
+                    router.push("/add-client");
                     // In a real application, you might want to navigate to a create form or open a modal
                 }}
                 showDeleteButton={true}

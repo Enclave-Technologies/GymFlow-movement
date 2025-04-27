@@ -11,7 +11,10 @@ import "server-only";
  * @param size number of records to fetch
  * @returns items and total count
  */
+import { requireTrainerOrAdmin } from "@/lib/auth-utils";
+
 export async function fetchWorkoutHistoryPage(start: number, size: number) {
+    await requireTrainerOrAdmin();
     // Query detail rows with optional session info (e.g. session start time)
     const [rows, countResult] = await Promise.all([
         db
@@ -59,6 +62,7 @@ export async function fetchWorkoutHistoryPage(start: number, size: number) {
  * @param detailId the UUID of the WorkoutSessionDetails record
  */
 export async function deleteWorkoutHistoryEntry(detailId: string) {
+    await requireTrainerOrAdmin();
     await db
         .delete(WorkoutSessionDetails)
         .where(eq(WorkoutSessionDetails.workoutDetailId, detailId));
@@ -69,6 +73,7 @@ export async function deleteWorkoutHistoryEntry(detailId: string) {
  * @param detailId the UUID of the WorkoutSessionDetails record
  * @param changes partial fields to update
  */
+
 export async function updateWorkoutHistoryEntry(
     detailId: string,
     changes: Partial<{
@@ -79,6 +84,7 @@ export async function updateWorkoutHistoryEntry(
         coachNote: string;
     }>
 ) {
+    await requireTrainerOrAdmin();
     await db
         .update(WorkoutSessionDetails)
         .set(changes)
@@ -91,6 +97,7 @@ export async function fetchWorkoutSessionLogsPage(
     start: number,
     size: number
 ) {
+    await requireTrainerOrAdmin();
     const [rows, countResult] = await Promise.all([
         db
             .select({
@@ -128,6 +135,7 @@ export async function fetchWorkoutSessionLogsPage(
  * @param sessionId the UUID of the WorkoutSessionsLog record
  */
 export async function deleteWorkoutSession(sessionId: string) {
+    await requireTrainerOrAdmin();
     // First delete all workout details associated with this session
     await db
         .delete(WorkoutSessionDetails)
@@ -144,6 +152,7 @@ export async function fetchWorkoutDetailsBySession(
     sessionLogId: string,
     userId: string
 ) {
+    await requireTrainerOrAdmin();
     // First verify this session belongs to the user
     const session = await db
         .select()

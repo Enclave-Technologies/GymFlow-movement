@@ -5,7 +5,6 @@ import { db } from "@/db/xata";
 import { defaultProfileURL, MOVEMENT_SESSION_NAME } from "@/lib/constants";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
-// import { redirect } from "next/navigation";
 import "server-only";
 
 export async function get_logged_in_user() {
@@ -38,43 +37,55 @@ export async function get_logged_in_user() {
             return null;
         }
 
-        // Get user data with role information
-        const db_user = await db
+        // Get user data with role information in a single query
+        const db_user_with_role = await db
             .select({
                 id: Users.userId,
                 appwrite_id: Users.appwrite_id,
                 name: Users.fullName,
                 email: Users.email,
                 avatar: Users.imageUrl,
-            })
-            .from(Users)
-            .where(eq(Users.appwrite_id, user.$id));
-
-        // Get user role information
-        const userRoleData = await db
-            .select({
-                roleId: UserRoles.roleId,
-                roleName: Roles.roleName,
+                role: Roles.roleName,
                 approvedByAdmin: UserRoles.approvedByAdmin,
             })
-            .from(UserRoles)
+            .from(Users)
+            .innerJoin(UserRoles, eq(Users.userId, UserRoles.userId))
             .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
-            .where(eq(UserRoles.userId, user.$id));
+            .where(eq(Users.appwrite_id, user.$id));
 
-        const modified_user = db_user.map((user) => ({
-            ...user,
-            email: user.email || "No email provided", // Provide a default value if email is missing
-            avatar: user.avatar || defaultProfileURL, // Use a placeholder or dummy URL
-            role: userRoleData.length > 0 ? userRoleData[0].roleName : null,
-            approvedByAdmin:
-                userRoleData.length > 0
-                    ? userRoleData[0].approvedByAdmin
-                    : false,
-        }));
+        if (!db_user_with_role || db_user_with_role.length === 0) {
+            return null;
+        }
 
-        return modified_user[0];
+        // Aggregate all roles and approvedByAdmin values
+        const roles = db_user_with_role
+            .map((user) => user.role)
+            .filter(Boolean);
+        const approvedByAdminArr = db_user_with_role.map(
+            (user) => user.approvedByAdmin
+        );
+
+        // If all approvedByAdmin values are the same, use a single boolean, else return array
+        const allApprovedSame = approvedByAdminArr.every(
+            (val) => val === approvedByAdminArr[0]
+        );
+        const approvedByAdmin = allApprovedSame
+            ? approvedByAdminArr[0]
+            : approvedByAdminArr;
+
+        // Use the first user object for common fields
+        const baseUser = db_user_with_role[0];
+
+        return {
+            id: baseUser.id,
+            appwrite_id: baseUser.appwrite_id,
+            name: baseUser.name,
+            email: baseUser.email || "No email provided",
+            avatar: baseUser.avatar || defaultProfileURL,
+            roles,
+            approvedByAdmin,
+        };
     } else {
-        // redirect("/login");
         return null;
     }
 }

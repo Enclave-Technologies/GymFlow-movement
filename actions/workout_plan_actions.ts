@@ -13,6 +13,7 @@ import "server-only";
 import { v4 as uuidv4 } from "uuid";
 import { WorkoutPlanActionResponse } from "@/components/workout-planning/types";
 import { revalidatePath } from "next/cache";
+import { requireTrainerOrAdmin } from "@/lib/auth-utils";
 
 // Define types for workout plan data
 interface ExerciseItem {
@@ -59,6 +60,7 @@ interface WorkoutPlanResponse {
 export async function getWorkoutPlanByClientId(
     clientId: string
 ): Promise<WorkoutPlanResponse | []> {
+  await requireTrainerOrAdmin();
     // Fetch the plan first to ensure we return something even if there are no phases/sessions/exercises
     const plan = await db
         .select({

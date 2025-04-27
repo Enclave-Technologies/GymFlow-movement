@@ -5,9 +5,10 @@ import { db } from "@/db/xata";
 import { desc, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import "server-only";
+import { requireTrainerOrAdmin } from "@/lib/auth-utils";
 
-// Original function for paginated exercise list
 export async function getAllExercises(params: Record<string, unknown> = {}) {
+    await requireTrainerOrAdmin();
     // Extract pagination parameters from params
     const pageIndex =
         typeof params.pageIndex === "number"

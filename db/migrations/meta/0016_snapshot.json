@@ -976,6 +976,14 @@
           "name": "appwrite_id",
           "type": "text",
           "primaryKey": false,
+          "notNull": false
+        },
+        "has_auth": {
+          "name": "has_auth",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
           "notNull": true
         },
         "full_name": {

@@ -97,8 +97,8 @@ const navMain = [
                 url: "/all-clients",
             },
             {
-                title: "Add/Onboard Users",
-                url: "/onboard-users",
+                title: "Add Client",
+                url: "/add-client",
             },
         ],
     },
@@ -110,6 +110,10 @@ const navMain = [
             {
                 title: "All Coaches",
                 url: "/coaches",
+            },
+            {
+                title: "Add Coach",
+                url: "/add-trainer",
             },
         ],
     },
@@ -132,10 +136,6 @@ const navMain = [
             {
                 title: "General",
                 url: "/settings",
-            },
-            {
-                title: "Team",
-                url: "/settings/team",
             },
             // {
             //     title: "Billing",

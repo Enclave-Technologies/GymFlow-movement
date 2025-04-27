@@ -11,7 +11,10 @@ import "server-only";
  * @param trainerId - The user ID of the trainer
  * @returns Trainer user data or null if not found
  */
+import { requireTrainerOrAdmin } from "@/lib/auth-utils";
+
 export async function getCoachById(trainerId: string) {
+  await requireTrainerOrAdmin();
   if (!trainerId) {
     console.log(`No trainer ID provided`);
     return null;
@@ -61,6 +64,7 @@ export async function getCoachById(trainerId: string) {
  * This will help identify what roles actually exist in your system
  */
 export async function getAllRoles() {
+  await requireTrainerOrAdmin();
   console.log("DEBUG: Fetching all roles from database");
 
   const roles = await db
@@ -83,6 +87,7 @@ export async function getAllRoles() {
 export async function getCoachesPaginated(
   params: Record<string, unknown> = {}
 ) {
+  await requireTrainerOrAdmin();
   // Log input parameters
   console.log(
     "getCoachesPaginated - Received params:",
