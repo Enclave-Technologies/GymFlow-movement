@@ -112,7 +112,7 @@ const navMain = [
                 url: "/coaches",
             },
             {
-                title: "Add Trainer",
+                title: "Add Coach",
                 url: "/add-trainer",
             },
         ],
