@@ -11,6 +11,13 @@ export interface Exercise {
     rest?: string;
     additionalInfo?: string;
     duration: number;
+    // Additional fields for min-max values
+    setsMin?: string;
+    setsMax?: string;
+    repsMin?: string;
+    repsMax?: string;
+    restMin?: string;
+    restMax?: string;
 }
 
 export interface Session {
@@ -27,4 +34,17 @@ export interface Phase {
     isActive: boolean;
     isExpanded: boolean;
     sessions: Session[];
+}
+
+/**
+ * Standard response type for workout plan server actions
+ * Used for consistent error handling and concurrency control
+ */
+export interface WorkoutPlanActionResponse {
+    success: boolean;
+    error?: string;
+    conflict?: boolean;
+    planId?: string;
+    updatedAt?: Date;
+    serverUpdatedAt?: Date;
 }

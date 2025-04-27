@@ -10,6 +10,7 @@ import {
     Copy,
     Edit,
     GripVertical,
+    Loader,
     Plus,
     Trash2,
 } from "lucide-react";
@@ -26,6 +27,7 @@ type DragItem = {
 };
 
 import { Phase, Session } from "./types";
+import { TooltipContent, Tooltip, TooltipTrigger } from "../ui/tooltip";
 
 type DraggableSessionProps = {
     phase: Phase;
@@ -111,14 +113,15 @@ const DraggableSession = ({
     // Apply refs
     drag(drop(ref));
 
+    // Add mt-6 for separation except for the first session (index > 0)
     return (
         <div
             ref={ref}
-            className={`border rounded-md mb-4 ${
+            className={`mb-4 ${index > 0 ? "mt-6" : ""} ${
                 isDragging ? "opacity-50" : ""
             }`}
         >
-            <div className="flex items-center justify-between p-3 bg-muted">
+            <div className="flex items-center justify-between p-2 bg-muted rounded-md">
                 <div className="flex items-center">
                     <span className="mr-2 cursor-move">
                         <GripVertical className="h-4 w-4 text-muted-foreground" />
@@ -160,40 +163,70 @@ const DraggableSession = ({
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                            startEditSession(session.id, session.name)
-                        }
-                        className="h-8 w-8 cursor-pointer"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteSession(phase.id, session.id)}
-                        className="h-8 w-8 cursor-pointer"
-                    >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => duplicateSession(phase.id, session.id)}
-                        className="h-8 w-8 cursor-pointer"
-                    >
-                        <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => addExercise(phase.id, session.id)}
-                        className="h-8 w-8 cursor-pointer"
-                    >
-                        <Plus className="h-4 w-4" />
-                    </Button>
+                    {/* Edit Session */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                    startEditSession(session.id, session.name)
+                                }
+                                className="h-8 w-8 cursor-pointer"
+                            >
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Edit Session Name</TooltipContent>
+                    </Tooltip>
+                    {/* Delete Session */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                    deleteSession(phase.id, session.id)
+                                }
+                                className="h-8 w-8 cursor-pointer"
+                            >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete Session</TooltipContent>
+                    </Tooltip>
+                    {/* Duplicate Session */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                    duplicateSession(phase.id, session.id)
+                                }
+                                className="h-8 w-8 cursor-pointer"
+                            >
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Duplicate Session</TooltipContent>
+                    </Tooltip>
+                    {/* Add Exercise */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                    addExercise(phase.id, session.id)
+                                }
+                                className="h-8 w-8 cursor-pointer"
+                            >
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Add Exercise</TooltipContent>
+                    </Tooltip>
                     {/* Save button removed */}
                     <Button
                         variant="default"
@@ -207,7 +240,7 @@ const DraggableSession = ({
                     >
                         {startingSessionId === session.id ? (
                             <>
-                                <div className="h-4 w-4 mr-2 rounded-full border-2 border-background border-t-transparent animate-spin"></div>
+                                <Loader className="animate-spin h-4 w-4 mr-2" />
                                 Please wait...
                             </>
                         ) : (
@@ -221,7 +254,7 @@ const DraggableSession = ({
                 session.exercises.length > 0 &&
                 renderExercisesTable(phase, session)}
             {session.isExpanded && session.exercises.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-muted-foreground bg-background/50 mt-2">
                     No exercises. Click + to add one.
                 </div>
             )}

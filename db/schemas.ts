@@ -123,6 +123,7 @@ export const ExercisePlans = pgTable("ExercisePlans", {
             onUpdate: "cascade",
         }),
     createdDate: timestamp("created_date").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(), // Added for optimistic concurrency control
     assignedToUserId: text("assigned_to_user_id") // Changed to text
         .references(() => Users.userId, {
             onDelete: "cascade",
