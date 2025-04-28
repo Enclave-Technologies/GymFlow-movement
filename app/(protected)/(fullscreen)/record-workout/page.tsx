@@ -390,7 +390,8 @@ const RecordWorkoutPage = () => {
                 setNumber, // Use the correct set number
                 0, // reps (default to 0)
                 0, // weight (default to 0)
-                exercise.notes // Use the current exercise notes
+                exercise.notes, // Use the current exercise notes
+                exercise.setOrderMarker // Include the setOrderMarker
             );
 
             // Update the temporary ID with the real one from the database
@@ -537,7 +538,8 @@ const RecordWorkoutPage = () => {
                                 setNumber, // Use the correct set number
                                 parseInt(set.reps) || 0,
                                 parseInt(set.weight) || 0,
-                                exercise.notes // Use the exercise notes as coach notes
+                                exercise.notes, // Use the exercise notes as coach notes
+                                exercise.setOrderMarker // Include the setOrderMarker
                             );
 
                             // Update the set ID in our local state

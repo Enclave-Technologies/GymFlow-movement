@@ -202,6 +202,7 @@ export async function startWorkoutSession(
  * @param reps - Number of repetitions performed
  * @param weight - Weight used (if applicable)
  * @param coachNote - Optional note from coach
+ * @param setOrderMarker - Optional order marker for the exercise
  * @returns The created workout session detail entry
  */
 export async function logWorkoutSet(
@@ -210,7 +211,8 @@ export async function logWorkoutSet(
     setNumber: number | null,
     reps: number | null,
     weight: number | null,
-    coachNote?: string
+    coachNote?: string,
+    setOrderMarker?: string
 ): Promise<SelectWorkoutSessionDetail> {
     noStore();
 
@@ -230,6 +232,7 @@ export async function logWorkoutSet(
             weight,
             workoutVolume,
             coachNote: coachNote || null,
+            setOrderMarker: setOrderMarker || null,
             entryTime: new Date(),
         };
 

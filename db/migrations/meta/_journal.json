@@ -127,6 +127,13 @@
       "when": 1745783300104,
       "tag": "0017_steep_newton_destine",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1745823926972,
+      "tag": "0018_fearless_blackheart",
+      "breakpoints": true
     }
   ]
 }

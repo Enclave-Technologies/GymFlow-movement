@@ -331,6 +331,7 @@ export const WorkoutSessionDetails = pgTable("WorkoutSessionDetails", {
     weight: real("weight"),
     workoutVolume: real("workout_volume"),
     coachNote: text("coach_note"),
+    setOrderMarker: text("setOrderMarker"), // Added setOrderMarker field
     entryTime: timestamp("entry_time").defaultNow(),
 });
 
