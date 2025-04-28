@@ -202,6 +202,7 @@ export async function startWorkoutSession(
  * @param reps - Number of repetitions performed
  * @param weight - Weight used (if applicable)
  * @param coachNote - Optional note from coach
+ * @param setOrderMarker - Optional order marker for the exercise
  * @returns The created workout session detail entry
  */
 export async function logWorkoutSet(
@@ -210,7 +211,8 @@ export async function logWorkoutSet(
     setNumber: number | null,
     reps: number | null,
     weight: number | null,
-    coachNote?: string
+    coachNote?: string,
+    setOrderMarker?: string
 ): Promise<SelectWorkoutSessionDetail> {
     noStore();
 
@@ -230,6 +232,7 @@ export async function logWorkoutSet(
             weight,
             workoutVolume,
             coachNote: coachNote || null,
+            setOrderMarker: setOrderMarker || null,
             entryTime: new Date(),
         };
 
@@ -292,13 +295,12 @@ export async function updateWorkoutSet(
             }
 
             const current = currentRecord[0];
-            const sets = updates.sets ?? current.sets;
             const reps = updates.reps ?? current.reps;
             const weight = updates.weight ?? current.weight;
 
-            // Only calculate volume if all values are non-null
-            if (sets !== null && reps !== null && weight !== null) {
-                updateData.workoutVolume = sets * reps * weight;
+            // Only calculate volume if reps and weight are non-null
+            if (reps !== null && weight !== null) {
+                updateData.workoutVolume = reps * weight;
             } else {
                 updateData.workoutVolume = null;
             }

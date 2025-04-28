@@ -4,7 +4,7 @@ import { createAdminClient } from "@/appwrite/config";
 import { Roles, TrainerClients, UserRoles, Users } from "@/db/schemas";
 import { db } from "@/db/xata";
 import { requireTrainerOrAdmin } from "@/lib/auth-utils";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, ilike } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { ID, AppwriteException } from "node-appwrite";
 import "server-only";
@@ -1046,6 +1046,58 @@ export async function createClient(clientData: {
             success: false,
             error: error instanceof Error ? error.message : String(error),
         };
+    }
+}
+
+/**
+ * Searches for clients by name (case-insensitive).
+ * Used for the global search bar.
+ * @param query - The search term
+ * @returns Array of matching clients with id, name, and imageUrl
+ */
+export async function searchClientsByNameAction(
+    query: string
+): Promise<{ id: string; name: string; imageUrl: string | null }[]> {
+    // No auth check needed for basic search, but consider adding if sensitive
+    await requireTrainerOrAdmin();
+
+    if (!query || query.trim() === "") {
+        return [];
+    }
+
+    const searchTerm = `%${query.trim()}%`;
+
+    try {
+        const clients = await db
+            .select({
+                id: Users.userId,
+                name: Users.fullName,
+                imageUrl: Users.imageUrl, // Select imageUrl
+            })
+            .from(Users)
+            .leftJoin(UserRoles, eq(Users.userId, UserRoles.userId))
+            .leftJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
+            // Optional: Join with UserRoles/TrainerClients to ensure they are active clients?
+            // This might be needed depending on whether non-clients should appear.
+            // For now, searching all users by name.
+            .where(
+                and(
+                    ilike(Users.fullName, searchTerm),
+                    eq(Roles.roleName, "Client")
+                )
+            )
+            .limit(10); // Limit results for performance
+
+        console.log(`Search for "${query}" found ${clients.length} clients.`);
+        // Ensure fullName is not null before returning
+        return clients.filter((client) => client.name !== null) as {
+            id: string;
+            name: string;
+            imageUrl: string | null; // Update cast type
+        }[];
+    } catch (error) {
+        console.error("Error searching clients by name:", error);
+        return []; // Return empty array on error
     }
 }
 

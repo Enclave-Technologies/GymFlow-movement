@@ -10,6 +10,7 @@ import {
 import { ModeToggle } from "@/components/theme/theme-toggle";
 import { QueryProvider } from "@/providers/query-provider";
 import { get_logged_in_user } from "@/actions/logged_in_user_actions";
+import { GlobalSearch } from "@/components/layout-components/GlobalSearch"; // Import the new component
 
 export const metadata: Metadata = {
     title: "GymFlow | Movement Fitness",
@@ -31,11 +32,8 @@ export default async function AppLayout({
                     <SidebarTrigger className="-ml-2" />
                     {/* <Separator orientation="vertical" className="mr-2 h-4" /> */}
 
-                    <input
-                        type="text"
-                        placeholder="Search..."
-                        className="border rounded-md py-2 px-4 w-full" // Adjust max-w-md as needed
-                    />
+                    {/* Replace the old input with the GlobalSearch component */}
+                    <GlobalSearch />
 
                     <ModeToggle />
                 </header>
