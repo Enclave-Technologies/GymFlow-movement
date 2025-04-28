@@ -292,13 +292,12 @@ export async function updateWorkoutSet(
             }
 
             const current = currentRecord[0];
-            const sets = updates.sets ?? current.sets;
             const reps = updates.reps ?? current.reps;
             const weight = updates.weight ?? current.weight;
 
-            // Only calculate volume if all values are non-null
-            if (sets !== null && reps !== null && weight !== null) {
-                updateData.workoutVolume = sets * reps * weight;
+            // Only calculate volume if reps and weight are non-null
+            if (reps !== null && weight !== null) {
+                updateData.workoutVolume = reps * weight;
             } else {
                 updateData.workoutVolume = null;
             }

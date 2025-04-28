@@ -92,12 +92,12 @@ export function InfiniteDataTable<TData, TValue>({
             <Table style={{ display: "grid" }}>
                 <TableHeader
                     style={{
-                        display: "grid",
-                        position: "sticky",
-                        top: 0,
-                        zIndex: 50,
-                        width: "100%",
-                        borderBottom: "1px solid var(--border)",
+                         display: "grid",
+                         position: "sticky",
+                         top: 0,
+                         zIndex: 40, // Changed from 50 to 40
+                         width: "100%",
+                         borderBottom: "1px solid var(--border)",
                         backgroundColor: "hsl(var(--background))",
                         boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                     }}
