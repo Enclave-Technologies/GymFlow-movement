@@ -37,3 +37,12 @@ export function getInitials(name: string | null | undefined): string {
         (words[0][0]?.toUpperCase() || "") + (words[1][0]?.toUpperCase() || "")
     );
 }
+
+/**
+ * Safely prepare image URLs by trimming whitespace and handling null/undefined values
+ */
+export function safeImageUrl(url: string | null | undefined): string | null {
+    if (!url) return null;
+    const trimmed = url.trim();
+    return trimmed === "" ? null : trimmed;
+}

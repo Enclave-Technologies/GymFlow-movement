@@ -11,6 +11,7 @@ import {
     uploadUserImage,
 } from "@/actions/auth_actions";
 import { toast } from "sonner";
+import { safeImageUrl } from "@/lib/utils";
 
 import { ProfileSettings } from "./profile-settings";
 import { PasswordSettings } from "./password-settings";
@@ -48,7 +49,7 @@ export function SettingsForm({ user: initialUser }: SettingsFormProps) {
     );
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(
-        initialUser.imageUrl || null
+        safeImageUrl(initialUser.imageUrl) || null
     );
     const [isUploading, setIsUploading] = useState(false);
 

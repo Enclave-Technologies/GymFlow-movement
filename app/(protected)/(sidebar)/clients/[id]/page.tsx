@@ -17,6 +17,8 @@ import Image from "next/image";
 import { Calendar, Mail, Pencil, Phone, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ClientTabs from "@/components/client-tabs/client-tabs";
+import { safeImageUrl } from "@/lib/utils";
+
 type PageProps = {
     params: Promise<{
         id: string;
@@ -77,9 +79,9 @@ export default async function ClientProfilePage({ params }: PageProps) {
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
                 {/* Profile Image */}
                 <Card className="relative overflow-hidden p-0 md:col-span-1 flex flex-col justify-end h-48">
-                    {client.imageUrl ? (
+                    {safeImageUrl(client.imageUrl) ? (
                         <Image
-                            src={client.imageUrl}
+                            src={safeImageUrl(client.imageUrl) || ""}
                             alt={client.fullName}
                             className="absolute inset-0 w-full h-full object-cover"
                             width={500}
