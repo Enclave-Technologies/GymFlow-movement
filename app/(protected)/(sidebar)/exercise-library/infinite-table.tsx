@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useTableActions } from "@/hooks/use-table-actions";
 import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
-import { Exercise, tableOperations } from "./columns";
+import { Exercise, ExerciseResponse, tableOperations } from "./columns";
+import { motion } from "framer-motion";
 import {
     keepPreviousData,
     useInfiniteQuery,
@@ -22,19 +23,12 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import CompactTableOperations from "@/components/ui/compact-table-operations";
 
 interface InfiniteTableProps {
-    initialData: {
-        data: any[];
-        meta: {
-            totalRowCount: number;
-        };
-    };
     fetchDataFn: (params: any) => Promise<any>;
     columns: ColumnDef<any, unknown>[];
     queryId?: string;
 }
 
 export function InfiniteTable({
-    initialData,
     fetchDataFn,
     columns,
     queryId = "default",
@@ -84,6 +78,31 @@ export function InfiniteTable({
         },
     });
 
+    // Placeholder mutation for bulk delete functionality
+    const { mutate: bulkDelete } = useMutation({
+        mutationFn: async (data: { coachIds: string[] }) => {
+            console.log("Bulk delete exercises:", data.coachIds);
+            // This is just a placeholder - no actual deletion happens yet
+            return {
+                success: true,
+                message: `Deleted ${data.coachIds.length} exercises`,
+            };
+        },
+        onSuccess: (data) => {
+            toast.success(data.message);
+            // Reset selection
+            setRowSelection({});
+            setSelectedRows([]);
+            // Invalidate queries to refresh data
+            queryClient.invalidateQueries({
+                queryKey: ["tableData", urlParams, queryId],
+            });
+        },
+        onError: (error) => {
+            toast.error(`Error deleting exercises: ${error.message}`);
+        },
+    });
+
     const {
         sorting,
         columnFilters,
@@ -96,7 +115,7 @@ export function InfiniteTable({
 
     // Use React Query for data fetching with infinite scroll
     const { data, fetchNextPage, isFetchingNextPage, isLoading } =
-        useInfiniteQuery({
+        useInfiniteQuery<ExerciseResponse>({
             queryKey: ["tableData", urlParams, queryId],
             queryFn: async ({ pageParam = 0 }) => {
                 const params = {
@@ -110,10 +129,6 @@ export function InfiniteTable({
                 // Simply return the length of allPages as the next page param
                 // This will be 1, 2, 3, etc. as pages are added
                 return allPages.length;
-            },
-            initialData: {
-                pages: [initialData],
-                pageParams: [0],
             },
             refetchOnWindowFocus: false,
             placeholderData: keepPreviousData,
@@ -210,12 +225,25 @@ export function InfiniteTable({
     }, [fetchMoreOnBottomReached]);
 
     if (isLoading && flatData.length === 0) {
-        return <div>Loading...</div>;
+        return (
+            <div className="flex items-center h-full w-full justify-center bg-background z-[9999]">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex items-center justify-center"
+                >
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                </motion.div>
+            </div>
+        );
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-x-auto no-scrollbar pt-1">
             <CompactTableOperations
+                className="min-w-[800px] flex-nowrap"
                 columns={columns}
                 globalFilter={searchQuery}
                 setGlobalFilter={handleSearchChange}
@@ -259,6 +287,17 @@ export function InfiniteTable({
                     // In a real application, you might want to navigate to a create form or open a modal
                 }}
                 selectedRows={selectedRows}
+                showDeleteButton={true}
+                onDeleteClick={(rows) => {
+                    if (rows.length > 0) {
+                        console.log("Delete button clicked for coaches", rows);
+                        // Call the mutation with the selected coach IDs
+                        bulkDelete({
+                            coachIds: rows.map((coach) => coach.userId),
+                        });
+                    }
+                }}
+
                 customOperations={[
                     {
                         label: "Approve",
