@@ -615,7 +615,7 @@ export async function uploadUserImage(
             return {
                 success: true,
                 message: "Image uploaded successfully",
-                imageUrl: fileUrl,
+                imageUrl: fileUrl.trim(),
             };
         } catch (error) {
             console.error("Error during upload:", error);

@@ -11,7 +11,7 @@ import { columns } from "../../my-clients/columns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User, Mail, Phone, Calendar, Pencil } from "lucide-react";
-// import { Separator } from "@/components/ui/separator";
+import { safeImageUrl } from "@/lib/utils";
 import Image from "next/image";
 
 export default async function TrainerProfilePage({
@@ -100,9 +100,9 @@ export default async function TrainerProfilePage({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 {/* Profile Image (1/3 width, full card background) */}
                 <Card className="relative overflow-hidden p-0 md:col-span-1 flex flex-col justify-end min-h-[260px] h-full">
-                    {trainerData.imageUrl ? (
+                    {safeImageUrl(trainerData.imageUrl) ? (
                         <Image
-                            src={trainerData.imageUrl}
+                            src={safeImageUrl(trainerData.imageUrl) || ""}
                             alt={trainerData.fullName}
                             className="absolute inset-0 w-full h-full object-cover"
                             width={500}
