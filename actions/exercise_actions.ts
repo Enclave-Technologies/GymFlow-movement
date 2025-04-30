@@ -2,7 +2,7 @@
 
 import { Exercises } from "@/db/schemas";
 import { db } from "@/db/xata";
-import { desc, sql } from "drizzle-orm";
+import { desc, sql, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import "server-only";
 import { requireTrainerOrAdmin } from "@/lib/auth-utils";
@@ -61,24 +61,125 @@ export async function getAllExercises(params: Record<string, unknown> = {}) {
     const Exercise = alias(Exercises, "exercise");
 
     // Create a Promise.all to fetch count and data concurrently
-    const [countResult, exercisesData] = await Promise.all([
-        db.select({ count: sql<number>`count(*)` }).from(Exercise),
 
-        db
-            .select({
-                exerciseId: Exercise.exerciseId,
-                name: Exercise.exerciseName,
-                description: Exercise.description,
-                motion: Exercise.motion,
-                targetArea: Exercise.targetArea,
-                status: Exercise.approvedByAdmin,
-                videoUrl: Exercise.videoUrl,
-                createdAt: Exercise.uploadDate,
-            })
-            .from(Exercise)
-            .orderBy(desc(Exercise.uploadDate))
-            .limit(pageSize)
-            .offset(pageIndex * pageSize),
+    // Define allowed filter columns for exercises
+    const ALLOWED_FILTER_COLUMNS = new Set([
+        "name",
+        "motion",
+        "targetArea",
+        "approval_status",
+    ]);
+
+    // Map filters to conditions
+    const filterConditions = columnFilters
+        .map((filter) => {
+            const { id, value } = filter;
+            if (!ALLOWED_FILTER_COLUMNS.has(id)) {
+                console.warn(`Unsupported filter column: ${id}`);
+                return undefined;
+            }
+            switch (id) {
+                case "name":
+                    return sql`${Exercise.exerciseName} ILIKE ${`%${value}%`}`;
+                case "motion":
+                    return sql`${Exercise.motion} ILIKE ${`%${value}%`}`;
+                case "targetArea":
+                    return sql`${Exercise.targetArea} ILIKE ${`%${value}%`}`;
+                case "approval_status":
+                    // For boolean filter, convert string to boolean
+                    const boolValue =
+                        value === "true" || value === "True" || value === "TRUE"
+                            ? true
+                            : false;
+                    return sql`${Exercise.approvedByAdmin} = ${boolValue}`;
+                default:
+                    return undefined;
+            }
+        })
+        .filter(Boolean);
+
+    // Build search condition if present
+    let searchCondition;
+    if (search) {
+        const searchLike = `%${search}%`;
+        searchCondition = sql`(
+            ${Exercise.exerciseName} ILIKE ${searchLike} OR
+            ${Exercise.motion} ILIKE ${searchLike} OR
+            ${Exercise.targetArea} ILIKE ${searchLike}
+        )`;
+    }
+
+    // Combine all conditions
+    const whereConditions = [
+        ...(searchCondition ? [searchCondition] : []),
+        ...filterConditions,
+    ];
+
+    // Build count query
+    const countQuery = db
+        .select({ count: sql<number>`count(*)` })
+        .from(Exercise)
+        .where(
+            whereConditions.length > 0 ? and(...whereConditions) : undefined
+        );
+
+    // Build data query
+    let dataQuery = db
+        .select({
+            exerciseId: Exercise.exerciseId,
+            name: Exercise.exerciseName,
+            description: Exercise.description,
+            motion: Exercise.motion,
+            targetArea: Exercise.targetArea,
+            status: Exercise.approvedByAdmin,
+            videoUrl: Exercise.videoUrl,
+            createdAt: Exercise.uploadDate,
+        })
+        .from(Exercise)
+        .orderBy(
+            ...(
+                sorting.length > 0
+                    ? sorting.map((sort) => {
+                          const { id, desc: isDesc } = sort;
+                          switch (id) {
+                              case "name":
+                                  return isDesc
+                                      ? desc(Exercise.exerciseName)
+                                      : sql`${Exercise.exerciseName} asc`;
+                              case "motion":
+                                  return isDesc
+                                      ? desc(Exercise.motion)
+                                      : sql`${Exercise.motion} asc`;
+                              case "targetArea":
+                                  return isDesc
+                                      ? desc(Exercise.targetArea)
+                                      : sql`${Exercise.targetArea} asc`;
+                              case "approval_status":
+                                  return isDesc
+                                      ? desc(Exercise.approvedByAdmin)
+                                      : sql`${Exercise.approvedByAdmin} asc`;
+                              case "createdAt":
+                                  return isDesc
+                                      ? desc(Exercise.uploadDate)
+                                      : sql`${Exercise.uploadDate} asc`;
+                              default:
+                                  return desc(Exercise.uploadDate);
+                          }
+                      })
+                    : [desc(Exercise.uploadDate)]
+            )
+        )
+        .limit(pageSize)
+        .offset(pageIndex * pageSize);
+
+    if (whereConditions.length > 0) {
+        // @ts-expect-error workaround for missing where in type
+        dataQuery = dataQuery.where(and(...whereConditions));
+    }
+
+    const [countResult, exercisesData] = await Promise.all([
+        countQuery,
+        dataQuery,
     ]);
 
     // Calculate accurate pagination values

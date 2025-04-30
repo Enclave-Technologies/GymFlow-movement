@@ -510,6 +510,11 @@ export default function CompactTableOperations<TData, TValue>({
                                                 ? String(column.accessorKey)
                                                 : column.id || "Column";
 
+                                        console.log(
+                                            `[COLUMN ID]: ${columnId}, ${JSON.stringify(
+                                                sortableColumns
+                                            )}`
+                                        );
                                         // Skip columns that are not sortable
                                         if (!isColumnSortable(columnId)) {
                                             return null;

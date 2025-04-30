@@ -297,7 +297,6 @@ export function InfiniteTable({
                         });
                     }
                 }}
-
                 customOperations={[
                     {
                         label: "Approve",

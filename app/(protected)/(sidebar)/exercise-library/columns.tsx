@@ -48,7 +48,7 @@ export const tableOperations = {
         { id: "name", label: "Exercise Name" },
         { id: "motion", label: "Motion" },
         { id: "targetArea", label: "Target Area" },
-        { id: "approval_status", label: "Approval Status" },
+        { id: "status", label: "Approval Status" },
         { id: "createdAt", label: "Created" },
     ],
 };
@@ -108,17 +108,17 @@ export const columns: ColumnDef<Exercise>[] = [
     },
     {
         accessorKey: "name",
-        header: ({ column }) => {
+        header: () => {
             return (
                 <div className="flex items-center gap-2">
-                    <Button
+                    {/* <Button
                         variant="ghost"
                         onClick={() =>
                             column.toggleSorting(column.getIsSorted() === "asc")
                         }
-                    >
-                        Exercise Name
-                    </Button>
+                    > */}
+                    Exercise Name
+                    {/* </Button> */}
                 </div>
             );
         },
@@ -131,17 +131,17 @@ export const columns: ColumnDef<Exercise>[] = [
     },
     {
         accessorKey: "motion",
-        header: ({ column }) => {
+        header: () => {
             return (
                 <div className="flex items-center gap-2">
-                    <Button
+                    {/* <Button
                         variant="ghost"
                         onClick={() =>
                             column.toggleSorting(column.getIsSorted() === "asc")
                         }
-                    >
-                        Motion
-                    </Button>
+                    > */}
+                    Motion
+                    {/* </Button> */}
                 </div>
             );
         },
@@ -152,17 +152,17 @@ export const columns: ColumnDef<Exercise>[] = [
     },
     {
         accessorKey: "targetArea",
-        header: ({ column }) => {
+        header: () => {
             return (
                 <div className="flex items-center gap-2">
-                    <Button
+                    {/* <Button
                         variant="ghost"
                         onClick={() =>
                             column.toggleSorting(column.getIsSorted() === "asc")
                         }
-                    >
-                        Target Area
-                    </Button>
+                    > */}
+                    Target Area
+                    {/* </Button> */}
                 </div>
             );
         },
@@ -173,7 +173,15 @@ export const columns: ColumnDef<Exercise>[] = [
     },
     {
         accessorKey: "status",
-        header: "Approval Status",
+        header: () => (
+            <>
+                <div className="flex items-center gap-2">
+                    {/* <Button variant="ghost" className="px-0 py-0" disabled> */}
+                    Approval Status
+                    {/* </Button> */}
+                </div>
+            </>
+        ),
         cell: ({ row }) => {
             const exercise = row.original;
             const isApproved = exercise.status;
@@ -221,7 +229,15 @@ export const columns: ColumnDef<Exercise>[] = [
     },
     {
         accessorKey: "createdAt",
-        header: "Created",
+        header: () => (
+            <>
+                <div className="flex items-center gap-2">
+                    {/* <Button variant="ghost" className="px-0 py-0" disabled> */}
+                    Created
+                    {/* </Button> */}
+                </div>
+            </>
+        ),
         cell: ({ row }) => {
             const date = row.getValue("createdAt") as Date | null;
 
