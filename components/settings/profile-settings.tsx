@@ -150,7 +150,7 @@ export function ProfileSettings({
                                         defaultValue={field.value}
                                     >
                                         <FormControl>
-                                            <SelectTrigger>
+                                            <SelectTrigger className="w-full">
                                                 <SelectValue placeholder="Select your gender" />
                                             </SelectTrigger>
                                         </FormControl>

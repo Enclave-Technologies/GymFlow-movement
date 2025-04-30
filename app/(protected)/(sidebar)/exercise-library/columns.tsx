@@ -12,6 +12,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
 
 // Define the Exercise type to match our database schema
 export type Exercise = {
@@ -39,7 +40,7 @@ export type ExerciseResponse = {
 
 // Define which columns can be filtered and sorted with user-friendly labels
 export const tableOperations = {
-    filterableColumns: [
+     filterableColumns: [
         { id: "name", label: "Exercise Name" },
         { id: "motion", label: "Motion" },
         { id: "targetArea", label: "Target Area" },
@@ -53,29 +54,32 @@ export const tableOperations = {
     ],
 };
 
-const ActionsCell = ({ exerciseId }: { exerciseId: string }) => {
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                    <span className="sr-only">Open menu</span>
-                    <MoreHorizontal className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                    onClick={() => handleEditExercise(exerciseId)}
-                    className="cursor-pointer"
-                >
-                    <Edit className="mr-2 h-4 w-4" />
-                    <span>Edit {exerciseId}</span>
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
-    );
-};
+// These functions should be implemented based on your application's needs
+function handleStatusChange(exerciseId: string, status: boolean) {
+  console.log(
+    `Changing status of exercise ${exerciseId} to ${
+      status ? "approved" : "unapproved"
+    }`
+  );
+  // Call your server action to update the exercise status
+  // Example: updateExerciseStatus(exerciseId, status);
+}
+
+// Create a proper React component for the actions cell
+function ActionCell({ exerciseId }: { exerciseId: string }) {
+  const router = useRouter();
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => router.push(`/exercise?id=${exerciseId}`)}
+    >
+      <Edit className="h-4 w-4" />
+      <span className="sr-only">Edit</span>
+    </Button>
+  );
+}
 
 export const columns: ColumnDef<Exercise>[] = [
     {
@@ -306,3 +310,4 @@ function handleEditExercise(exerciseId: string) {
     // Navigate to edit page or open edit modal
     // Example: router.push(`/exercises/edit/${exerciseId}`);
 }
+
