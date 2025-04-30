@@ -25,18 +25,12 @@ export default async function ExerciseLibraryPage() {
         redirect("/login");
     }
 
-    const initialResult = await getAllExercises({
-        pageIndex: 0,
-        pageSize: 10,
-    });
-
     return (
         <div className="container mx-auto py-2 md:py-6">
             <h1 className="text-2xl font-bold mb-6">Exercises</h1>
 
             <Suspense fallback={<TableSkeleton />}>
                 <InfiniteTable
-                    initialData={initialResult}
                     fetchDataFn={getAllExercises}
                     columns={columns}
                     queryId="exercise-library"

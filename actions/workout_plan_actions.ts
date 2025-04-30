@@ -71,8 +71,6 @@ export async function getWorkoutPlanByClientId(
         .where(or(eq(ExercisePlans.assignedToUserId, clientId)))
         .limit(1); // Assuming one active plan per client for simplicity, adjust if needed
 
-    console.log(`[GET WORKOUT PLAN BY CLIENT] - FOUND PLAN: ${plan[0].planId}`);
-
     if (!plan.length) {
         return []; // No plan found for this client
     }
@@ -127,8 +125,6 @@ export async function getWorkoutPlanByClientId(
             Sessions.orderNumber,
             ExercisePlanExercises.exerciseOrder
         );
-
-    console.log(`[GET WORKOUT PLAN BY CLIENT] - plan id: ${planId}`);
 
     // If rows is empty after the join, it means the plan exists but has no phases.
     // We still need to return the basic plan structure.

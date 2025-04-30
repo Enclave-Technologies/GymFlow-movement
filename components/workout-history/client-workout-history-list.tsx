@@ -27,6 +27,7 @@ interface WorkoutDetail {
     reps: number;
     weight: number;
     notes: string;
+    setOrderMarker: string;
     entryTime: string | null;
 }
 
@@ -276,8 +277,7 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
                                                   parseFloat(
                                                       (
                                                           total +
-                                                          exercise.sets *
-                                                              exercise.reps *
+                                                          exercise.reps *
                                                               exercise.weight
                                                       ).toFixed(2)
                                                   ),
@@ -316,6 +316,9 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
                                         ].push(detail);
                                     });
 
+                                    console.log(
+                                        JSON.stringify(exerciseGroups, null, 2)
+                                    );
                                     return Object.entries(exerciseGroups).map(
                                         ([exerciseName, exercises]) => (
                                             <div
@@ -323,7 +326,11 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
                                                 className="mb-4 last:mb-0"
                                             >
                                                 <div className="font-medium text-accent-foreground mb-4 text-lg text-center">
-                                                    {exerciseName}
+                                                    {
+                                                        exercises[0]
+                                                            .setOrderMarker
+                                                    }
+                                                    . {exerciseName}
                                                 </div>
                                                 {exercises.map(
                                                     (exercise, index) => (
@@ -339,6 +346,11 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
                                                                 {
                                                                     exercise.weight
                                                                 }
+                                                                kg, Volume:{" "}
+                                                                {(
+                                                                    exercise.reps *
+                                                                    exercise.weight
+                                                                ).toFixed(2)}
                                                                 kg
                                                                 {exercise.notes && (
                                                                     <div className="text-muted-foreground italic mt-1">

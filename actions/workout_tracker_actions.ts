@@ -21,7 +21,7 @@ import {
     InsertWorkoutSessionLog,
     InsertWorkoutSessionDetail,
 } from "@/db/schemas";
-import { desc, eq, and, gte, lte, isNotNull, inArray } from "drizzle-orm";
+import { desc, eq, and, gte, lte, isNotNull, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { unstable_noStore as noStore } from "next/cache";
 
@@ -155,38 +155,134 @@ export async function fetchWorkoutTrackerData(
     }
 }
 
+interface StartWorkoutSessionResponse {
+    newSession: SelectWorkoutSessionLog;
+    pastSessions: {
+        session: SelectWorkoutSessionLog;
+        details: SelectWorkoutSessionDetail[];
+    }[];
+}
+
 /**
- * Starts a new workout session for a user.
+ * Starts a new workout session for a user and returns similar past sessions.
+ * If an existing workoutSessionLogId is provided, it will not create a new session
+ * but will return the past sessions.
  *
  * @param userId - The ID of the user starting the workout
  * @param sessionName - The name of the session being performed
- * @returns The created workout session log entry
+ * @param existingWorkoutSessionLogId - Optional ID of an existing workout session
+ * @returns Object containing the new session (or existing session) and past similar sessions
  */
 export async function startWorkoutSession(
     userId: string,
-    sessionName: string
-): Promise<SelectWorkoutSessionLog> {
+    sessionName: string,
+    existingWorkoutSessionLogId?: string
+): Promise<StartWorkoutSessionResponse> {
     noStore();
 
     try {
-        // Create a new workout session log entry
-        const newSession: InsertWorkoutSessionLog = {
-            userId,
-            sessionName,
-            startTime: new Date(),
-            // endTime is left null until the session is completed
-        };
+        let newSession;
 
-        const result = await db
-            .insert(WorkoutSessionsLog)
-            .values(newSession)
-            .returning();
+        // If an existing workout session log ID is provided, fetch it instead of creating a new one
+        if (existingWorkoutSessionLogId) {
+            const existingSession = await db
+                .select()
+                .from(WorkoutSessionsLog)
+                .where(
+                    eq(
+                        WorkoutSessionsLog.workoutSessionLogId,
+                        existingWorkoutSessionLogId
+                    )
+                )
+                .limit(1);
 
-        if (!result || result.length === 0) {
-            throw new Error("Failed to create workout session log");
+            if (existingSession.length === 0) {
+                throw new Error(
+                    `Workout session with ID ${existingWorkoutSessionLogId} not found`
+                );
+            }
+
+            newSession = existingSession[0];
+        } else {
+            // Check if there's an existing unfinished session for this user and session name
+            const existingUnfinishedSession = await db
+                .select()
+                .from(WorkoutSessionsLog)
+                .where(
+                    and(
+                        eq(WorkoutSessionsLog.userId, userId),
+                        eq(WorkoutSessionsLog.sessionName, sessionName),
+                        isNull(WorkoutSessionsLog.endTime)
+                    )
+                )
+                .limit(1);
+
+            if (existingUnfinishedSession.length > 0) {
+                // Use the existing unfinished session
+                newSession = existingUnfinishedSession[0];
+                console.log(
+                    "Using existing unfinished session:",
+                    newSession.workoutSessionLogId
+                );
+            } else {
+                // Create a new workout session log entry
+                const newSessionData: InsertWorkoutSessionLog = {
+                    userId,
+                    sessionName,
+                    startTime: new Date(),
+                    // endTime is left null until the session is completed
+                };
+
+                const result = await db
+                    .insert(WorkoutSessionsLog)
+                    .values(newSessionData)
+                    .returning();
+
+                if (!result || result.length === 0) {
+                    throw new Error("Failed to create workout session log");
+                }
+
+                newSession = result[0];
+            }
         }
 
-        return result[0];
+        // Get past sessions with the same name (most recent first)
+        const pastSessions = await db
+            .select()
+            .from(WorkoutSessionsLog)
+            .where(
+                and(
+                    eq(WorkoutSessionsLog.userId, userId),
+                    eq(WorkoutSessionsLog.sessionName, sessionName),
+                    isNotNull(WorkoutSessionsLog.endTime)
+                )
+            )
+            .orderBy(desc(WorkoutSessionsLog.startTime))
+            .limit(3); // Get last 3 similar sessions
+
+        // Get details for each past session
+        const pastSessionsWithDetails = await Promise.all(
+            pastSessions.map(async (session) => {
+                const details = await db
+                    .select()
+                    .from(WorkoutSessionDetails)
+                    .where(
+                        eq(
+                            WorkoutSessionDetails.workoutSessionLogId,
+                            session.workoutSessionLogId
+                        )
+                    );
+                return {
+                    session,
+                    details,
+                };
+            })
+        );
+
+        return {
+            newSession,
+            pastSessions: pastSessionsWithDetails,
+        };
     } catch (error) {
         console.error("Error starting workout session:", error);
         throw new Error("Failed to start workout session");
@@ -217,6 +313,21 @@ export async function logWorkoutSet(
     noStore();
 
     try {
+        // First, verify that the workout session log exists
+        const sessionExists = await db
+            .select({ id: WorkoutSessionsLog.workoutSessionLogId })
+            .from(WorkoutSessionsLog)
+            .where(
+                eq(WorkoutSessionsLog.workoutSessionLogId, workoutSessionLogId)
+            )
+            .limit(1);
+
+        if (!sessionExists || sessionExists.length === 0) {
+            throw new Error(
+                `Workout session with ID ${workoutSessionLogId} does not exist`
+            );
+        }
+
         // Calculate workout volume if possible
         let workoutVolume: number | null = null;
         if (reps !== null && weight !== null) {
@@ -505,5 +616,35 @@ export async function getUserWorkoutLogs(
     } catch (error) {
         console.error("Error fetching user workout logs:", error);
         throw new Error("Failed to fetch workout logs");
+    }
+}
+
+/**
+ * Retrieves workout details for a specific workout session log.
+ *
+ * @param workoutSessionLogId - The ID of the workout session log
+ * @returns Array of workout session details
+ */
+export async function getWorkoutSessionDetails(
+    workoutSessionLogId: string
+): Promise<SelectWorkoutSessionDetail[]> {
+    noStore();
+
+    try {
+        const details = await db
+            .select()
+            .from(WorkoutSessionDetails)
+            .where(
+                eq(
+                    WorkoutSessionDetails.workoutSessionLogId,
+                    workoutSessionLogId
+                )
+            )
+            .orderBy(WorkoutSessionDetails.entryTime);
+
+        return details;
+    } catch (error) {
+        console.error("Error fetching workout session details:", error);
+        throw new Error("Failed to fetch workout session details");
     }
 }

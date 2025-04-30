@@ -177,11 +177,12 @@ export async function fetchWorkoutDetailsBySession(
             reps: WorkoutSessionDetails.reps,
             weight: WorkoutSessionDetails.weight,
             coachNote: WorkoutSessionDetails.coachNote,
+            setOrderMarker: WorkoutSessionDetails.setOrderMarker,
             entryTime: WorkoutSessionDetails.entryTime,
         })
         .from(WorkoutSessionDetails)
         .where(eq(WorkoutSessionDetails.workoutSessionLogId, sessionLogId))
-        .orderBy(desc(WorkoutSessionDetails.entryTime));
+        .orderBy(WorkoutSessionDetails.entryTime);
 
     // Convert rows to client-friendly shape
     const details = rows.map((row) => ({
@@ -191,6 +192,7 @@ export async function fetchWorkoutDetailsBySession(
         reps: row.reps ?? 0,
         weight: row.weight ?? 0,
         notes: row.coachNote ?? "",
+        setOrderMarker: row.setOrderMarker ?? "",
         entryTime: row.entryTime ? row.entryTime.toISOString() : null,
     }));
 
@@ -213,8 +215,8 @@ export async function fetchWorkoutDetailsBySession(
             if (!a.entryTime) return 1;
             if (!b.entryTime) return -1;
             return (
-                new Date(b.entryTime).getTime() -
-                new Date(a.entryTime).getTime()
+                new Date(a.entryTime).getTime() -
+                new Date(b.entryTime).getTime()
             );
         });
 
