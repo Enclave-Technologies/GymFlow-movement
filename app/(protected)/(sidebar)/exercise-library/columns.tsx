@@ -123,7 +123,7 @@ export const columns: ColumnDef<Exercise>[] = [
             );
         },
         cell: ({ row }) => (
-            <div className="flex items-center gap-2 font-medium px-4">
+            <div className="flex items-center gap-2 font-medium">
                 {row.getValue("name")}
             </div>
         ),
@@ -146,7 +146,7 @@ export const columns: ColumnDef<Exercise>[] = [
             );
         },
         cell: ({ row }) => (
-            <div className="font-medium px-4">{row.getValue("motion")}</div>
+            <div className="font-medium">{row.getValue("motion")}</div>
         ),
         size: 200,
     },
@@ -167,7 +167,7 @@ export const columns: ColumnDef<Exercise>[] = [
             );
         },
         cell: ({ row }) => (
-            <div className="font-medium px-4">{row.getValue("targetArea")}</div>
+            <div className="font-medium">{row.getValue("targetArea")}</div>
         ),
         size: 150,
     },
@@ -192,7 +192,7 @@ export const columns: ColumnDef<Exercise>[] = [
                         <Button
                             variant="outline"
                             size="sm"
-                            className={`px-4 py-1 ${
+                            className={` py-1 ${
                                 isApproved
                                     ? "bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
                                     : "bg-yellow-50 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-300 dark:hover:bg-yellow-800"
@@ -268,7 +268,7 @@ export const columns: ColumnDef<Exercise>[] = [
             }
 
             return (
-                <div className="flex flex-col px-4">
+                <div className="flex flex-col">
                     <span>{formattedDate}</span>
                     <span className="text-xs text-muted-foreground">
                         {timeAgo}

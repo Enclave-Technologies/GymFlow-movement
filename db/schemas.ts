@@ -7,7 +7,9 @@ import {
     real,
     unique,
     uuid,
-    pgEnum, // Import pgEnum
+    pgEnum,
+    index,
+    uniqueIndex, // Import pgEnum
 } from "drizzle-orm/pg-core";
 
 export const genderEnum = pgEnum("gender_enum", [
@@ -26,27 +28,31 @@ export const movementTypeEnum = pgEnum("movement_type_enum", [
 import { relations, sql } from "drizzle-orm"; // Import sql from drizzle-orm
 
 // -- Users Table --
-export const Users = pgTable("Users", {
-    userId: text("user_id")
-        .primaryKey()
-        .default(sql`uuid_generate_v4()`),
-    appwrite_id: text("appwrite_id").unique(),
-    has_auth: boolean("has_auth").default(false),
-    fullName: text("full_name").notNull(),
-    email: text("email").unique(),
-    registrationDate: timestamp("registration_date").defaultNow().notNull(),
-    notes: text("notes"),
-    phone: text("phone"),
-    imageUrl: text("image_url"),
-    gender: genderEnum("gender"),
-    idealWeight: real("ideal_weight"),
-    dob: timestamp("dob"),
-    height: real("height"),
-    jobTitle: text("job_title"),
-    address: text("address"),
-    emergencyContactName: text("emergency_contact_name"),
-    emergencyContactPhone: text("emergency_contact_phone"),
-});
+export const Users = pgTable(
+    "Users",
+    {
+        userId: text("user_id")
+            .primaryKey()
+            .default(sql`uuid_generate_v4()`),
+        appwrite_id: text("appwrite_id").unique(),
+        has_auth: boolean("has_auth").default(false),
+        fullName: text("full_name").notNull(),
+        email: text("email").unique(),
+        registrationDate: timestamp("registration_date").defaultNow().notNull(),
+        notes: text("notes"),
+        phone: text("phone"),
+        imageUrl: text("image_url"),
+        gender: genderEnum("gender"),
+        idealWeight: real("ideal_weight"),
+        dob: timestamp("dob"),
+        height: real("height"),
+        jobTitle: text("job_title"),
+        address: text("address"),
+        emergencyContactName: text("emergency_contact_name"),
+        emergencyContactPhone: text("emergency_contact_phone"),
+    },
+    (table) => [index("idx_users_fullname").on(table.fullName)]
+);
 
 export type InsertUser = typeof Users.$inferInsert;
 export type SelectUser = typeof Users.$inferSelect;
@@ -87,51 +93,67 @@ export type InsertUserRole = typeof UserRoles.$inferInsert;
 export type SelectUserRole = typeof UserRoles.$inferSelect;
 
 // -- Exercises Table --
-export const Exercises = pgTable("Exercises", {
-    exerciseId: uuid("exercise_id") // Changed to uuid
-        .primaryKey()
-        .default(sql`uuid_generate_v4()`),
-    exerciseName: text("exercise_name").notNull(),
-    description: text("description"),
-    uploadedByUserId: text("uploaded_by_user_id") // Changed to text
-        .notNull()
-        .references(() => Users.userId, {
-            onDelete: "cascade",
-            onUpdate: "cascade",
-        }),
-    uploadDate: timestamp("upload_date").defaultNow().notNull(),
-    approvedByAdmin: boolean("approved_by_admin"), // Nullable
-    videoUrl: text("videoUrl"),
-    motion: text("motion"),
-    targetArea: text("targetArea"),
-    movementType: movementTypeEnum("movement_type"),
-    timeMultiplier: real("time_multiplier").default(1.0), // Used for session time calculations
-});
+export const Exercises = pgTable(
+    "Exercises",
+    {
+        exerciseId: uuid("exercise_id") // Changed to uuid
+            .primaryKey()
+            .default(sql`uuid_generate_v4()`),
+        exerciseName: text("exercise_name").notNull(),
+        description: text("description"),
+        uploadedByUserId: text("uploaded_by_user_id") // Changed to text
+            .notNull()
+            .references(() => Users.userId, {
+                onDelete: "cascade",
+                onUpdate: "cascade",
+            }),
+        uploadDate: timestamp("upload_date").defaultNow().notNull(),
+        approvedByAdmin: boolean("approved_by_admin"), // Nullable
+        videoUrl: text("videoUrl"),
+        motion: text("motion"),
+        targetArea: text("targetArea"),
+        movementType: movementTypeEnum("movement_type"),
+        timeMultiplier: real("time_multiplier").default(1.0), // Used for session time calculations
+    },
+    (table) => [
+        index("idx_exercises_name").on(table.exerciseName),
+        index("idx_exercises_uploader").on(table.uploadedByUserId),
+        index("idx_exercises_approved").on(table.approvedByAdmin),
+    ]
+);
 
 export type InsertExercise = typeof Exercises.$inferInsert;
 export type SelectExercise = typeof Exercises.$inferSelect;
 
 // -- ExercisePlans Table --
-export const ExercisePlans = pgTable("ExercisePlans", {
-    planId: uuid("plan_id") // Changed to uuid
-        .primaryKey()
-        .default(sql`uuid_generate_v4()`),
-    planName: text("plan_name").notNull(),
-    createdByUserId: text("created_by_user_id") // Changed to text
-        .notNull()
-        .references(() => Users.userId, {
-            onDelete: "cascade",
-            onUpdate: "cascade",
-        }),
-    createdDate: timestamp("created_date").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(), // Added for optimistic concurrency control
-    assignedToUserId: text("assigned_to_user_id") // Changed to text
-        .references(() => Users.userId, {
-            onDelete: "cascade",
-            onUpdate: "cascade",
-        }), // Nullable
-    isActive: boolean("is_active").default(false),
-});
+export const ExercisePlans = pgTable(
+    "ExercisePlans",
+    {
+        planId: uuid("plan_id") // Changed to uuid
+            .primaryKey()
+            .default(sql`uuid_generate_v4()`),
+        planName: text("plan_name").notNull(),
+        createdByUserId: text("created_by_user_id") // Changed to text
+            .notNull()
+            .references(() => Users.userId, {
+                onDelete: "cascade",
+                onUpdate: "cascade",
+            }),
+        createdDate: timestamp("created_date").defaultNow().notNull(),
+        updatedAt: timestamp("updated_at").defaultNow().notNull(), // Added for optimistic concurrency control
+        assignedToUserId: text("assigned_to_user_id") // Changed to text
+            .references(() => Users.userId, {
+                onDelete: "cascade",
+                onUpdate: "cascade",
+            }), // Nullable
+        isActive: boolean("is_active").default(false),
+    },
+    (table) => [
+        index("idx_plans_creator").on(table.createdByUserId),
+        index("idx_plans_assigned").on(table.assignedToUserId),
+        index("idx_plans_active").on(table.isActive),
+    ]
+);
 
 export type InsertExercisePlan = typeof ExercisePlans.$inferInsert;
 export type SelectExercisePlan = typeof ExercisePlans.$inferSelect;
@@ -150,7 +172,12 @@ export const Phases = pgTable(
         orderNumber: integer("order_number").notNull(), // Keep integer
         isActive: boolean("is_active").default(false),
     },
-    (table) => [unique("uniquePlanOrder").on(table.planId, table.orderNumber)]
+    (table) => [
+        uniqueIndex("unique_plan_order")
+            .on(table.planId, table.orderNumber)
+            .concurrently(),
+        index("idx_phase_active").on(table.isActive),
+    ]
 );
 
 export type InsertPhase = typeof Phases.$inferInsert;
@@ -169,8 +196,11 @@ export const Sessions = pgTable(
         sessionName: text("session_name").notNull(),
         orderNumber: integer("order_number").notNull(), // Keep integer
         sessionTime: real("session_time"),
-    }
-    // Removed unique constraint to allow reordering sessions
+    },
+    (table) => [
+        index("idx_session_order").on(table.phaseId, table.orderNumber),
+        index("idx_session_time").on(table.sessionTime.desc()),
+    ]
 );
 
 export type InsertSession = typeof Sessions.$inferInsert;
@@ -203,8 +233,13 @@ export const ExercisePlanExercises = pgTable(
         setOrderMarker: text("setOrderMarker"),
         customizations: text("customizations"),
         notes: text("notes").default(""), // Changed default to empty string
-    }
-    // Removed uniqueness constraint: (table) => [ unique("uniqueSessionExercise").on(table.sessionId, table.exerciseId) ]
+    },
+    (table) => [
+        index("idx_session_exercise_order")
+            .on(table.sessionId, table.exerciseOrder.asc())
+            .concurrently(),
+        index("idx_exercise_volume").on(table.repsMax, table.setsMax),
+    ]
 );
 
 export type InsertExercisePlanExercise =
@@ -297,43 +332,69 @@ export type InsertGoal = typeof Goals.$inferInsert;
 export type SelectGoal = typeof Goals.$inferSelect;
 
 // -- WorkoutSessionsLog Table --
-export const WorkoutSessionsLog = pgTable("WorkoutSessionsLog", {
-    workoutSessionLogId: uuid("workout_session_log_id") // Changed to uuid
-        .primaryKey()
-        .default(sql`uuid_generate_v4()`),
-    userId: text("user_id") // Changed to text
-        .notNull()
-        .references(() => Users.userId, {
-            onDelete: "cascade",
-            onUpdate: "cascade",
-        }),
-    // sessionId: uuid("session_id").notNull(), // Removed as per user request
-    sessionName: text("session_name").notNull(),
-    startTime: timestamp("start_time").defaultNow().notNull(),
-    endTime: timestamp("end_time"), // Nullable
-});
+export const WorkoutSessionsLog = pgTable(
+    "WorkoutSessionsLog",
+    {
+        workoutSessionLogId: uuid("workout_session_log_id")
+            .primaryKey()
+            .default(sql`uuid_generate_v4()`),
+        userId: text("user_id")
+            .notNull()
+            .references(() => Users.userId, {
+                onDelete: "cascade",
+                onUpdate: "cascade",
+            }),
+        sessionId: uuid("session_id") // Added nullable session ID
+            .references(() => Sessions.sessionId),
+        sessionName: text("session_name").notNull(),
+        startTime: timestamp("start_time").defaultNow().notNull(),
+        endTime: timestamp("end_time"),
+    },
+    (table) => [
+        // Composite index for user+session name queries
+        index("idx_user_session")
+            .on(table.userId, table.sessionName.asc())
+            .concurrently(),
+
+        // Time-ordered index for user activity timeline
+        index("idx_user_starttime")
+            .on(table.userId, table.startTime.desc())
+            .concurrently()
+            .where(sql`${table.endTime} IS NOT NULL`), // Only index completed sessions
+        index("idx_workoutsessionslog_sessionid")
+            .on(table.sessionId)
+            .where(sql`${table.sessionId} IS NOT NULL`), // Partial index for non-null sessions
+    ]
+);
 
 export type InsertWorkoutSessionLog = typeof WorkoutSessionsLog.$inferInsert;
 export type SelectWorkoutSessionLog = typeof WorkoutSessionsLog.$inferSelect;
 
 // -- WorkoutSessionDetails Table --
-export const WorkoutSessionDetails = pgTable("WorkoutSessionDetails", {
-    workoutDetailId: uuid("workout_detail_id") // Changed to uuid
-        .primaryKey()
-        .default(sql`uuid_generate_v4()`),
-    workoutSessionLogId: uuid("workout_session_log_id") // Changed to uuid
-        .notNull()
-        .references(() => WorkoutSessionsLog.workoutSessionLogId),
-    // exerciseId: uuid("exercise_id").notNull(), // Removed as per user request
-    exerciseName: text("exercise_name").notNull(),
-    sets: integer("sets"), // Keep integer
-    reps: integer("reps"), // Keep integer
-    weight: real("weight"),
-    workoutVolume: real("workout_volume"),
-    coachNote: text("coach_note"),
-    setOrderMarker: text("setOrderMarker"), // Added setOrderMarker field
-    entryTime: timestamp("entry_time").defaultNow(),
-});
+export const WorkoutSessionDetails = pgTable(
+    "WorkoutSessionDetails",
+    {
+        workoutDetailId: uuid("workout_detail_id") // Changed to uuid
+            .primaryKey()
+            .default(sql`uuid_generate_v4()`),
+        workoutSessionLogId: uuid("workout_session_log_id") // Changed to uuid
+            .notNull()
+            .references(() => WorkoutSessionsLog.workoutSessionLogId),
+        // exerciseId: uuid("exercise_id").notNull(), // Removed as per user request
+        exerciseName: text("exercise_name").notNull(),
+        sets: integer("sets"), // Keep integer
+        reps: integer("reps"), // Keep integer
+        weight: real("weight"),
+        workoutVolume: real("workout_volume"),
+        coachNote: text("coach_note"),
+        setOrderMarker: text("setOrderMarker"), // Added setOrderMarker field
+        entryTime: timestamp("entry_time").defaultNow(),
+    },
+    (table) => [
+        index("idx_details_logid").on(table.workoutSessionLogId),
+        index("idx_details_exercisename").on(table.exerciseName),
+    ]
+);
 
 export type InsertWorkoutSessionDetail =
     typeof WorkoutSessionDetails.$inferInsert;
@@ -363,7 +424,12 @@ export const TrainerClients = pgTable(
         isActive: boolean("is_active").default(true),
         notes: text("notes"),
     },
-    (table) => [unique("uq_trainer_client").on(table.trainerId, table.clientId)]
+    (table) => [
+        uniqueIndex("uq_trainer_client")
+            .on(table.trainerId, table.clientId)
+            .concurrently(),
+        index("idx_client_active").on(table.isActive),
+    ]
 );
 
 export type InsertTrainerClient = typeof TrainerClients.$inferInsert;
@@ -498,7 +564,10 @@ export const workoutSessionsLogRelations = relations(
             fields: [WorkoutSessionsLog.userId],
             references: [Users.userId],
         }),
-        // Session relation intentionally removed as sessionId column is removed from WorkoutSessionsLog
+        session: one(Sessions, {
+            fields: [WorkoutSessionsLog.sessionId],
+            references: [Sessions.sessionId],
+        }),
         details: many(WorkoutSessionDetails),
     })
 );
