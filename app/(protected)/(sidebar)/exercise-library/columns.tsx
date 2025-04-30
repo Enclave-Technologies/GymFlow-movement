@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowUpDown, Edit, MoreHorizontal } from "lucide-react";
+import { Edit, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -12,15 +12,15 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 // Define the Exercise type to match our database schema
 export type Exercise = {
     exerciseId: string;
     name: string;
     description: string | null;
-    difficulty: string | null; // motion
-    muscleGroup: string | null; // target area
+    motion: string | null; // formerly difficulty
+    targetArea: string | null; // formerly muscleGroup
     equipmentRequired: string | null;
     videoUrl: string | null;
     createdAt: Date;
@@ -40,7 +40,7 @@ export type ExerciseResponse = {
 
 // Define which columns can be filtered and sorted with user-friendly labels
 export const tableOperations = {
-     filterableColumns: [
+    filterableColumns: [
         { id: "name", label: "Exercise Name" },
         { id: "motion", label: "Motion" },
         { id: "targetArea", label: "Target Area" },
@@ -56,29 +56,41 @@ export const tableOperations = {
 
 // These functions should be implemented based on your application's needs
 function handleStatusChange(exerciseId: string, status: boolean) {
-  console.log(
-    `Changing status of exercise ${exerciseId} to ${
-      status ? "approved" : "unapproved"
-    }`
-  );
-  // Call your server action to update the exercise status
-  // Example: updateExerciseStatus(exerciseId, status);
+    console.log(
+        `Changing status of exercise ${exerciseId} to ${
+            status ? "approved" : "unapproved"
+        }`
+    );
+    // Call your server action to update the exercise status
+    // Example: updateExerciseStatus(exerciseId, status);
 }
 
 // Create a proper React component for the actions cell
-function ActionCell({ exerciseId }: { exerciseId: string }) {
-  const router = useRouter();
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => router.push(`/exercise?id=${exerciseId}`)}
-    >
-      <Edit className="h-4 w-4" />
-      <span className="sr-only">Edit</span>
-    </Button>
-  );
+function ActionsCell({ exerciseId }: { exerciseId: string }) {
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                    <Link
+                        href={`/exercise?id=${exerciseId}`}
+                        className="flex items-center gap-2 cursor-pointer"
+                        prefetch={false}
+                    >
+                        <Edit className="h-4 w-4" />
+                        <span>Edit Exercise</span>
+                    </Link>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
 }
 
 export const columns: ColumnDef<Exercise>[] = [
@@ -113,18 +125,7 @@ export const columns: ColumnDef<Exercise>[] = [
     {
         accessorKey: "name",
         header: () => {
-            return (
-                <div className="flex items-center gap-2">
-                    {/* <Button
-                        variant="ghost"
-                        onClick={() =>
-                            column.toggleSorting(column.getIsSorted() === "asc")
-                        }
-                    > */}
-                    Exercise Name
-                    {/* </Button> */}
-                </div>
-            );
+            return <div className="flex items-center gap-2">Exercise Name</div>;
         },
         cell: ({ row }) => (
             <div className="flex items-center gap-2 font-medium">
@@ -136,18 +137,7 @@ export const columns: ColumnDef<Exercise>[] = [
     {
         accessorKey: "motion",
         header: () => {
-            return (
-                <div className="flex items-center gap-2">
-                    {/* <Button
-                        variant="ghost"
-                        onClick={() =>
-                            column.toggleSorting(column.getIsSorted() === "asc")
-                        }
-                    > */}
-                    Motion
-                    {/* </Button> */}
-                </div>
-            );
+            return <div className="flex items-center gap-2">Motion</div>;
         },
         cell: ({ row }) => (
             <div className="font-medium">{row.getValue("motion")}</div>
@@ -157,18 +147,7 @@ export const columns: ColumnDef<Exercise>[] = [
     {
         accessorKey: "targetArea",
         header: () => {
-            return (
-                <div className="flex items-center gap-2">
-                    {/* <Button
-                        variant="ghost"
-                        onClick={() =>
-                            column.toggleSorting(column.getIsSorted() === "asc")
-                        }
-                    > */}
-                    Target Area
-                    {/* </Button> */}
-                </div>
-            );
+            return <div className="flex items-center gap-2">Target Area</div>;
         },
         cell: ({ row }) => (
             <div className="font-medium">{row.getValue("targetArea")}</div>
@@ -178,13 +157,7 @@ export const columns: ColumnDef<Exercise>[] = [
     {
         accessorKey: "status",
         header: () => (
-            <>
-                <div className="flex items-center gap-2">
-                    {/* <Button variant="ghost" className="px-0 py-0" disabled> */}
-                    Approval Status
-                    {/* </Button> */}
-                </div>
-            </>
+            <div className="flex items-center gap-2">Approval Status</div>
         ),
         cell: ({ row }) => {
             const exercise = row.original;
@@ -205,7 +178,6 @@ export const columns: ColumnDef<Exercise>[] = [
                             <span className="capitalize">
                                 {isApproved ? "Approved" : "Unapproved"}
                             </span>
-                            <ArrowUpDown className="ml-2 h-3 w-3" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -233,15 +205,7 @@ export const columns: ColumnDef<Exercise>[] = [
     },
     {
         accessorKey: "createdAt",
-        header: () => (
-            <>
-                <div className="flex items-center gap-2">
-                    {/* <Button variant="ghost" className="px-0 py-0" disabled> */}
-                    Created
-                    {/* </Button> */}
-                </div>
-            </>
-        ),
+        header: () => <div className="flex items-center gap-2">Created</div>,
         cell: ({ row }) => {
             const date = row.getValue("createdAt") as Date | null;
 
@@ -294,20 +258,4 @@ export const columns: ColumnDef<Exercise>[] = [
     },
 ];
 
-// These functions should be implemented based on your application's needs
-function handleStatusChange(exerciseId: string, status: boolean) {
-    console.log(
-        `Changing status of exercise ${exerciseId} to ${
-            status ? "approved" : "unapproved"
-        }`
-    );
-    // Call your server action to update the exercise status
-    // Example: updateExerciseStatus(exerciseId, status);
-}
-
-function handleEditExercise(exerciseId: string) {
-    console.log(`Editing exercise ${exerciseId}`);
-    // Navigate to edit page or open edit modal
-    // Example: router.push(`/exercises/edit/${exerciseId}`);
-}
-
+// Export the columns for use in the data table
