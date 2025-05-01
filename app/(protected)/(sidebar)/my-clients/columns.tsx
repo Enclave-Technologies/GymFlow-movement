@@ -72,10 +72,12 @@ export function TrainerCell({
     coaches,
     trainerName,
     userId,
+    setRefreshState,
 }: {
     coaches: { userId: string; fullName: string }[];
     trainerName: string | null;
     userId: string;
+    setRefreshState: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -117,6 +119,7 @@ export function TrainerCell({
                     : "Failed to switch coach"
             );
         } finally {
+            setRefreshState((prevState) => !prevState);
             closeDialog();
             closeDropdown();
         }
@@ -453,12 +456,25 @@ export const columns: ColumnDef<Client>[] = [
             const trainerName = row.getValue("trainerName") as string | null;
             const userId = row.original.userId;
             // Pull coaches from table options to pass to TrainerCell
-            const coaches = (table.options.meta as { coaches?: { userId: string; fullName: string }[] })?.coaches || [];
+            const coaches =
+                (
+                    table.options.meta as {
+                        coaches?: { userId: string; fullName: string }[];
+                        setRefreshState: () => null;
+                    }
+                )?.coaches || [];
+            const setRefreshState = (
+                table.options.meta as {
+                    coaches?: { userId: string; fullName: string }[];
+                    setRefreshState: () => null;
+                }
+            )?.setRefreshState;
             return (
                 <TrainerCell
                     coaches={coaches}
                     trainerName={trainerName}
                     userId={userId}
+                    setRefreshState={setRefreshState}
                 />
             );
         },

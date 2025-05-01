@@ -40,7 +40,7 @@ export function InfiniteTable({
     // Reference to the scrolling element
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
 
-    // Add coaches to table options meta
+    // Add refresh state to table options meta
     const [refreshState, setRefreshState] = React.useState(false);
     // Removed unused variables columnsWithMeta and tableOptions
 

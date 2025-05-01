@@ -43,6 +43,9 @@ export function InfiniteTable({
     // Reference to the scrolling element
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
 
+    // Add refresh state to table options meta
+    const [refreshState, setRefreshState] = React.useState(false);
+
     // State for row selection
     const [rowSelection, setRowSelection] = React.useState({});
     const [selectedRows, setSelectedRows] = React.useState<Client[]>([]);
@@ -65,7 +68,7 @@ export function InfiniteTable({
             setSelectedRows([]);
             // Invalidate queries to refresh data
             queryClient.invalidateQueries({
-                queryKey: ["tableData", urlParams, queryId],
+                queryKey: ["tableData", urlParams, queryId, refreshState],
             });
         },
         onError: (error) => {
@@ -90,7 +93,7 @@ export function InfiniteTable({
     // Use React Query for data fetching with infinite scroll
     const { data, fetchNextPage, isFetchingNextPage, isLoading } =
         useInfiniteQuery({
-            queryKey: ["tableData", urlParams, queryId], //refetch when these change
+            queryKey: ["tableData", urlParams, queryId, refreshState], //refetch when these change
             queryFn: async ({ pageParam = 0 }) => {
                 // Add pageIndex to params but don't include it in URL
                 const params = {
@@ -146,6 +149,7 @@ export function InfiniteTable({
         debugTable: true,
         meta: {
             coaches, // Add coaches to table meta for use in TrainerCell
+            setRefreshState, // Add the refresh setter function
         },
     });
 
@@ -268,7 +272,12 @@ export function InfiniteTable({
                 }}
                 onApplyClick={() => {
                     queryClient.invalidateQueries({
-                        queryKey: ["tableData", urlParams, queryId],
+                        queryKey: [
+                            "tableData",
+                            urlParams,
+                            queryId,
+                            refreshState,
+                        ],
                     });
                 }}
                 showNewButton={true}
