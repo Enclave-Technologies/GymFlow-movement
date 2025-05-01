@@ -18,6 +18,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { createExercise, updateExercise } from "@/actions/exercise_actions";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -81,6 +82,7 @@ export default function AddExerciseForm({
   existingExercise?: SelectExercise | null;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const exerciseMotionOptions = getUniqueMotions(
     exercises,
     existingExercise?.motion
@@ -151,6 +153,9 @@ export default function AddExerciseForm({
           ? "Exercise updated successfully"
           : "Exercise created successfully"
       );
+      // Invalidate the exercise library query cache to ensure fresh data is fetched
+      queryClient.invalidateQueries({ queryKey: ["tableData"] });
+      
       router.push("/exercise-library");
       router.refresh();
     } catch (error) {
@@ -288,6 +293,9 @@ export default function AddExerciseForm({
         toast.success(
           `Successfully created ${uniqueExercises.length} exercises`
         );
+        // Invalidate the exercise library query cache to ensure fresh data is fetched
+        queryClient.invalidateQueries({ queryKey: ["tableData"] });
+        
         router.push("/exercise-library");
         router.refresh();
       }
@@ -527,6 +535,9 @@ export default function AddExerciseForm({
                 <Button
                   onClick={() => {
                     setShowResultsDialog(false);
+                    // Invalidate the exercise library query cache to ensure fresh data is fetched
+                    queryClient.invalidateQueries({ queryKey: ["tableData"] });
+                    
                     router.push("/exercise-library");
                     router.refresh();
                   }}

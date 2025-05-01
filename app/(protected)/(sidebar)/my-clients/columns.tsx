@@ -29,6 +29,8 @@ import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal, Eye, UserX, UserCog } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { switchClientCoach } from "@/actions/client_actions";
+import { toast } from "sonner";
 
 // Define the client type to match what comes from the database
 export type Client = {
@@ -65,20 +67,17 @@ function getInitials(name: string): string {
         .substring(0, 2);
 }
 
-// Placeholder coaches list, replace with real data fetching
-const coachesList = [
-    { userId: "coach1", fullName: "Coach One" },
-    { userId: "coach2", fullName: "Coach Two" },
-    { userId: "coach3", fullName: "Coach Three" },
-];
-
 // Component for the Trainer cell with switch functionality
-function TrainerCell({
+export function TrainerCell({
+    coaches,
     trainerName,
     userId,
+    setRefreshState,
 }: {
+    coaches: { userId: string; fullName: string }[];
     trainerName: string | null;
     userId: string;
+    setRefreshState: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -89,23 +88,41 @@ function TrainerCell({
     const [searchTerm, setSearchTerm] = useState("");
 
     const filteredCoaches = useMemo(() => {
-        return coachesList.filter((coach) =>
+        return coaches.filter((coach) =>
             coach.fullName.toLowerCase().includes(searchTerm.toLowerCase())
         );
-    }, [searchTerm]);
+    }, [coaches, searchTerm]);
 
     const closeDropdown = () => setIsDropdownOpen(false);
 
     const openDialog = () => setIsDialogOpen(true);
     const closeDialog = () => setIsDialogOpen(false);
 
-    const handleAssignCoach = () => {
-        // TODO: Implement the actual assign coach logic, e.g. API call
-        console.log(
-            `Assigning coach ${selectedCoach?.fullName} to user ${userId}`
-        );
-        closeDialog();
-        closeDropdown();
+    const handleAssignCoach = async () => {
+        try {
+            if (!selectedCoach) return;
+
+            const result = await switchClientCoach({
+                clientId: userId,
+                newCoachId: selectedCoach.userId,
+            });
+
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            toast.success(`Coach switched to ${selectedCoach.fullName}`);
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to switch coach"
+            );
+        } finally {
+            setRefreshState((prevState) => !prevState);
+            closeDialog();
+            closeDropdown();
+        }
     };
 
     return (
@@ -435,10 +452,31 @@ export const columns: ColumnDef<Client>[] = [
     {
         accessorKey: "trainerName",
         header: () => <div>Trainer</div>,
-        cell: ({ row }) => {
+        cell: ({ row, table }) => {
             const trainerName = row.getValue("trainerName") as string | null;
             const userId = row.original.userId;
-            return <TrainerCell trainerName={trainerName} userId={userId} />;
+            // Pull coaches from table options to pass to TrainerCell
+            const coaches =
+                (
+                    table.options.meta as {
+                        coaches?: { userId: string; fullName: string }[];
+                        setRefreshState: () => null;
+                    }
+                )?.coaches || [];
+            const setRefreshState = (
+                table.options.meta as {
+                    coaches?: { userId: string; fullName: string }[];
+                    setRefreshState: () => null;
+                }
+            )?.setRefreshState;
+            return (
+                <TrainerCell
+                    coaches={coaches}
+                    trainerName={trainerName}
+                    userId={userId}
+                    setRefreshState={setRefreshState}
+                />
+            );
         },
         size: 150,
     },

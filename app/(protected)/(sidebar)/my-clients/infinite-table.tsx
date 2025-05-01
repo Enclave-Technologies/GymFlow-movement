@@ -5,7 +5,7 @@ import { useTableActions } from "@/hooks/use-table-actions";
 import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
 import { Client, tableOperations } from "./columns";
 import {
-    keepPreviousData,
+    // keepPreviousData,
     useInfiniteQuery,
     useQueryClient,
     useMutation,
@@ -28,6 +28,7 @@ interface InfiniteTableProps {
     columns: ColumnDef<any, unknown>[];
     queryId?: string;
     trainerId?: string;
+    coaches?: { userId: string; fullName: string }[];
 }
 
 export function InfiniteTable({
@@ -35,11 +36,15 @@ export function InfiniteTable({
     columns,
     queryId = "default",
     trainerId,
+    coaches = [],
 }: InfiniteTableProps) {
     const queryClient = useQueryClient();
     const router = useRouter();
     // Reference to the scrolling element
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
+
+    // Add refresh state to table options meta
+    const [refreshState, setRefreshState] = React.useState(false);
 
     // State for row selection
     const [rowSelection, setRowSelection] = React.useState({});
@@ -47,11 +52,14 @@ export function InfiniteTable({
 
     // Mutation for bulk delete
     const { mutate: bulkDelete } = useMutation({
-        mutationFn: async (clientIds: string[]) => {
-            if (!trainerId) {
-                throw new Error("Trainer ID is required for bulk delete");
-            }
-            return bulkDeleteClientRelationships(trainerId, clientIds);
+        mutationFn: async (data: {
+            trainerId: string;
+            clientIds: string[];
+        }) => {
+            return bulkDeleteClientRelationships(
+                data.trainerId,
+                data.clientIds
+            );
         },
         onSuccess: (data) => {
             toast.success(data.message);
@@ -60,7 +68,7 @@ export function InfiniteTable({
             setSelectedRows([]);
             // Invalidate queries to refresh data
             queryClient.invalidateQueries({
-                queryKey: ["tableData", urlParams, queryId],
+                queryKey: ["tableData", urlParams, queryId, refreshState],
             });
         },
         onError: (error) => {
@@ -85,7 +93,7 @@ export function InfiniteTable({
     // Use React Query for data fetching with infinite scroll
     const { data, fetchNextPage, isFetchingNextPage, isLoading } =
         useInfiniteQuery({
-            queryKey: ["tableData", urlParams, queryId], //refetch when these change
+            queryKey: ["tableData", urlParams, queryId, refreshState], //refetch when these change
             queryFn: async ({ pageParam = 0 }) => {
                 // Add pageIndex to params but don't include it in URL
                 const params = {
@@ -110,8 +118,10 @@ export function InfiniteTable({
                 // This will be 1, 2, 3, etc. as pages are added
                 return allPages.length;
             },
-            refetchOnWindowFocus: false,
-            placeholderData: keepPreviousData,
+            refetchOnWindowFocus: true,
+            refetchOnMount: true,
+            staleTime: 60 * 1000,
+            // placeholderData: keepPreviousData,
         });
 
     // Flatten the data from all pages
@@ -137,6 +147,10 @@ export function InfiniteTable({
         onRowSelectionChange: setRowSelection,
         manualSorting: true,
         debugTable: true,
+        meta: {
+            coaches, // Add coaches to table meta for use in TrainerCell
+            setRefreshState, // Add the refresh setter function
+        },
     });
 
     // Update selected rows when rowSelection changes
@@ -258,7 +272,12 @@ export function InfiniteTable({
                 }}
                 onApplyClick={() => {
                     queryClient.invalidateQueries({
-                        queryKey: ["tableData", urlParams, queryId],
+                        queryKey: [
+                            "tableData",
+                            urlParams,
+                            queryId,
+                            refreshState,
+                        ],
                     });
                 }}
                 showNewButton={true}
@@ -270,9 +289,12 @@ export function InfiniteTable({
                 showDeleteButton={true}
                 selectedRows={selectedRows}
                 onDeleteClick={(rows) => {
-                    if (rows.length > 0) {
+                    if (rows.length > 0 && trainerId) {
                         const clientIds = rows.map((row) => row.userId);
-                        bulkDelete(clientIds);
+                        bulkDelete({
+                            trainerId,
+                            clientIds,
+                        });
                     }
                 }}
                 getRowSampleData={(rows) => (
@@ -304,7 +326,7 @@ export function InfiniteTable({
             </div>
 
             <InfiniteDataTable
-                columns={columns as ColumnDef<Client, unknown>[]}
+                columns={columns}
                 rowVirtualizer={rowVirtualizer}
                 tableContainerRef={
                     tableContainerRef as React.RefObject<HTMLDivElement>

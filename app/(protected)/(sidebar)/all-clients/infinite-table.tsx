@@ -6,7 +6,7 @@ import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
 import { Client, ClientResponse, tableOperations } from "./columns";
 import { motion } from "framer-motion";
 import {
-    keepPreviousData,
+    // keepPreviousData,
     useInfiniteQuery,
     useQueryClient,
     useMutation,
@@ -26,17 +26,23 @@ interface InfiniteTableProps {
     fetchDataFn: (params: any) => Promise<any>;
     columns: ColumnDef<any, unknown>[];
     queryId?: string;
+    coaches?: { userId: string; fullName: string }[];
 }
 
 export function InfiniteTable({
     fetchDataFn,
     columns,
     queryId = "default",
+    coaches = [],
 }: InfiniteTableProps) {
     const queryClient = useQueryClient();
     const router = useRouter();
     // Reference to the scrolling element
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
+
+    // Add refresh state to table options meta
+    const [refreshState, setRefreshState] = React.useState(false);
+    // Removed unused variables columnsWithMeta and tableOptions
 
     // State for row selection
     const [rowSelection, setRowSelection] = React.useState({});
@@ -60,7 +66,7 @@ export function InfiniteTable({
             setSelectedRows([]);
             // Invalidate queries to refresh data
             queryClient.invalidateQueries({
-                queryKey: ["allClients", urlParams, queryId],
+                queryKey: ["allClients", urlParams, queryId, refreshState],
             });
         },
         onError: (error) => {
@@ -85,7 +91,7 @@ export function InfiniteTable({
     // Use React Query for data fetching with infinite scroll
     const { data, fetchNextPage, isFetchingNextPage, isLoading } =
         useInfiniteQuery<ClientResponse>({
-            queryKey: ["allClients", urlParams, queryId], //refetch when these change
+            queryKey: ["allClients", urlParams, queryId, refreshState], //refetch when these change
             queryFn: async ({ pageParam = 0 }) => {
                 // Add pageIndex to params but don't include it in URL
                 const params = {
@@ -101,8 +107,10 @@ export function InfiniteTable({
                 // This will be 1, 2, 3, etc. as pages are added
                 return allPages.length;
             },
-            refetchOnWindowFocus: false,
-            placeholderData: keepPreviousData,
+            refetchOnWindowFocus: true,
+            refetchOnMount: true,
+            staleTime: 60 * 1000,
+            // placeholderData: keepPreviousData,
         });
 
     // Flatten the data from all pages
@@ -128,6 +136,10 @@ export function InfiniteTable({
         onRowSelectionChange: setRowSelection,
         manualSorting: true,
         debugTable: true,
+        meta: {
+            coaches, // Add coaches to table meta for use in TrainerCell
+            setRefreshState, // Add the refresh setter function
+        },
     });
 
     // Update selected rows when rowSelection changes
@@ -241,7 +253,12 @@ export function InfiniteTable({
                 }}
                 onApplyClick={() => {
                     queryClient.invalidateQueries({
-                        queryKey: ["allClients", urlParams, queryId],
+                        queryKey: [
+                            "allClients",
+                            urlParams,
+                            queryId,
+                            refreshState,
+                        ],
                     });
                 }}
                 showNewButton={true}
@@ -308,7 +325,7 @@ export function InfiniteTable({
             </div>
 
             <InfiniteDataTable
-                columns={columns as ColumnDef<Client, unknown>[]}
+                columns={columns}
                 rowVirtualizer={rowVirtualizer}
                 tableContainerRef={
                     tableContainerRef as React.RefObject<HTMLDivElement>

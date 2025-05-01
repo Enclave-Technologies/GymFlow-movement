@@ -4,7 +4,7 @@ import { createAdminClient } from "@/appwrite/config";
 import { Roles, TrainerClients, UserRoles, Users } from "@/db/schemas";
 import { db } from "@/db/xata";
 import { requireTrainerOrAdmin } from "@/lib/auth-utils";
-import { eq, and, desc, sql, inArray, ilike } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, ilike, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { ID, AppwriteException } from "node-appwrite";
 import "server-only";
@@ -1324,6 +1324,192 @@ export async function addRoleToUser(email: string, roleName: string) {
         console.error(`Error adding role ${roleName} to user:`, error);
         return {
             success: false,
+            error: error instanceof Error ? error.message : String(error),
+        };
+    }
+}
+
+/**
+ * Get all coaches (trainers and admins) for dropdown selection
+ * @returns Array of coaches with userId and fullName
+ */
+export async function getAllCoaches() {
+    await requireTrainerOrAdmin();
+    console.log("Fetching all coaches (trainers and admins)");
+
+    const Coach = alias(Users, "coach");
+
+    try {
+        const coaches = await db
+            .select({
+                userId: Coach.userId,
+                fullName: Coach.fullName,
+            })
+            .from(Coach)
+            .innerJoin(UserRoles, eq(Coach.userId, UserRoles.userId))
+            .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
+            .where(
+                or(eq(Roles.roleName, "Trainer"), eq(Roles.roleName, "Admin"))
+            )
+            .orderBy(Coach.fullName);
+
+        console.log(`Found ${coaches.length} coaches`);
+        return coaches;
+    } catch (error) {
+        console.error("Error fetching coaches:", error);
+        throw error;
+    }
+}
+
+/**
+ * Switch a client's coach
+ * @param params - Object containing clientId and newCoachId
+ * @returns Success status and message
+ */
+export async function switchClientCoach(params: {
+    clientId: string;
+    newCoachId: string;
+}) {
+    await requireTrainerOrAdmin();
+    const { clientId, newCoachId } = params;
+
+    console.log(`Switching coach for client ${clientId} to ${newCoachId}`);
+
+    try {
+        // Check if client exists
+        const client = await db
+            .select({
+                userId: Users.userId,
+                fullName: Users.fullName,
+            })
+            .from(Users)
+            .where(eq(Users.userId, clientId))
+            .limit(1);
+
+        if (client.length === 0) {
+            return { error: "Client not found" };
+        }
+
+        // Check if coach exists
+        const coach = await db
+            .select({
+                userId: Users.userId,
+                fullName: Users.fullName,
+            })
+            .from(Users)
+            .innerJoin(UserRoles, eq(Users.userId, UserRoles.userId))
+            .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
+            .where(
+                and(
+                    eq(Users.userId, newCoachId),
+                    or(
+                        eq(Roles.roleName, "Trainer"),
+                        eq(Roles.roleName, "Admin")
+                    )
+                )
+            )
+            .limit(1);
+
+        if (coach.length === 0) {
+            return { error: "Coach not found" };
+        }
+
+        // Get current active relationship
+        const currentRelationship = await db
+            .select({
+                relationshipId: TrainerClients.relationshipId,
+                trainerId: TrainerClients.trainerId,
+                isActive: TrainerClients.isActive,
+            })
+            .from(TrainerClients)
+            .where(
+                and(
+                    eq(TrainerClients.clientId, clientId),
+                    eq(TrainerClients.isActive, true)
+                )
+            )
+            .limit(1);
+
+        await db.transaction(async (tx) => {
+            // If there's an existing relationship, delete it
+            if (currentRelationship.length > 0) {
+                // If the client is already assigned to this coach, do nothing
+                if (currentRelationship[0].trainerId === newCoachId) {
+                    if (!currentRelationship[0].isActive) {
+                        return;
+                    }
+                }
+                // TODO: In the future, we can just do an upsert, instead of so many queries
+                // await tx
+                //                 .insert(TrainerClients)
+                //                 .values({
+                //                     trainerId: newCoachId,
+                //                     clientId: clientId,
+                //                     assignedDate: new Date(),
+                //                     isActive: true,
+                //                 })
+                //                 .onConflictDoUpdate({
+                //                     target: [TrainerClients.trainerId, TrainerClients.clientId],
+                //                     set: {
+                //                         isActive: true,
+                //                         assignedDate: new Date(),
+                //                     },
+                //                 });
+                await tx
+                    .delete(TrainerClients)
+                    .where(
+                        eq(
+                            TrainerClients.relationshipId,
+                            currentRelationship[0].relationshipId
+                        )
+                    );
+            }
+
+            // Instead of blind insert, check if (newCoachId, clientId) exists:
+            const existingNewRelationship = await tx
+                .select()
+                .from(TrainerClients)
+                .where(
+                    and(
+                        eq(TrainerClients.trainerId, newCoachId),
+                        eq(TrainerClients.clientId, clientId)
+                    )
+                )
+                .limit(1);
+
+            if (existingNewRelationship.length > 0) {
+                // Reactivate existing relationship
+                await tx
+                    .update(TrainerClients)
+                    .set({ isActive: true, assignedDate: new Date() })
+                    .where(
+                        eq(
+                            TrainerClients.relationshipId,
+                            existingNewRelationship[0].relationshipId
+                        )
+                    );
+            } else {
+                // Create new relationship
+                await tx.insert(TrainerClients).values({
+                    trainerId: newCoachId,
+                    clientId: clientId,
+                    assignedDate: new Date(),
+                    isActive: true,
+                });
+            }
+        });
+
+        console.log(
+            `Successfully switched coach for client ${client[0].fullName} to ${coach[0].fullName}`
+        );
+
+        return {
+            success: true,
+            message: `Successfully switched coach to ${coach[0].fullName}`,
+        };
+    } catch (error) {
+        console.error("Error switching coach:", error);
+        return {
             error: error instanceof Error ? error.message : String(error),
         };
     }
