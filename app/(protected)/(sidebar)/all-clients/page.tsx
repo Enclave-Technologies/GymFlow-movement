@@ -1,5 +1,7 @@
-import { getAllClientsPaginated } from "@/actions/client_actions";
-// import { get_logged_in_user } from "@/actions/logged_in_user_actions";
+import {
+    getAllClientsPaginated,
+    getAllCoaches,
+} from "@/actions/client_actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Suspense } from "react";
 import { InfiniteTable } from "./infinite-table";
@@ -11,15 +13,14 @@ import { MOVEMENT_SESSION_NAME } from "@/lib/constants";
 export default async function AllClientsPage() {
     const session = (await cookies()).get(MOVEMENT_SESSION_NAME)?.value || null;
     // Server component: fetch initial data
-    // const user = await get_logged_in_user();
     const user = await authenticated_or_login(session);
 
     if (!user) {
         return <div>Please log in to view clients</div>;
     }
 
-    // Fetch initial page of all clients in the system
-    // const initialClientsData = await getAllClientsPaginated(0, 10);
+    // Fetch all coaches for the dropdown
+    const coaches = await getAllCoaches();
 
     return (
         <div className="container mx-auto py-2 md:py-6">
@@ -31,6 +32,7 @@ export default async function AllClientsPage() {
                         fetchDataFn={getAllClientsPaginated}
                         columns={columns}
                         queryId="all-clients"
+                        coaches={coaches}
                     />
                 </Suspense>
             </div>

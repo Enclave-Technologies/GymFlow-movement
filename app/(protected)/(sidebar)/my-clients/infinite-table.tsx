@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useTableActions } from "@/hooks/use-table-actions";
 import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
-import { Client, tableOperations } from "./columns";
+import { Client, tableOperations, TrainerCell } from "./columns";
 import {
     keepPreviousData,
     useInfiniteQuery,
@@ -28,6 +28,7 @@ interface InfiniteTableProps {
     columns: ColumnDef<any, unknown>[];
     queryId?: string;
     trainerId?: string;
+    coaches?: { userId: string; fullName: string }[];
 }
 
 export function InfiniteTable({
@@ -35,6 +36,7 @@ export function InfiniteTable({
     columns,
     queryId = "default",
     trainerId,
+    coaches = [],
 }: InfiniteTableProps) {
     const queryClient = useQueryClient();
     const router = useRouter();
@@ -47,11 +49,14 @@ export function InfiniteTable({
 
     // Mutation for bulk delete
     const { mutate: bulkDelete } = useMutation({
-        mutationFn: async (clientIds: string[]) => {
-            if (!trainerId) {
-                throw new Error("Trainer ID is required for bulk delete");
-            }
-            return bulkDeleteClientRelationships(trainerId, clientIds);
+        mutationFn: async (data: {
+            trainerId: string;
+            clientIds: string[];
+        }) => {
+            return bulkDeleteClientRelationships(
+                data.trainerId,
+                data.clientIds
+            );
         },
         onSuccess: (data) => {
             toast.success(data.message);
@@ -270,9 +275,12 @@ export function InfiniteTable({
                 showDeleteButton={true}
                 selectedRows={selectedRows}
                 onDeleteClick={(rows) => {
-                    if (rows.length > 0) {
+                    if (rows.length > 0 && trainerId) {
                         const clientIds = rows.map((row) => row.userId);
-                        bulkDelete(clientIds);
+                        bulkDelete({
+                            trainerId,
+                            clientIds,
+                        });
                     }
                 }}
                 getRowSampleData={(rows) => (
@@ -304,7 +312,31 @@ export function InfiniteTable({
             </div>
 
             <InfiniteDataTable
-                columns={columns as ColumnDef<Client, unknown>[]}
+                columns={
+                    columns.map((column) => {
+                        // Add coaches prop to the trainerName column
+                        // Check if column has accessorKey property
+                        if ('accessorKey' in column && column.accessorKey === "trainerName") {
+                            return {
+                                ...column,
+                                cell: ({ row }) => {
+                                    const trainerName = row.getValue(
+                                        "trainerName"
+                                    ) as string | null;
+                                    const userId = row.original.userId;
+                                    return (
+                                        <TrainerCell
+                                            coaches={coaches}
+                                            trainerName={trainerName}
+                                            userId={userId}
+                                        />
+                                    );
+                                },
+                            };
+                        }
+                        return column;
+                    }) as ColumnDef<Client, unknown>[]
+                }
                 rowVirtualizer={rowVirtualizer}
                 tableContainerRef={
                     tableContainerRef as React.RefObject<HTMLDivElement>

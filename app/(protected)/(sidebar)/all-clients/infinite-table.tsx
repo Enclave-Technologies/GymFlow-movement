@@ -3,7 +3,12 @@
 import * as React from "react";
 import { useTableActions } from "@/hooks/use-table-actions";
 import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
-import { Client, ClientResponse, tableOperations } from "./columns";
+import {
+    Client,
+    ClientResponse,
+    tableOperations,
+    TrainerCell,
+} from "./columns";
 import { motion } from "framer-motion";
 import {
     keepPreviousData,
@@ -26,12 +31,14 @@ interface InfiniteTableProps {
     fetchDataFn: (params: any) => Promise<any>;
     columns: ColumnDef<any, unknown>[];
     queryId?: string;
+    coaches?: { userId: string; fullName: string }[];
 }
 
 export function InfiniteTable({
     fetchDataFn,
     columns,
     queryId = "default",
+    coaches = [],
 }: InfiniteTableProps) {
     const queryClient = useQueryClient();
     const router = useRouter();
@@ -41,6 +48,8 @@ export function InfiniteTable({
     // State for row selection
     const [rowSelection, setRowSelection] = React.useState({});
     const [selectedRows, setSelectedRows] = React.useState<Client[]>([]);
+
+    console.log(`[ALL CLIENTS INFINITE TABLE] ${JSON.stringify(coaches)}`);
 
     // Mutation for bulk delete
     const { mutate: bulkDelete } = useMutation({
@@ -308,7 +317,34 @@ export function InfiniteTable({
             </div>
 
             <InfiniteDataTable
-                columns={columns as ColumnDef<Client, unknown>[]}
+                columns={
+                    columns.map((column) => {
+                        // Add coaches prop to the trainerName column
+                        // Check if column has accessorKey property
+                        if (
+                            "accessorKey" in column &&
+                            column.accessorKey === "trainerName"
+                        ) {
+                            return {
+                                ...column,
+                                cell: ({ row }) => {
+                                    const trainerName = row.getValue(
+                                        "trainerName"
+                                    ) as string | null;
+                                    const userId = row.original.userId;
+                                    return (
+                                        <TrainerCell
+                                            coaches={coaches}
+                                            trainerName={trainerName}
+                                            userId={userId}
+                                        />
+                                    );
+                                },
+                            };
+                        }
+                        return column;
+                    }) as ColumnDef<Client, unknown>[]
+                }
                 rowVirtualizer={rowVirtualizer}
                 tableContainerRef={
                     tableContainerRef as React.RefObject<HTMLDivElement>
