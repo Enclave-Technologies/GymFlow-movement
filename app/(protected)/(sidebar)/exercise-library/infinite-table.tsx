@@ -7,7 +7,7 @@ import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
 import { Exercise, ExerciseResponse, tableOperations } from "./columns";
 import { motion } from "framer-motion";
 import {
-    keepPreviousData,
+    // keepPreviousData,
     useInfiniteQuery,
     useQueryClient,
     useMutation,
@@ -133,8 +133,10 @@ export function InfiniteTable({
                 // This will be 1, 2, 3, etc. as pages are added
                 return allPages.length;
             },
-            refetchOnWindowFocus: false,
-            placeholderData: keepPreviousData,
+            refetchOnWindowFocus: true,
+            refetchOnMount: true,
+            staleTime: 0,
+            // placeholderData: keepPreviousData,
         });
 
     // Flatten the data from all pages

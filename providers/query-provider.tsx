@@ -11,7 +11,7 @@ export function QueryProvider({ children }: QueryProviderProps) {
     const [queryClient] = useState(() => new QueryClient({
         defaultOptions: {
             queries: {
-                staleTime: 60 * 1000, // 1 minute
+                staleTime: 0, // Set to 0 to always consider data stale and refetch when needed
                 refetchOnWindowFocus: false,
             },
         },
