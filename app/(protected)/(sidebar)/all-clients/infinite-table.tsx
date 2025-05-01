@@ -109,7 +109,7 @@ export function InfiniteTable({
             },
             refetchOnWindowFocus: true,
             refetchOnMount: true,
-            staleTime: 0,
+            staleTime: 60 * 1000,
             // placeholderData: keepPreviousData,
         });
 

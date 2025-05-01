@@ -1419,6 +1419,7 @@ export async function switchClientCoach(params: {
             .select({
                 relationshipId: TrainerClients.relationshipId,
                 trainerId: TrainerClients.trainerId,
+                isActive: TrainerClients.isActive,
             })
             .from(TrainerClients)
             .where(
@@ -1434,9 +1435,26 @@ export async function switchClientCoach(params: {
             if (currentRelationship.length > 0) {
                 // If the client is already assigned to this coach, do nothing
                 if (currentRelationship[0].trainerId === newCoachId) {
-                    return;
+                    if (!currentRelationship[0].isActive) {
+                        return;
+                    }
                 }
-
+                // TODO: In the future, we can just do an upsert, instead of so many queries
+                // await tx
+                //                 .insert(TrainerClients)
+                //                 .values({
+                //                     trainerId: newCoachId,
+                //                     clientId: clientId,
+                //                     assignedDate: new Date(),
+                //                     isActive: true,
+                //                 })
+                //                 .onConflictDoUpdate({
+                //                     target: [TrainerClients.trainerId, TrainerClients.clientId],
+                //                     set: {
+                //                         isActive: true,
+                //                         assignedDate: new Date(),
+                //                     },
+                //                 });
                 await tx
                     .delete(TrainerClients)
                     .where(

@@ -181,7 +181,7 @@ export function InfiniteTable({
         },
         refetchOnWindowFocus: true,
         refetchOnMount: true,
-        staleTime: 0, // Override the default staleTime to always refetch
+        staleTime: 60 * 1000, // Override the default staleTime to always refetch
         // placeholderData: keepPreviousData, // Removed to prevent showing stale data
     });
 
@@ -497,7 +497,7 @@ export function InfiniteTable({
                 );
 
                 // Add a small delay to ensure the deletion is committed
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise((resolve) => setTimeout(resolve, 100));
 
                 // Invalidate the entire cache for BMC records
                 await queryClient.invalidateQueries({
