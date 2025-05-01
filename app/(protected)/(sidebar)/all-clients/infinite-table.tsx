@@ -3,15 +3,10 @@
 import * as React from "react";
 import { useTableActions } from "@/hooks/use-table-actions";
 import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
-import {
-    Client,
-    ClientResponse,
-    tableOperations,
-    TrainerCell,
-} from "./columns";
+import { Client, ClientResponse, tableOperations } from "./columns";
 import { motion } from "framer-motion";
 import {
-    keepPreviousData,
+    // keepPreviousData,
     useInfiniteQuery,
     useQueryClient,
     useMutation,
@@ -45,11 +40,12 @@ export function InfiniteTable({
     // Reference to the scrolling element
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
 
+    // Add coaches to table options meta
+    // Removed unused variables columnsWithMeta and tableOptions
+
     // State for row selection
     const [rowSelection, setRowSelection] = React.useState({});
     const [selectedRows, setSelectedRows] = React.useState<Client[]>([]);
-
-    console.log(`[ALL CLIENTS INFINITE TABLE] ${JSON.stringify(coaches)}`);
 
     // Mutation for bulk delete
     const { mutate: bulkDelete } = useMutation({
@@ -110,8 +106,10 @@ export function InfiniteTable({
                 // This will be 1, 2, 3, etc. as pages are added
                 return allPages.length;
             },
-            refetchOnWindowFocus: false,
-            placeholderData: keepPreviousData,
+            refetchOnWindowFocus: true,
+            refetchOnMount: true,
+            staleTime: 0,
+            // placeholderData: keepPreviousData,
         });
 
     // Flatten the data from all pages
@@ -137,6 +135,9 @@ export function InfiniteTable({
         onRowSelectionChange: setRowSelection,
         manualSorting: true,
         debugTable: true,
+        meta: {
+            coaches, // Add coaches to table meta for use in TrainerCell
+        },
     });
 
     // Update selected rows when rowSelection changes
@@ -317,34 +318,7 @@ export function InfiniteTable({
             </div>
 
             <InfiniteDataTable
-                columns={
-                    columns.map((column) => {
-                        // Add coaches prop to the trainerName column
-                        // Check if column has accessorKey property
-                        if (
-                            "accessorKey" in column &&
-                            column.accessorKey === "trainerName"
-                        ) {
-                            return {
-                                ...column,
-                                cell: ({ row }) => {
-                                    const trainerName = row.getValue(
-                                        "trainerName"
-                                    ) as string | null;
-                                    const userId = row.original.userId;
-                                    return (
-                                        <TrainerCell
-                                            coaches={coaches}
-                                            trainerName={trainerName}
-                                            userId={userId}
-                                        />
-                                    );
-                                },
-                            };
-                        }
-                        return column;
-                    }) as ColumnDef<Client, unknown>[]
-                }
+                columns={columns}
                 rowVirtualizer={rowVirtualizer}
                 tableContainerRef={
                     tableContainerRef as React.RefObject<HTMLDivElement>

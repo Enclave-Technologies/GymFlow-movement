@@ -431,13 +431,19 @@ export const columns: ColumnDef<Client>[] = [
     {
         accessorKey: "trainerName",
         header: () => <div>Trainer</div>,
-        cell: ({ row }) => {
+        cell: ({ row, table }) => {
             const trainerName = row.getValue("trainerName") as string | null;
             const userId = row.original.userId;
-            // Don't set coaches here as it will be passed from the InfiniteTable component
+            // Pull coaches from table options to pass to TrainerCell
+            const coaches =
+                (
+                    table.options.meta as {
+                        coaches?: { userId: string; fullName: string }[];
+                    }
+                )?.coaches || [];
             return (
                 <TrainerCell
-                    coaches={[]}
+                    coaches={coaches}
                     trainerName={trainerName}
                     userId={userId}
                 />

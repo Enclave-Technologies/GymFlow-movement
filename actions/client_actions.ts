@@ -1372,7 +1372,7 @@ export async function switchClientCoach(params: {
 }) {
     await requireTrainerOrAdmin();
     const { clientId, newCoachId } = params;
-    
+
     console.log(`Switching coach for client ${clientId} to ${newCoachId}`);
 
     try {
@@ -1402,7 +1402,10 @@ export async function switchClientCoach(params: {
             .where(
                 and(
                     eq(Users.userId, newCoachId),
-                    or(eq(Roles.roleName, "Trainer"), eq(Roles.roleName, "Admin"))
+                    or(
+                        eq(Roles.roleName, "Trainer"),
+                        eq(Roles.roleName, "Admin")
+                    )
                 )
             )
             .limit(1);
@@ -1427,7 +1430,7 @@ export async function switchClientCoach(params: {
             .limit(1);
 
         await db.transaction(async (tx) => {
-            // If there's an existing relationship, mark it as inactive
+            // If there's an existing relationship, delete it
             if (currentRelationship.length > 0) {
                 // If the client is already assigned to this coach, do nothing
                 if (currentRelationship[0].trainerId === newCoachId) {
@@ -1435,8 +1438,7 @@ export async function switchClientCoach(params: {
                 }
 
                 await tx
-                    .update(TrainerClients)
-                    .set({ isActive: false })
+                    .delete(TrainerClients)
                     .where(
                         eq(
                             TrainerClients.relationshipId,
@@ -1445,13 +1447,38 @@ export async function switchClientCoach(params: {
                     );
             }
 
-            // Create new relationship
-            await tx.insert(TrainerClients).values({
-                trainerId: newCoachId,
-                clientId: clientId,
-                assignedDate: new Date(),
-                isActive: true,
-            });
+            // Instead of blind insert, check if (newCoachId, clientId) exists:
+            const existingNewRelationship = await tx
+                .select()
+                .from(TrainerClients)
+                .where(
+                    and(
+                        eq(TrainerClients.trainerId, newCoachId),
+                        eq(TrainerClients.clientId, clientId)
+                    )
+                )
+                .limit(1);
+
+            if (existingNewRelationship.length > 0) {
+                // Reactivate existing relationship
+                await tx
+                    .update(TrainerClients)
+                    .set({ isActive: true, assignedDate: new Date() })
+                    .where(
+                        eq(
+                            TrainerClients.relationshipId,
+                            existingNewRelationship[0].relationshipId
+                        )
+                    );
+            } else {
+                // Create new relationship
+                await tx.insert(TrainerClients).values({
+                    trainerId: newCoachId,
+                    clientId: clientId,
+                    assignedDate: new Date(),
+                    isActive: true,
+                });
+            }
         });
 
         console.log(
