@@ -71,10 +71,12 @@ export function TrainerCell({
     coaches,
     trainerName,
     userId,
+    setRefreshState,
 }: {
     coaches: { userId: string; fullName: string }[];
     trainerName: string | null;
     userId: string;
+    setRefreshState: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -83,7 +85,7 @@ export function TrainerCell({
         fullName: string;
     } | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
-    console.log(`[TRAINER CELL] : ${JSON.stringify(coaches)}`);
+
     const filteredCoaches = useMemo(() => {
         return coaches.filter((coach) =>
             coach.fullName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -116,8 +118,9 @@ export function TrainerCell({
                     : "Failed to switch coach"
             );
         } finally {
-            closeDialog();
+            setRefreshState((prevState) => !prevState);
             closeDropdown();
+            closeDialog();
         }
     };
 
@@ -439,13 +442,21 @@ export const columns: ColumnDef<Client>[] = [
                 (
                     table.options.meta as {
                         coaches?: { userId: string; fullName: string }[];
+                        setRefreshState: () => null;
                     }
                 )?.coaches || [];
+            const setRefreshState = (
+                table.options.meta as {
+                    coaches?: { userId: string; fullName: string }[];
+                    setRefreshState: () => null;
+                }
+            )?.setRefreshState;
             return (
                 <TrainerCell
                     coaches={coaches}
                     trainerName={trainerName}
                     userId={userId}
+                    setRefreshState={setRefreshState}
                 />
             );
         },
