@@ -17,19 +17,19 @@ export function LandingNav() {
             <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-8">
                 {/* Logo */}
                 <Link
-                    href="#"
+                    href="/"
                     className="flex items-center gap-2 transition-colors hover:opacity-90"
                     prefetch={false}
                 >
                     <MountainIcon className="h-7 w-7 text-primary" />
                     <span className="font-bold text-xl">GymFlow</span>
                 </Link>
-
                 {/* Center Navigation */}
+
                 <div className="hidden md:flex items-center justify-center">
                     <nav className="flex items-center">
                         <Link
-                            href="#features"
+                            href="/#features"
                             className="relative px-4 py-2 text-sm font-medium text-foreground transition-colors hover:text-primary"
                             prefetch={false}
                         >
