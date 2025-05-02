@@ -77,7 +77,6 @@ export async function getAllRoles() {
   return roles;
 }
 
-
 /**
  * Returns paginated list of coaches with filtering, sorting, and search from URL params.
  * This function is used by the coaches/infinite-table.tsx component.
@@ -350,5 +349,52 @@ export async function getCoachesPaginated(
   } catch (error) {
     console.error("getCoachesPaginated - Error executing query:", error);
     throw error;
+  }
+}
+
+/**
+ * Update an existing coach's information
+ * @param coachId - The ID of the coach to update
+ * @param coachData - The updated coach data
+ * @returns Success status and updated coach data
+ */
+export async function updateCoach(
+  coachId: string,
+  coachData: {
+    fullName?: string;
+    email?: string;
+    phoneNumber?: string;
+    gender?: "male" | "female" | "non-binary" | "prefer-not-to-say";
+    notes?: string;
+    jobTitle?: string;
+  }
+) {
+  await requireTrainerOrAdmin();
+
+  try {
+    await db
+      .update(Users)
+      .set({
+        fullName: coachData.fullName,
+        email: coachData.email || null,
+        phone: coachData.phoneNumber || null,
+        notes: coachData.notes || null,
+        gender: coachData.gender || null,
+        jobTitle: coachData.jobTitle || null,
+      })
+      .where(eq(Users.userId, coachId));
+
+    const updatedCoach = await getCoachById(coachId);
+
+    if (!updatedCoach) {
+      throw new Error("Failed to fetch updated coach data");
+    }
+
+    return { success: true, data: updatedCoach };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }

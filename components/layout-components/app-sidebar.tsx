@@ -126,6 +126,10 @@ const navMain = [
                 title: "Exercises",
                 url: "/exercise-library",
             },
+            {
+                title: "Add Exercise",
+                url: "/exercise",
+            },
         ],
     },
     {
