@@ -7,7 +7,7 @@ export default function AddTrainerPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Edit Trainer</h1>
         <p className="text-muted-foreground mt-2">
-          Edit a trainer 
+          Edit a trainer to update their details.
         </p>
       </div>
 
