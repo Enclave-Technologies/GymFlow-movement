@@ -6,7 +6,7 @@ import { desc, sql, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import "server-only";
 import { requireTrainerOrAdmin } from "@/lib/auth-utils";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 export async function getAllExercises(params: Record<string, unknown> = {}) {
   await requireTrainerOrAdmin();
@@ -329,6 +329,41 @@ export async function updateExercise(
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+export async function bulkDeleteExercises(exerciseIds: string[]) {
+  await requireTrainerOrAdmin();
+
+  if (!exerciseIds.length) {
+    return {
+      success: false,
+      message: "No exercise IDs provided",
+      count: 0,
+    };
+  }
+
+  try {
+    const result = await db
+      .delete(Exercises)
+      .where(inArray(Exercises.exerciseId, exerciseIds))
+      .returning();
+
+    return {
+      success: true,
+      message: `Successfully deleted ${result.length} exercise${
+        result.length !== 1 ? "s" : ""
+      }`,
+      count: result.length,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Error deleting exercises: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      count: 0,
     };
   }
 }
