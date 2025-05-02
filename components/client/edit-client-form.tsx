@@ -178,11 +178,9 @@ export default function EditClientForm() {
         throw new Error(response.error || "Failed to save client");
       }
 
-      toast.success(
-        isEdit ? "Client updated successfully" : "Client added successfully"
-      );
+      toast.success("Client updated successfully");
 
-      router.push("/my-clients");
+      router.back();
     } catch (error) {
       console.error("Error saving client:", error);
       toast.error(
