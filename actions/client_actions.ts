@@ -744,27 +744,38 @@ export async function bulkDeleteClientRelationships(
 
 export async function getClientById(clientId: string) {
   await requireTrainerOrAdmin();
+  const Trainer = alias(Users, "trainer");
+  const Client = alias(Users, "client");
+
   const client = await db
     .select({
-      userId: Users.userId,
-      fullName: Users.fullName,
-      email: Users.email,
-      phone: Users.phone,
-      imageUrl: sql<string>`COALESCE(${Users.imageUrl}, '')`.as("imageUrl"),
-      gender: Users.gender,
-      idealWeight: Users.idealWeight,
-      dob: Users.dob,
-      notes: Users.notes,
-      registrationDate: Users.registrationDate,
-      emergencyContactName: Users.emergencyContactName,
-      emergencyContactPhone: Users.emergencyContactPhone,
+      userId: Client.userId,
+      fullName: Client.fullName,
+      email: Client.email,
+      phone: Client.phone,
+      imageUrl: sql<string>`COALESCE(${Client.imageUrl}, '')`.as("imageUrl"),
+      gender: Client.gender,
+      idealWeight: Client.idealWeight,
+      dob: Client.dob,
+      notes: Client.notes,
+      registrationDate: Client.registrationDate,
+      emergencyContactName: Client.emergencyContactName,
+      emergencyContactPhone: Client.emergencyContactPhone,
       trainerId: TrainerClients.trainerId,
+      trainerName: Trainer.fullName,
     })
-    .from(Users)
-    .innerJoin(UserRoles, eq(Users.userId, UserRoles.userId))
+    .from(Client)
+    .innerJoin(UserRoles, eq(Client.userId, UserRoles.userId))
     .innerJoin(Roles, eq(UserRoles.roleId, Roles.roleId))
-    .innerJoin(TrainerClients, eq(Users.userId, TrainerClients.clientId))
-    .where(and(eq(Users.userId, clientId), eq(Roles.roleName, "Client")))
+    .innerJoin(TrainerClients, eq(Client.userId, TrainerClients.clientId))
+    .innerJoin(Trainer, eq(Trainer.userId, TrainerClients.trainerId))
+    .where(
+      and(
+        eq(Client.userId, clientId),
+        eq(Roles.roleName, "Client"),
+        eq(TrainerClients.isActive, true)
+      )
+    )
     .limit(1);
 
   return client[0] || null;
@@ -1496,7 +1507,7 @@ export async function updateClient(
       await tx
         .update(Users)
         .set({
-          fullName,
+          fullName: fullName || undefined,
           email: clientData.email || null,
           phone: clientData.phoneNumber || null,
           notes: clientData.coachNotes || null,
@@ -1508,14 +1519,19 @@ export async function updateClient(
               | "prefer-not-to-say") || null,
           dob: clientData.dateOfBirth ? new Date(clientData.dateOfBirth) : null,
           idealWeight: clientData.idealWeight || null,
+          emergencyContactName: clientData.emergencyContactName || null,
+          emergencyContactPhone: clientData.emergencyContactPhone || null,
         })
         .where(eq(Users.userId, clientId));
 
       // 2. Update trainer relationship if trainerId is provided
       if (clientData.trainerId) {
-        // Check if there's an existing relationship
-        const existingRelationship = await tx
-          .select()
+        // Get current active relationship
+        const currentRelationship = await tx
+          .select({
+            relationshipId: TrainerClients.relationshipId,
+            trainerId: TrainerClients.trainerId,
+          })
           .from(TrainerClients)
           .where(
             and(
@@ -1525,20 +1541,50 @@ export async function updateClient(
           )
           .limit(1);
 
-        if (existingRelationship.length > 0) {
-          // If relationship exists with a different trainer, update it
-          if (existingRelationship[0].trainerId !== clientData.trainerId) {
-            // Mark old relationship as inactive
+        // If current trainer is different from new trainer
+        if (
+          !currentRelationship.length ||
+          currentRelationship[0].trainerId !== clientData.trainerId
+        ) {
+          // Deactivate current relationship if exists
+          if (currentRelationship.length > 0) {
             await tx
               .update(TrainerClients)
               .set({ isActive: false })
               .where(
                 eq(
                   TrainerClients.relationshipId,
+                  currentRelationship[0].relationshipId
+                )
+              );
+          }
+
+          // Check if there's an existing relationship with the new trainer
+          const existingRelationship = await tx
+            .select({
+              relationshipId: TrainerClients.relationshipId,
+            })
+            .from(TrainerClients)
+            .where(
+              and(
+                eq(TrainerClients.clientId, clientId),
+                eq(TrainerClients.trainerId, clientData.trainerId)
+              )
+            )
+            .limit(1);
+
+          if (existingRelationship.length > 0) {
+            // Reactivate existing relationship
+            await tx
+              .update(TrainerClients)
+              .set({ isActive: true, assignedDate: new Date() })
+              .where(
+                eq(
+                  TrainerClients.relationshipId,
                   existingRelationship[0].relationshipId
                 )
               );
-
+          } else {
             // Create new relationship
             await tx.insert(TrainerClients).values({
               trainerId: clientData.trainerId,
@@ -1547,14 +1593,6 @@ export async function updateClient(
               isActive: true,
             });
           }
-        } else {
-          // Create new relationship if none exists
-          await tx.insert(TrainerClients).values({
-            trainerId: clientData.trainerId,
-            clientId: clientId,
-            assignedDate: new Date(),
-            isActive: true,
-          });
         }
       }
     });
