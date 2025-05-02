@@ -5,6 +5,8 @@ import { db } from "@/db/xata";
 import { eq, desc, and, sql, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import "server-only";
+import { createAdminClient } from "@/appwrite/config";
+import { AppwriteException } from "appwrite";
 
 /**
  * Returns a trainer by their user ID
@@ -37,6 +39,7 @@ export async function getCoachById(trainerId: string) {
       gender: Trainer.gender,
       approved: UserRoles.approvedByAdmin,
       job_title: Trainer.jobTitle,
+      address: Trainer.address,
     })
     .from(Trainer)
     .innerJoin(UserRoles, eq(Trainer.userId, UserRoles.userId))
@@ -367,11 +370,55 @@ export async function updateCoach(
     gender?: "male" | "female" | "non-binary" | "prefer-not-to-say";
     notes?: string;
     jobTitle?: string;
+    address?: string;
+    password?: string;
   }
 ) {
   await requireTrainerOrAdmin();
 
   try {
+    // Get the current coach data to check if email is being changed
+    const currentCoach = await getCoachById(coachId);
+    if (!currentCoach) {
+      throw new Error("Coach not found");
+    }
+
+    // Check if email is being changed
+    const isEmailChanged =
+      coachData.email && coachData.email !== currentCoach.email;
+
+    if (isEmailChanged && coachData.email) {
+      if (!coachData.password) {
+        return {
+          success: false,
+          error: "Password required to update email",
+        };
+      }
+
+      try {
+        // Get Appwrite admin client
+        const { appwrite_user } = await createAdminClient();
+
+        // Update email in Appwrite
+        await appwrite_user.updateEmail(coachId, coachData.email);
+      } catch (error) {
+        console.error("Error updating email in Appwrite:", error);
+        if (error instanceof AppwriteException) {
+          if (error.code === 401) {
+            return {
+              success: false,
+              error: "Incorrect password",
+            };
+          }
+        }
+        return {
+          success: false,
+          error: "Failed to update email",
+        };
+      }
+    }
+
+    // Update in database
     await db
       .update(Users)
       .set({
@@ -381,6 +428,7 @@ export async function updateCoach(
         notes: coachData.notes || null,
         gender: coachData.gender || null,
         jobTitle: coachData.jobTitle || null,
+        address: coachData.address || null,
       })
       .where(eq(Users.userId, coachId));
 

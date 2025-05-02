@@ -23,6 +23,12 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCoachById, updateCoach } from "@/actions/coach_actions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { PasswordVerificationDialog } from "@/components/settings/password-verification-dialog";
+import { passwordVerificationSchema } from "@/components/settings/settings-schemas";
+import type { PasswordVerificationValues } from "@/components/settings/settings-schemas";
 
 export default function EditTrainerForm() {
   const router = useRouter();
@@ -37,23 +43,47 @@ export default function EditTrainerForm() {
     gender: "",
     dateOfBirth: undefined as Date | undefined,
     jobTitle: "Trainer",
-    role: "Trainer", // Default role
+    role: "Trainer",
+    address: "",
   });
 
   const [loading, setLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [originalTrainerData, setOriginalTrainerData] = useState<{
+    email: string;
+  } | null>(null);
+
+  const formFields = Array(8).fill(null);
+
+  // Password verification form
+  const passwordVerificationForm = useForm<PasswordVerificationValues>({
+    resolver: zodResolver(passwordVerificationSchema),
+    defaultValues: {
+      password: "",
+    },
+  });
 
   useEffect(() => {
     async function fetchTrainerData() {
-      if (!trainerId) return;
+      if (!trainerId) {
+        setIsFetching(false);
+        return;
+      }
 
       try {
-        setLoading(true);
+        setIsFetching(true);
         const trainerData = await getCoachById(trainerId);
 
         if (!trainerData) {
           toast.error("Trainer not found");
           return;
         }
+
+        // Store original email for comparison
+        setOriginalTrainerData({
+          email: trainerData.email || "",
+        });
 
         setNewUserForm({
           fullName: trainerData.fullName || "",
@@ -65,12 +95,13 @@ export default function EditTrainerForm() {
             : undefined,
           jobTitle: trainerData.job_title || "Trainer",
           role: "Trainer",
+          address: trainerData.address || "",
         });
       } catch (error) {
         console.error("Error fetching trainer data:", error);
         toast.error("Failed to load trainer data");
       } finally {
-        setLoading(false);
+        setIsFetching(false);
       }
     }
 
@@ -94,40 +125,87 @@ export default function EditTrainerForm() {
 
   const handleNewUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!trainerId || !originalTrainerData) return;
+
+    // Check if email is being changed
+    const isEmailChanged = newUserForm.email !== originalTrainerData.email;
+    if (isEmailChanged) {
+      setIsPasswordDialogOpen(true);
+      return;
+    }
+
+    await handleFormSubmit(newUserForm);
+  };
+
+  const handleFormSubmit = async (
+    formData: typeof newUserForm,
+    password?: string
+  ) => {
+    if (!trainerId) return;
 
     try {
-      if (!trainerId) {
-        throw new Error("No trainer ID provided");
-      }
-
+      setLoading(true);
       const result = await updateCoach(trainerId, {
-        fullName: newUserForm.fullName,
-        email: newUserForm.email,
-        phoneNumber: newUserForm.phoneNumber,
-        gender: newUserForm.gender as
+        fullName: formData.fullName,
+        email: formData.email,
+        phoneNumber: formData.phoneNumber,
+        gender: formData.gender as
           | "male"
           | "female"
           | "non-binary"
           | "prefer-not-to-say",
-        jobTitle: newUserForm.jobTitle,
+        jobTitle: formData.jobTitle,
+        address: formData.address,
+        password, // Only passed when email is changed
       });
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to update trainer");
+      if (result.success) {
+        toast.success("Trainer updated successfully");
+        router.push("/coaches");
+      } else {
+        toast.error(result.error || "Failed to update trainer");
       }
-
-      toast.success("Trainer updated successfully");
-      router.push("/coaches");
     } catch (error) {
-      console.error("Error updating trainer:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update trainer"
-      );
+      toast.error("An error occurred while updating the trainer");
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Handle password verification
+  const onPasswordVerify = async (data: PasswordVerificationValues) => {
+    try {
+      await handleFormSubmit(newUserForm, data.password);
+    } finally {
+      setIsPasswordDialogOpen(false);
+      passwordVerificationForm.reset();
+    }
+  };
+
+  if (isFetching) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-48 mb-4" />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {formFields.map((_, index) => (
+                <div key={index} className="space-y-3">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end space-x-4">
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -160,10 +238,6 @@ export default function EditTrainerForm() {
                 required
                 placeholder="Email"
               />
-              <p className="text-sm text-muted-foreground">
-                Default password will be set to &quot;<i>password</i>
-                &quot;
-              </p>
             </div>
 
             <div className="space-y-3">
@@ -181,7 +255,6 @@ export default function EditTrainerForm() {
                 <SelectContent>
                   <SelectItem value="Trainer">Trainer</SelectItem>
                   <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Guest">Guest</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -262,6 +335,17 @@ export default function EditTrainerForm() {
                 placeholder="Job Title"
               />
             </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                name="address"
+                value={newUserForm.address}
+                onChange={handleNewUserChange}
+                placeholder="Address"
+              />
+            </div>
           </div>
 
           <div className="flex justify-end space-x-4">
@@ -281,6 +365,15 @@ export default function EditTrainerForm() {
           </div>
         </form>
       </div>
+
+      {/* Password Verification Dialog */}
+      <PasswordVerificationDialog
+        isOpen={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+        form={passwordVerificationForm}
+        isSubmitting={loading}
+        onSubmit={onPasswordVerify}
+      />
     </div>
   );
 }
