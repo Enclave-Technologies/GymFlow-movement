@@ -304,14 +304,31 @@ export async function updateExercise(
     const exercise = await db
       .update(Exercises)
       .set({
-        exerciseName: input.exerciseName,
-        description: input.description || null,
-        videoUrl: input.videoUrl || null,
-        motion: input.motion || null,
-        targetArea: input.targetArea || null,
-        movementType: input.movementType || null,
-        timeMultiplier: input.timeMultiplier || 1.0,
-        uploadedByUserId: input.uploadedByUserId,
+        ...(input.exerciseName !== undefined && {
+          exerciseName: input.exerciseName,
+        }),
+        ...(input.description !== undefined && {
+          description: input.description,
+        }),
+        ...(input.videoUrl !== undefined && {
+          videoUrl: input.videoUrl,
+        }),
+        ...(input.motion !== undefined && {
+          motion: input.motion,
+        }),
+        ...(input.targetArea !== undefined && {
+          targetArea: input.targetArea,
+        }),
+        ...(input.movementType !== undefined && {
+          movementType: input.movementType,
+        }),
+        ...(input.timeMultiplier !== undefined && {
+          timeMultiplier: input.timeMultiplier,
+        }),
+        // Only update uploadedByUserId if explicitly provided
+        ...(input.uploadedByUserId !== undefined && {
+          uploadedByUserId: input.uploadedByUserId,
+        }),
       })
       .where(eq(Exercises.exerciseId, exerciseId))
       .returning();
