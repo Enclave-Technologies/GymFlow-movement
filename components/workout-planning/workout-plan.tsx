@@ -2,8 +2,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 
-import { useEffect, useState, useCallback } from "react";
-import { debounce } from "lodash";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 // Table components are now used in ExerciseTableInline component
@@ -104,6 +103,7 @@ export default function WorkoutPlanner({
     const [lastKnownUpdatedAt, setLastKnownUpdatedAt] = useState<Date | null>(
         null
     );
+    const [savePerformed, setSavePerformed] = useState<number>(0); // Counter to trigger refetch after save
     const [conflictError, setConflictError] = useState<{
         message: string;
         serverTime: Date;
@@ -250,27 +250,117 @@ export default function WorkoutPlanner({
         getWorkout();
     }, [client_id]);
 
-    // Debounced save function to prevent excessive saves
-    const debouncedSaveAll = useCallback(
-        debounce(() => {
-            if (hasUnsavedChanges) {
-                saveAll();
-            }
-        }, 5000), // 5 second delay
-        [hasUnsavedChanges] // Re-create when hasUnsavedChanges changes
-    );
+    // Removed auto-save functionality to ensure all saves are performed by the Save All button
 
-    // Auto-save when changes are made
+    // Refetch data when savePerformed changes (after successful save)
     useEffect(() => {
-        if (hasUnsavedChanges && !isSaving) {
-            debouncedSaveAll();
-        }
+        if (savePerformed > 0) {
+            const refetchWorkout = async () => {
+                try {
+                    const response = await getWorkoutPlanByClientId(client_id);
+                    if (
+                        response &&
+                        "planId" in response &&
+                        "updatedAt" in response
+                    ) {
+                        setPlanId(response.planId);
+                        setLastKnownUpdatedAt(new Date(response.updatedAt));
 
-        // Cleanup function to cancel debounced save on unmount
-        return () => {
-            debouncedSaveAll.cancel();
-        };
-    }, [hasUnsavedChanges, isSaving, debouncedSaveAll]);
+                        // Map the phases from the response
+                        const mapped = (
+                            response as WorkoutPlanResponse
+                        ).phases.map((phase) => ({
+                            id: phase.id,
+                            name: phase.name,
+                            isActive: phase.isActive,
+                            isExpanded: phase.isExpanded,
+                            sessions: phase.sessions.map((session) => {
+                                // Map exercises with safe defaults and include all fields
+                                const exercises = session.exercises?.map(
+                                    (e) => {
+                                        if (
+                                            !e.id ||
+                                            !e.order ||
+                                            !e.motion ||
+                                            !e.targetArea ||
+                                            !e.description
+                                        ) {
+                                            console.warn(
+                                                "Missing required exercise properties",
+                                                e
+                                            );
+                                        }
+                                        const exercise: Exercise = {
+                                            id: e.id || uuidv4(),
+                                            order: e.order || "",
+                                            motion: e.motion || "",
+                                            targetArea: e.targetArea || "",
+                                            exerciseId: e.exerciseId || "",
+                                            description: e.description || "",
+                                            duration:
+                                                typeof e.duration === "number"
+                                                    ? e.duration
+                                                    : 8,
+                                            // Include all possible fields from Exercise interface
+                                            sets: e.sets ?? "",
+                                            reps: e.reps ?? "",
+                                            tut: e.tut ?? "",
+                                            tempo: e.tempo ?? "",
+                                            rest: e.rest ?? "",
+                                            additionalInfo:
+                                                e.additionalInfo ?? "",
+                                            setsMin: e.setsMin ?? "",
+                                            setsMax: e.setsMax ?? "",
+                                            repsMin: e.repsMin ?? "",
+                                            repsMax: e.repsMax ?? "",
+                                            restMin: e.restMin ?? "",
+                                            restMax: e.restMax ?? "",
+                                            // Map additionalInfo to customizations for backend
+                                            customizations:
+                                                e.additionalInfo ?? "",
+                                        };
+
+                                        return exercise;
+                                    }
+                                );
+
+                                // Calculate total session duration
+                                const calculatedDuration =
+                                    exercises?.reduce(
+                                        (total: number, ex: Exercise) =>
+                                            total + (ex.duration || 8),
+                                        0
+                                    ) || 0;
+
+                                return {
+                                    id: session.id || uuidv4(),
+                                    name: session.name || "Unnamed Session",
+                                    duration: calculatedDuration,
+                                    isExpanded: Boolean(session.isExpanded),
+                                    exercises: exercises || [],
+                                };
+                            }),
+                        }));
+
+                        updatePhases(mapped);
+
+                        // Reset the change tracker with the fetched phases
+                        if (changeTracker) {
+                            changeTracker.reset(mapped);
+                        } else {
+                            setChangeTracker(
+                                new WorkoutPlanChangeTracker(mapped)
+                            );
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error refetching workout plan:", error);
+                }
+            };
+
+            refetchWorkout();
+        }
+    }, [savePerformed, client_id]);
 
     // Custom setPhases function that also updates the change tracker
     const updatePhases = (
@@ -375,7 +465,8 @@ export default function WorkoutPlanner({
                     changeTracker.reset(phases);
                 }
 
-                // No need to refetch the entire plan since we're tracking changes locally
+                // Trigger a refetch by incrementing the savePerformed counter
+                setSavePerformed((prev) => prev + 1);
             } else {
                 // Handle errors
                 if (result.conflict) {
@@ -630,6 +721,9 @@ export default function WorkoutPlanner({
                 if (result.serverUpdatedAt) {
                     setLastKnownUpdatedAt(new Date(result.serverUpdatedAt));
                 }
+
+                // Trigger a refetch by incrementing the savePerformed counter
+                setSavePerformed((prev) => prev + 1);
             } else {
                 // Handle errors
                 if (result.conflict) {
@@ -1078,6 +1172,9 @@ export default function WorkoutPlanner({
                 if (!hasUnsavedChanges) {
                     setHasUnsavedChanges(false);
                 }
+
+                // Trigger a refetch by incrementing the savePerformed counter
+                setSavePerformed((prev) => prev + 1);
 
                 // toast.success("Session order updated"); // Optional: Might be too noisy
             } else {

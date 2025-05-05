@@ -317,9 +317,9 @@ export async function updatePhaseActivation(
             if (plan.length && plan[0].assignedToUserId) {
                 // Invalidate the client cache
                 const clientId = plan[0].assignedToUserId;
-                // This is where we would invalidate the cache for /clients/{id}
                 console.log(`Invalidating cache for client: ${clientId}`);
-                revalidatePath(`/clients/${clientId}`);
+                // Force a complete revalidation of the client page to trigger refetches
+                revalidatePath(`/clients/${clientId}`, "layout");
             }
 
             return {
@@ -438,7 +438,8 @@ export async function updateSessionOrder(
                 console.log(
                     `Invalidating cache for client due to session reorder: ${clientId}`
                 );
-                revalidatePath(`/clients/${clientId}`);
+                // Force a complete revalidation of the client page to trigger refetches
+                revalidatePath(`/clients/${clientId}`, "layout");
             }
 
             return {
@@ -1759,7 +1760,8 @@ export async function applyWorkoutPlanChanges(
             if (planDetails.length && planDetails[0].assignedToUserId) {
                 const clientId = planDetails[0].assignedToUserId;
                 console.log(`Invalidating cache for client: ${clientId}`);
-                revalidatePath(`/clients/${clientId}`);
+                // Force a complete revalidation of the client page to trigger refetches
+                revalidatePath(`/clients/${clientId}`, "layout");
             }
 
             return {
@@ -1945,7 +1947,8 @@ export async function saveSession(
                 // Invalidate the client cache
                 const clientId = plan[0].assignedToUserId;
                 console.log(`Invalidating cache for client: ${clientId}`);
-                revalidatePath(`/clients/${clientId}`);
+                // Force a complete revalidation of the client page to trigger refetches
+                revalidatePath(`/clients/${clientId}`, "layout");
             }
 
             return {
