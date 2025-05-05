@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
     Table,
     TableHeader,
@@ -99,9 +99,17 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
     exercises,
     setHasUnsavedChanges,
 }) => {
-    // Generate motion and target area options from the exercises list
-    const exerciseMotionOptions = getUniqueMotions(exercises || []);
-    const exerciseTargetAreaOptions = getUniqueTargetAreas(exercises || []);
+    // Memoize motion and target area options to prevent recalculation on every render
+    const exerciseMotionOptions = useMemo(
+        () => getUniqueMotions(exercises || []),
+        [exercises]
+    );
+
+    const exerciseTargetAreaOptions = useMemo(
+        () => getUniqueTargetAreas(exercises || []),
+        [exercises]
+    );
+
     const [editingExerciseRow, setEditingExerciseRow] =
         useState<ExerciseRow | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
@@ -134,19 +142,20 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
         }
     }, [shouldFocusFirstCell]);
 
-    const handleInlineExerciseChange = (
-        field: keyof ExerciseRow,
-        value: string
-    ) => {
-        if (!editingExerciseRow) return;
-        console.log(`Setting ${field} to:`, value);
-        setEditingExerciseRow({
-            ...editingExerciseRow,
-            [field]: value,
-        });
-    };
+    // Memoize event handlers to prevent unnecessary re-renders
+    const handleInlineExerciseChange = useCallback(
+        (field: keyof ExerciseRow, value: string) => {
+            if (!editingExerciseRow) return;
+            console.log(`Setting ${field} to:`, value);
+            setEditingExerciseRow({
+                ...editingExerciseRow,
+                [field]: value,
+            });
+        },
+        [editingExerciseRow]
+    );
 
-    const saveInlineExercise = () => {
+    const saveInlineExercise = useCallback(() => {
         if (!editingExerciseRow) return;
         if (!editingExerciseRow.order || !editingExerciseRow.description) {
             toast.error("Order and Description are required");
@@ -185,9 +194,18 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
         }
         setEditingExerciseRow(null);
         onEditEnd();
-    };
+    }, [
+        editingExerciseRow,
+        phase.id,
+        phases,
+        session.id,
+        calculateSessionDuration,
+        setPhases,
+        setHasUnsavedChanges,
+        onEditEnd,
+    ]);
 
-    const cancelInlineExercise = () => {
+    const cancelInlineExercise = useCallback(() => {
         // If the exercise is blank (new), remove it from the array
         if (editingExerciseRow) {
             const isBlank =
@@ -229,13 +247,24 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
         }
         setEditingExerciseRow(null);
         onEditEnd();
-    };
+    }, [
+        editingExerciseRow,
+        phase.id,
+        phases,
+        session.id,
+        calculateSessionDuration,
+        setPhases,
+        onEditEnd,
+    ]);
 
-    // Filter exercises based on search term
-    const filteredExercises =
-        exercises?.filter((ex) =>
-            ex.exerciseName.toLowerCase().includes(searchTerm.toLowerCase())
-        ) || [];
+    // Memoize filtered exercises based on search term
+    const filteredExercises = useMemo(
+        () =>
+            exercises?.filter((ex) =>
+                ex.exerciseName.toLowerCase().includes(searchTerm.toLowerCase())
+            ) || [],
+        [exercises, searchTerm]
+    );
 
     return (
         <>
@@ -356,58 +385,28 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                                                                         value.toLowerCase()
                                                                                 );
 
-                                                                            // Update description
-                                                                            handleInlineExerciseChange(
-                                                                                "description",
-                                                                                selectedExercise?.exerciseName ||
+                                                                            // Update description and exerciseId
+                                                                            if (selectedExercise) {
+                                                                                // Set all relevant fields in one update to avoid multiple renders
+                                                                                setEditingExerciseRow(prev => {
+                                                                                    if (!prev) return prev;
+                                                                                    return {
+                                                                                        ...prev,
+                                                                                        description: selectedExercise.exerciseName,
+                                                                                        // Set exerciseId to reference the selected exercise
+                                                                                        exerciseId: selectedExercise.exerciseId,
+                                                                                        // Set motion and targetArea if available
+                                                                                        motion: selectedExercise.motion || prev.motion,
+                                                                                        targetArea: selectedExercise.targetArea || prev.targetArea,
+                                                                                    };
+                                                                                });
+                                                                                console.log("Selected exercise:", selectedExercise.exerciseName, "with ID:", selectedExercise.exerciseId);
+                                                                            } else {
+                                                                                // If no exercise found, just update the description
+                                                                                handleInlineExerciseChange(
+                                                                                    "description",
                                                                                     value
-                                                                            );
-
-                                                                            // Auto-set motion and target area if available
-                                                                            if (
-                                                                                selectedExercise
-                                                                            ) {
-                                                                                if (
-                                                                                    selectedExercise.motion
-                                                                                ) {
-                                                                                    setEditingExerciseRow(
-                                                                                        (
-                                                                                            prev
-                                                                                        ) => {
-                                                                                            if (
-                                                                                                !prev
-                                                                                            )
-                                                                                                return prev;
-                                                                                            return {
-                                                                                                ...prev,
-                                                                                                motion:
-                                                                                                    selectedExercise.motion ||
-                                                                                                    "",
-                                                                                            };
-                                                                                        }
-                                                                                    );
-                                                                                }
-
-                                                                                if (
-                                                                                    selectedExercise.targetArea
-                                                                                ) {
-                                                                                    setEditingExerciseRow(
-                                                                                        (
-                                                                                            prev
-                                                                                        ) => {
-                                                                                            if (
-                                                                                                !prev
-                                                                                            )
-                                                                                                return prev;
-                                                                                            return {
-                                                                                                ...prev,
-                                                                                                targetArea:
-                                                                                                    selectedExercise.targetArea ||
-                                                                                                    "",
-                                                                                            };
-                                                                                        }
-                                                                                    );
-                                                                                }
+                                                                                );
                                                                             }
 
                                                                             setOpen(
@@ -592,7 +591,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                             <Input
                                                 value={
                                                     editingExerciseRow.tempo ??
-                                                    "4-1-2-1"
+                                                    "3 0 1 0"
                                                 }
                                                 onChange={(e) =>
                                                     handleInlineExerciseChange(
@@ -650,7 +649,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                                 // Calculate TUT - sum all numbers in tempo
                                                 const tempo =
                                                     editingExerciseRow.tempo ??
-                                                    "4-1-2-1";
+                                                    "3 0 1 0";
                                                 // Extract all numbers from the tempo string
                                                 const numbers =
                                                     tempo.match(/\d+/g) || [];
@@ -668,20 +667,28 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                                     editingExerciseRow.repsMax ??
                                                         12
                                                 );
-                                                
+
                                                 // Calculate TUT and store it in the exercise
-                                                const calculatedTut = tempoSum * setsMax * repsMax;
-                                                
+                                                const calculatedTut =
+                                                    tempoSum *
+                                                    setsMax *
+                                                    repsMax;
+
                                                 // Update the tut field in the editing exercise
-                                                if (editingExerciseRow.tut !== String(calculatedTut)) {
+                                                if (
+                                                    editingExerciseRow.tut !==
+                                                    String(calculatedTut)
+                                                ) {
                                                     setTimeout(() => {
                                                         handleInlineExerciseChange(
                                                             "tut",
-                                                            String(calculatedTut)
+                                                            String(
+                                                                calculatedTut
+                                                            )
                                                         );
                                                     }, 0);
                                                 }
-                                                
+
                                                 return calculatedTut;
                                             })()}
                                         </TableCell>
@@ -727,113 +734,14 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    <TableRow key={exercise.id}>
-                                        {/* Order */}
-                                        <TableCell className="w-[180px]">
-                                            {exercise.order}
-                                        </TableCell>
-                                        {/* Description */}
-                                        <TableCell className="min-w-[350px]">
-                                            {exercise.description}
-                                        </TableCell>
-                                        {/* Motion */}
-                                        <TableCell className="min-w-[250px]">
-                                            {exercise.motion}
-                                        </TableCell>
-                                        {/* Target Area */}
-                                        <TableCell className="min-w-[250px]">
-                                            {exercise.targetArea}
-                                        </TableCell>
-                                        {/* Sets (min-max) */}
-                                        <TableCell className="min-w-[200px]">
-                                            <div className="flex items-center justify-center">
-                                                {exercise.setsMin ?? "3"}{" "}
-                                                <span className="mx-2">-</span>{" "}
-                                                {exercise.setsMax ?? "5"}
-                                            </div>
-                                        </TableCell>
-                                        {/* Reps (min-max) */}
-                                        <TableCell className="min-w-[200px]">
-                                            <div className="flex items-center justify-center">
-                                                {exercise.repsMin ?? "8"}{" "}
-                                                <span className="mx-2">-</span>{" "}
-                                                {exercise.repsMax ?? "12"}
-                                            </div>
-                                        </TableCell>
-                                        {/* Tempo */}
-                                        <TableCell className="min-w-[180px]">
-                                            {exercise.tempo ?? "4-1-2-1"}
-                                        </TableCell>
-                                        {/* Rest (min-max) */}
-                                        <TableCell className="min-w-[200px]">
-                                            <div className="flex items-center justify-center">
-                                                {exercise.restMin ?? "45"}{" "}
-                                                <span className="mx-2">-</span>{" "}
-                                                {exercise.restMax ?? "60"}
-                                            </div>
-                                        </TableCell>
-                                        {/* TUT (calculated) */}
-                                        <TableCell className="min-w-[100px]">
-                                            {(() => {
-                                                // Calculate TUT - sum all numbers in tempo
-                                                const tempo =
-                                                    exercise.tempo ?? "4-1-2-1";
-                                                // Extract all numbers from the tempo string
-                                                const numbers =
-                                                    tempo.match(/\d+/g) || [];
-                                                const tempoSum = numbers.reduce(
-                                                    (sum, num) =>
-                                                        sum + parseInt(num, 10),
-                                                    0
-                                                );
-
-                                                const setsMax = Number(
-                                                    exercise.setsMax ?? 5
-                                                );
-                                                const repsMax = Number(
-                                                    exercise.repsMax ?? 12
-                                                );
-                                                return (
-                                                    tempoSum * setsMax * repsMax
-                                                );
-                                            })()}
-                                        </TableCell>
-                                        {/* Additional Instructions */}
-                                        <TableCell className="min-w-[350px]">
-                                            {exercise.additionalInfo ?? ""}
-                                        </TableCell>
-                                        {/* Actions */}
-                                        <TableCell className="text-right sticky right-0 bg-background min-w-[150px] z-10">
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() =>
-                                                        onEditExercise(
-                                                            exercise.id
-                                                        )
-                                                    }
-                                                    className="h-8 w-8 cursor-pointer"
-                                                >
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        deleteExercise(
-                                                            phase.id,
-                                                            session.id,
-                                                            exercise.id
-                                                        );
-                                                    }}
-                                                    className="h-8 w-8"
-                                                >
-                                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
+                                    <ExerciseTableRow
+                                        key={exercise.id}
+                                        exercise={exercise}
+                                        onEditExercise={onEditExercise}
+                                        deleteExercise={deleteExercise}
+                                        phaseId={phase.id}
+                                        sessionId={session.id}
+                                    />
                                 )
                         )}
                     </TableBody>
@@ -842,5 +750,116 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
         </>
     );
 };
+
+// Memoized row component to prevent unnecessary re-renders
+interface ExerciseTableRowProps {
+    exercise: ExerciseRow;
+    onEditExercise: (exerciseId: string) => void;
+    deleteExercise: (
+        phaseId: string,
+        sessionId: string,
+        exerciseId: string
+    ) => void;
+    phaseId: string;
+    sessionId: string;
+}
+
+const ExerciseTableRow: React.FC<ExerciseTableRowProps> = React.memo(
+    ({ exercise, onEditExercise, deleteExercise, phaseId, sessionId }) => {
+        // Memoize TUT calculation
+        const calculatedTut = useMemo(() => {
+            // Calculate TUT - sum all numbers in tempo
+            const tempo = exercise.tempo ?? "3 0 1 0";
+            // Extract all numbers from the tempo string
+            const numbers = tempo.match(/\d+/g) || [];
+            const tempoSum = numbers.reduce(
+                (sum, num) => sum + parseInt(num, 10),
+                0
+            );
+
+            const setsMax = Number(exercise.setsMax ?? 5);
+            const repsMax = Number(exercise.repsMax ?? 12);
+            return tempoSum * setsMax * repsMax;
+        }, [exercise.tempo, exercise.setsMax, exercise.repsMax]);
+
+        return (
+            <TableRow>
+                {/* Order */}
+                <TableCell className="w-[180px]">{exercise.order}</TableCell>
+                {/* Description */}
+                <TableCell className="min-w-[350px]">
+                    {exercise.description}
+                </TableCell>
+                {/* Motion */}
+                <TableCell className="min-w-[250px]">
+                    {exercise.motion}
+                </TableCell>
+                {/* Target Area */}
+                <TableCell className="min-w-[250px]">
+                    {exercise.targetArea}
+                </TableCell>
+                {/* Sets (min-max) */}
+                <TableCell className="min-w-[200px]">
+                    <div className="flex items-center justify-center">
+                        {exercise.setsMin ?? "3"}{" "}
+                        <span className="mx-2">-</span>{" "}
+                        {exercise.setsMax ?? "5"}
+                    </div>
+                </TableCell>
+                {/* Reps (min-max) */}
+                <TableCell className="min-w-[200px]">
+                    <div className="flex items-center justify-center">
+                        {exercise.repsMin ?? "8"}{" "}
+                        <span className="mx-2">-</span>{" "}
+                        {exercise.repsMax ?? "12"}
+                    </div>
+                </TableCell>
+                {/* Tempo */}
+                <TableCell className="min-w-[180px]">
+                    {exercise.tempo ?? "3 0 1 0"}
+                </TableCell>
+                {/* Rest (min-max) */}
+                <TableCell className="min-w-[200px]">
+                    <div className="flex items-center justify-center">
+                        {exercise.restMin ?? "45"}{" "}
+                        <span className="mx-2">-</span>{" "}
+                        {exercise.restMax ?? "60"}
+                    </div>
+                </TableCell>
+                {/* TUT (calculated) */}
+                <TableCell className="min-w-[100px]">{calculatedTut}</TableCell>
+                {/* Additional Instructions */}
+                <TableCell className="min-w-[350px]">
+                    {exercise.additionalInfo ?? ""}
+                </TableCell>
+                {/* Actions */}
+                <TableCell className="text-right sticky right-0 bg-background min-w-[150px] z-10">
+                    <div className="flex justify-end gap-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onEditExercise(exercise.id)}
+                            className="h-8 w-8 cursor-pointer"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                                deleteExercise(phaseId, sessionId, exercise.id);
+                            }}
+                            className="h-8 w-8"
+                        >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                    </div>
+                </TableCell>
+            </TableRow>
+        );
+    }
+);
+
+ExerciseTableRow.displayName = "ExerciseTableRow";
 
 export default ExerciseTableInline;

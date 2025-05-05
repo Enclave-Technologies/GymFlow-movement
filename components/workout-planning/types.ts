@@ -3,6 +3,7 @@ export interface Exercise {
     order: string;
     motion: string;
     targetArea: string;
+    exerciseId: string;
     description: string;
     sets?: string;
     reps?: string;
@@ -19,6 +20,7 @@ export interface Exercise {
     repsMax?: string;
     restMin?: string;
     restMax?: string;
+    notes?: string;
 }
 
 export interface Session {
@@ -48,4 +50,26 @@ export interface WorkoutPlanActionResponse {
     planId?: string;
     updatedAt?: Date;
     serverUpdatedAt?: Date;
+}
+
+/**
+ * Change tracking system for workout plan modifications
+ * Used to efficiently track and send only changes to the backend
+ */
+export interface WorkoutPlanChanges {
+    created: {
+        phases: Phase[];
+        sessions: { phaseId: string; session: Session }[];
+        exercises: { sessionId: string; exercise: Exercise }[];
+    };
+    updated: {
+        phases: { id: string; changes: Partial<Phase> }[];
+        sessions: { id: string; changes: Partial<Session> }[];
+        exercises: { id: string; changes: Partial<Exercise> }[];
+    };
+    deleted: {
+        phases: string[];
+        sessions: string[];
+        exercises: string[];
+    };
 }
