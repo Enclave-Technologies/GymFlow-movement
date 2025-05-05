@@ -821,13 +821,10 @@ export async function updateWorkoutPlan(
                     }
 
                     // Process exercises
-                    // Sort exercises by their setOrderMarker (order field) in typographical order
+                    // Sort exercises by their setOrderMarker (order field) using lexicographical ordering
                     const sortedExercises = [...session.exercises].sort(
                         (a, b) => {
-                            return a.order.localeCompare(b.order, undefined, {
-                                numeric: true,
-                                sensitivity: "base",
-                            });
+                            return a.order.localeCompare(b.order);
                         }
                     );
 
@@ -1107,12 +1104,9 @@ export async function createWorkoutPlan(
                 });
 
                 // Process exercises
-                // Sort exercises by their setOrderMarker (order field) in typographical order
+                // Sort exercises by their setOrderMarker (order field) using lexicographical ordering
                 const sortedExercises = [...session.exercises].sort((a, b) => {
-                    return a.order.localeCompare(b.order, undefined, {
-                        numeric: true,
-                        sensitivity: "base",
-                    });
+                    return a.order.localeCompare(b.order);
                 });
 
                 // Prepare exercise data
@@ -1664,7 +1658,10 @@ export async function applyWorkoutPlanChanges(
 
                 // Prepare exercises for insertion - filter out exercises with null exerciseId
                 const exercisesToInsert = changes.created.exercises
-                    .filter(exerciseData => exerciseData.exercise.exerciseId !== null)
+                    .filter(
+                        (exerciseData) =>
+                            exerciseData.exercise.exerciseId !== null
+                    )
                     .map((exerciseData, index) => {
                         const exercise = exerciseData.exercise;
 
@@ -1728,11 +1725,14 @@ export async function applyWorkoutPlanChanges(
                             notes: exercise.notes ?? "",
                         };
                     });
-                
+
                 // Log any skipped exercises
-                const skippedCount = changes.created.exercises.length - exercisesToInsert.length;
+                const skippedCount =
+                    changes.created.exercises.length - exercisesToInsert.length;
                 if (skippedCount > 0) {
-                    console.warn(`Skipped ${skippedCount} exercises with null exerciseId`);
+                    console.warn(
+                        `Skipped ${skippedCount} exercises with null exerciseId`
+                    );
                 }
 
                 // Split into chunks to avoid potential query size limits
@@ -1877,12 +1877,9 @@ export async function saveSession(
 
         // If there are exercises to update, prepare them
         if (sessionData.exercises && sessionData.exercises.length > 0) {
-            // Sort exercises by their setOrderMarker (order field) in typographical order
+            // Sort exercises by their setOrderMarker (order field) using lexicographical ordering
             const sortedExercises = [...sessionData.exercises].sort((a, b) => {
-                return a.order.localeCompare(b.order, undefined, {
-                    numeric: true,
-                    sensitivity: "base",
-                });
+                return a.order.localeCompare(b.order);
             });
 
             // Prepare exercise updates with exerciseOrder values (0, 1, 2, ...) based on the sorted order

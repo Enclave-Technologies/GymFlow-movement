@@ -386,21 +386,41 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                                                                 );
 
                                                                             // Update description and exerciseId
-                                                                            if (selectedExercise) {
+                                                                            if (
+                                                                                selectedExercise
+                                                                            ) {
                                                                                 // Set all relevant fields in one update to avoid multiple renders
-                                                                                setEditingExerciseRow(prev => {
-                                                                                    if (!prev) return prev;
-                                                                                    return {
-                                                                                        ...prev,
-                                                                                        description: selectedExercise.exerciseName,
-                                                                                        // Set exerciseId to reference the selected exercise
-                                                                                        exerciseId: selectedExercise.exerciseId,
-                                                                                        // Set motion and targetArea if available
-                                                                                        motion: selectedExercise.motion || prev.motion,
-                                                                                        targetArea: selectedExercise.targetArea || prev.targetArea,
-                                                                                    };
-                                                                                });
-                                                                                console.log("Selected exercise:", selectedExercise.exerciseName, "with ID:", selectedExercise.exerciseId);
+                                                                                setEditingExerciseRow(
+                                                                                    (
+                                                                                        prev
+                                                                                    ) => {
+                                                                                        if (
+                                                                                            !prev
+                                                                                        )
+                                                                                            return prev;
+                                                                                        return {
+                                                                                            ...prev,
+                                                                                            description:
+                                                                                                selectedExercise.exerciseName,
+                                                                                            // Set exerciseId to reference the selected exercise
+                                                                                            exerciseId:
+                                                                                                selectedExercise.exerciseId,
+                                                                                            // Set motion and targetArea if available
+                                                                                            motion:
+                                                                                                selectedExercise.motion ||
+                                                                                                prev.motion,
+                                                                                            targetArea:
+                                                                                                selectedExercise.targetArea ||
+                                                                                                prev.targetArea,
+                                                                                        };
+                                                                                    }
+                                                                                );
+                                                                                console.log(
+                                                                                    "Selected exercise:",
+                                                                                    selectedExercise.exerciseName,
+                                                                                    "with ID:",
+                                                                                    selectedExercise.exerciseId
+                                                                                );
                                                                             } else {
                                                                                 // If no exercise found, just update the description
                                                                                 handleInlineExerciseChange(
