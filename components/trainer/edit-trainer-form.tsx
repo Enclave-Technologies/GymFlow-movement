@@ -237,6 +237,7 @@ export default function EditTrainerForm() {
                 onChange={handleNewUserChange}
                 required
                 placeholder="Email"
+                disabled={true}
               />
             </div>
 
