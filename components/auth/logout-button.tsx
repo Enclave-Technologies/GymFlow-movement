@@ -57,12 +57,9 @@ export function LogoutButton({
             </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>
-                        Are you absolutely sure?
-                    </AlertDialogTitle>
+                    <AlertDialogTitle>Logout</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This action cannot be undone. Are you sure you want to
-                        logout?
+                        Are you sure you want to logout?
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -74,7 +71,7 @@ export function LogoutButton({
                         {isLoading ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : null}
-                        Continue
+                        Logout
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
