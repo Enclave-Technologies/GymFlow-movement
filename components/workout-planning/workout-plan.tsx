@@ -3,6 +3,7 @@
 import { v4 as uuidv4 } from "uuid";
 
 import { useEffect, useState } from "react";
+import WorkoutPlanCsvImportExport from "./workout-plan-csv-import-export";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 // Table components are now used in ExerciseTableInline component
@@ -1273,6 +1274,16 @@ export default function WorkoutPlanner({
                         </TooltipTrigger>
                         <TooltipContent>Save all changes</TooltipContent>
                     </Tooltip>
+                    
+                    {/* CSV Import/Export Component */}
+                    <WorkoutPlanCsvImportExport 
+                        phases={phases} 
+                        onImport={(importedPhases) => {
+                            updatePhases(importedPhases);
+                            setHasUnsavedChanges(true);
+                        }}
+                        clientId={client_id}
+                    />
                     {hasUnsavedChanges && (
                         <span className="ml-2 text-yellow-600 font-medium text-sm">
                             * You have unsaved changes
