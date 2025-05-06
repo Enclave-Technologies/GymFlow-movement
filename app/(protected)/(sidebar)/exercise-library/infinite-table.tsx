@@ -24,6 +24,7 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import CompactTableOperations from "@/components/ui/compact-table-operations";
+import { bulkApproveExercises } from "@/actions/exercise_actions";
 // import { bulkDeleteExercises } from "@/actions/exercise_actions";
 
 interface InfiniteTableProps {
@@ -49,19 +50,11 @@ export function InfiniteTable({
     // Mutation for bulk approve
     const { mutate: bulkApprove } = useMutation({
         mutationFn: async (exerciseIds: string[]) => {
-            // This would be replaced with an actual server action
-            console.log(`Bulk approving exercises: ${exerciseIds.join(", ")}`);
-
-            // Simulate API call with a delay
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            // Return a success response
-            return {
-                success: true,
-                message: `Successfully approved ${exerciseIds.length} exercise${
-                    exerciseIds.length !== 1 ? "s" : ""
-                }`,
-            };
+            const result = await bulkApproveExercises(exerciseIds);
+            if (!result.success) {
+                throw new Error(result.message);
+            }
+            return result;
         },
         onSuccess: (data) => {
             toast.success(data.message);

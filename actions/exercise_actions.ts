@@ -350,6 +350,36 @@ export async function updateExercise(
   }
 }
 
+// New function to update approval status only
+export async function updateExerciseApprovalStatus(
+  exerciseId: string,
+  approvedByAdmin: boolean
+) {
+  await requireTrainerOrAdmin();
+  try {
+    const exercise = await db
+      .update(Exercises)
+      .set({ approvedByAdmin })
+      .where(eq(Exercises.exerciseId, exerciseId))
+      .returning();
+
+    if (!exercise.length) {
+      throw new Error("Exercise not found");
+    }
+
+    return {
+      success: true,
+      data: exercise[0],
+    };
+  } catch (error) {
+    console.error("Error updating exercise approval status:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 export async function bulkDeleteExercises(exerciseIds: string[]) {
   await requireTrainerOrAdmin();
 
@@ -378,6 +408,42 @@ export async function bulkDeleteExercises(exerciseIds: string[]) {
     return {
       success: false,
       message: `Error deleting exercises: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      count: 0,
+    };
+  }
+}
+
+export async function bulkApproveExercises(exerciseIds: string[]) {
+  await requireTrainerOrAdmin();
+
+  if (!exerciseIds.length) {
+    return {
+      success: false,
+      message: "No exercise IDs provided",
+      count: 0,
+    };
+  }
+
+  try {
+    const result = await db
+      .update(Exercises)
+      .set({ approvedByAdmin: true })
+      .where(inArray(Exercises.exerciseId, exerciseIds))
+      .returning();
+
+    return {
+      success: true,
+      message: `Successfully approved ${result.length} exercise${
+        result.length !== 1 ? "s" : ""
+      }`,
+      count: result.length,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Error approving exercises: ${
         error instanceof Error ? error.message : String(error)
       }`,
       count: 0,
