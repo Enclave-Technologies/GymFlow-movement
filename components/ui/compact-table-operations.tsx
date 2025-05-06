@@ -227,7 +227,7 @@ export default function CompactTableOperations<TData, TValue>({
     };
 
     const applyFilter = () => {
-        if (selectedFilterColumn && filterValue) {
+        if (selectedFilterColumn) {
             onFilterChange?.(selectedFilterColumn, filterValue);
             setFilterPopoverOpen(false);
         }
@@ -433,11 +433,22 @@ export default function CompactTableOperations<TData, TValue>({
                                                 }...`}
                                                 className="h-8 pr-8"
                                                 value={filterValue}
-                                                onChange={(e) =>
-                                                    setFilterValue(
-                                                        e.target.value
-                                                    )
-                                                }
+                                                onChange={(e) => {
+                                                    const newValue =
+                                                        e.target.value;
+                                                    setFilterValue(newValue);
+
+                                                    // If the input is cleared, immediately apply the empty filter
+                                                    if (
+                                                        !newValue &&
+                                                        selectedFilterColumn
+                                                    ) {
+                                                        onFilterChange?.(
+                                                            selectedFilterColumn,
+                                                            ""
+                                                        );
+                                                    }
+                                                }}
                                                 onKeyDown={(e) => {
                                                     if (e.key === "Enter") {
                                                         applyFilter();
