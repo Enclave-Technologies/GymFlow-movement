@@ -439,19 +439,31 @@ export async function updateCoach(
         }
 
         // Update in database
-        await db
-            .update(Users)
-            .set({
-                fullName: coachData.fullName,
-                email: coachData.email || null,
-                phone: coachData.phoneNumber || null,
-                notes: coachData.notes || null,
-                gender: coachData.gender || null,
-                jobTitle: coachData.jobTitle || null,
-                address: coachData.address || null,
-                dob: coachData.dateOfBirth || null,
-            })
-            .where(eq(Users.userId, coachId));
+        const updateFields: Record<string, unknown> = {};
+
+        // Only include fields that are explicitly provided
+        if (coachData.fullName !== undefined)
+            updateFields.fullName = coachData.fullName;
+        if (coachData.email !== undefined) updateFields.email = coachData.email;
+        if (coachData.phoneNumber !== undefined)
+            updateFields.phone = coachData.phoneNumber;
+        if (coachData.notes !== undefined) updateFields.notes = coachData.notes;
+        if (coachData.gender !== undefined)
+            updateFields.gender = coachData.gender;
+        if (coachData.jobTitle !== undefined)
+            updateFields.jobTitle = coachData.jobTitle;
+        if (coachData.address !== undefined)
+            updateFields.address = coachData.address;
+        if (coachData.dateOfBirth !== undefined)
+            updateFields.dob = coachData.dateOfBirth;
+
+        // Only perform update if there are fields to update
+        if (Object.keys(updateFields).length > 0) {
+            await db
+                .update(Users)
+                .set(updateFields)
+                .where(eq(Users.userId, coachId));
+        }
 
         const updatedCoach = await getCoachById(coachId);
 
