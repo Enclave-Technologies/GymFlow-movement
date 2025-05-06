@@ -9,11 +9,19 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Download, Upload } from "lucide-react";
+import {
+    AlertCircle,
+    // BicepsFlexed,
+    Download,
+    Dumbbell,
+    SquareDashedKanban,
+    Upload,
+} from "lucide-react";
 import { Phase } from "./types";
 import {
     downloadWorkoutPlanCsv,
     importWorkoutPlanFromCsv,
+    downloadExercisesCsv,
 } from "./workout-plan-csv";
 import { toast } from "sonner";
 import type { SelectExercise } from "@/db/schemas";
@@ -133,11 +141,27 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
                 <Link
                     href="/templates/workout-plan-template.csv"
                     download
-                    className="inline-flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10"
+                    className="inline-flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors h-10 shadow-sm"
                 >
-                    <Download className="h-3 w-3" />
+                    <SquareDashedKanban className="h-4 w-4" />
                     Template
                 </Link>
+                {exercises.length > 0 && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                            downloadExercisesCsv(
+                                exercises,
+                                `exercises-${clientId}.csv`
+                            )
+                        }
+                        className="flex items-center gap-2 h-10"
+                    >
+                        <Dumbbell className="h-4 w-4" />
+                        Export Exercises CSV
+                    </Button>
+                )}
             </div>
 
             {error && (
