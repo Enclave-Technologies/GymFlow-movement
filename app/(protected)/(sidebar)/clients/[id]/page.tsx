@@ -108,42 +108,65 @@ export default async function ClientProfilePage({ params }: PageProps) {
                         </div>
                     </div>
                 </Card>
-                <Card className="relative overflow-hidden p-2 md:col-span-3 flex flex-col justify-end h-48 border border-muted rounded-lg shadow-sm">
-                    <div className="mb-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                            <div>
-                                <span className="text-xs text-muted-foreground">
-                                    Ideal Weight
-                                </span>
-                                <div className="text-base font-medium text-foreground">
-                                    {client.idealWeight !== null &&
-                                    client.idealWeight !== undefined
-                                        ? `${client.idealWeight} kg`
-                                        : "- -"}
+                <Card className="relative overflow-hidden p-4 md:col-span-3 flex flex-col border border-muted rounded-lg shadow-sm min-h-[12rem] max-h-[20rem]">
+                    <div className="flex flex-col h-full">
+                        {/* Client info grid */}
+                        <div className="mb-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <span className="text-xs text-muted-foreground">
+                                        Ideal Weight
+                                    </span>
+                                    <div className="text-base font-medium text-foreground">
+                                        {client.idealWeight !== null &&
+                                        client.idealWeight !== undefined
+                                            ? `${client.idealWeight} kg`
+                                            : "- -"}
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <span className="text-xs text-muted-foreground">
-                                    Emergency Contact Name
-                                </span>
-                                <div className="text-base font-medium text-foreground">
-                                    {client.emergencyContactName || "- -"}
+                                <div>
+                                    <span className="text-xs text-muted-foreground">
+                                        Emergency Contact Name
+                                    </span>
+                                    <div className="text-base font-medium text-foreground truncate">
+                                        {client.emergencyContactName || "- -"}
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <span className="text-xs text-muted-foreground">
-                                    Emergency Contact Phone
-                                </span>
-                                <div className="text-base font-medium text-foreground">
-                                    {client.emergencyContactPhone || "- -"}
+                                <div>
+                                    <span className="text-xs text-muted-foreground">
+                                        Emergency Contact Phone
+                                    </span>
+                                    <div className="text-base font-medium text-foreground truncate">
+                                        {client.emergencyContactPhone || "- -"}
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
+                        {/* Notes section */}
+                        <div className="flex-grow overflow-hidden">
+                            <div className="text-sm font-medium text-muted-foreground mb-1">
+                                Notes
+                            </div>
+                            <div className="text-foreground text-sm overflow-y-auto break-words max-h-32 p-2 border border-muted rounded-md bg-muted">
+                                {client.notes || "No notes available"}
+                            </div>
+                        </div>
+
+                        {/* Edit button - positioned at bottom right */}
+                        <div className="flex justify-end mt-auto pt-2">
+                            <Link href={`/edit-client?id=${client.userId}`}>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 cursor-pointer"
+                                >
+                                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                                    Edit
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
-                    <div className="text-sm font-medium text-muted-foreground mb-2">
-                        Notes
-                    </div>
-                    <p className="text-foreground text-base">{client.notes}</p>
                 </Card>
 
                 <Card className="flex flex-col justify-center p-3 md:col-span-1 h-48">
