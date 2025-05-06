@@ -106,6 +106,10 @@ export default function AddExerciseForm({
     videoUrl: existingExercise?.videoUrl || "",
     motion: existingExercise?.motion || "",
     targetArea: existingExercise?.targetArea || "",
+    movementType:
+      existingExercise?.movementType ||
+      ("" as "bilateral" | "unilateral" | "compound" | "isolation"),
+    timeMultiplier: existingExercise?.timeMultiplier || 1.0,
   });
 
   const handleChange = (
@@ -117,12 +121,24 @@ export default function AddExerciseForm({
       [name]: value,
     }));
   };
-
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      if (name === "movementType") {
+        return {
+          ...prev,
+          [name]: value as
+            | "bilateral"
+            | "unilateral"
+            | "compound"
+            | "isolation",
+          timeMultiplier: value === "unilateral" ? 2.0 : 1.0,
+        };
+      }
+      return {
+        ...prev,
+        [name]: value,
+      };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -155,7 +171,6 @@ export default function AddExerciseForm({
       );
       // Invalidate the exercise library query cache to ensure fresh data is fetched
       queryClient.invalidateQueries({ queryKey: ["tableData"] });
-      
       router.push("/exercise-library");
       router.refresh();
     } catch (error) {
@@ -295,7 +310,7 @@ export default function AddExerciseForm({
         );
         // Invalidate the exercise library query cache to ensure fresh data is fetched
         queryClient.invalidateQueries({ queryKey: ["tableData"] });
-        
+
         router.push("/exercise-library");
         router.refresh();
       }
@@ -410,16 +425,38 @@ export default function AddExerciseForm({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="videoUrl">Video URL</Label>
-              <Input
-                id="videoUrl"
-                name="videoUrl"
-                value={formData.videoUrl}
-                onChange={handleChange}
-                placeholder="Enter video URL"
-                type="url"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="videoUrl">Video URL</Label>
+                <Input
+                  id="videoUrl"
+                  name="videoUrl"
+                  value={formData.videoUrl}
+                  onChange={handleChange}
+                  placeholder="Enter video URL"
+                  type="url"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="movementType">Movement Type</Label>
+                <Select
+                  value={formData.movementType}
+                  onValueChange={(value) =>
+                    handleSelectChange("movementType", value)
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select movement type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bilateral">Bilateral</SelectItem>
+                    <SelectItem value="unilateral">Unilateral</SelectItem>
+                    <SelectItem value="compound">Compound</SelectItem>
+                    <SelectItem value="isolation">Isolation</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-4">
@@ -537,7 +574,6 @@ export default function AddExerciseForm({
                     setShowResultsDialog(false);
                     // Invalidate the exercise library query cache to ensure fresh data is fetched
                     queryClient.invalidateQueries({ queryKey: ["tableData"] });
-                    
                     router.push("/exercise-library");
                     router.refresh();
                   }}

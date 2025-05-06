@@ -26,7 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, Eye, UserX, UserCog } from "lucide-react";
+import { MoreHorizontal, Eye, UserX, UserCog, Edit } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { switchClientCoach } from "@/actions/client_actions";
@@ -233,11 +233,6 @@ export function TrainerCell({
 
 // Component for the Actions cell
 function ActionsCell({ userId }: { userId: string }) {
-    const handleViewProfile = () => {
-        // TODO: Implement view profile logic, e.g. navigate to profile page
-        console.log(`View profile for user ${userId}`);
-    };
-
     const handleDeleteUser = () => {
         // TODO: Implement delete user logic, e.g. API call with confirmation
         console.log(`Delete user ${userId}`);
@@ -246,18 +241,32 @@ function ActionsCell({ userId }: { userId: string }) {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
+                <Button variant="ghost" className="h-8 w-8 p-0 cursor-pointer">
                     <span className="sr-only">Open menu</span>
                     <MoreHorizontal className="h-4 w-4" />
                 </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleViewProfile}>
-                    <Eye className="mr-2 h-4 w-4" /> View Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDeleteUser}>
+
+                <Link href={`/clients/${userId}`}>
+                    <DropdownMenuItem className="cursor-pointer">
+                        <Eye className="mr-2 h-4 w-4" /> View Profile
+                    </DropdownMenuItem>
+                </Link>
+
+                <Link href={`/edit-client?id=${userId}`}>
+                    <DropdownMenuItem className="cursor-pointer">
+                        <Edit className="mr-2 h-4 w-4" /> Edit Client
+                    </DropdownMenuItem>
+                </Link>
+
+                <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={handleDeleteUser}
+                >
                     <UserX className="mr-2 h-4 w-4" /> Delete User
                 </DropdownMenuItem>
             </DropdownMenuContent>
@@ -460,13 +469,17 @@ export const columns: ColumnDef<Client>[] = [
                 (
                     table.options.meta as {
                         coaches?: { userId: string; fullName: string }[];
-                        setRefreshState: () => null;
+                        setRefreshState: React.Dispatch<
+                            React.SetStateAction<boolean>
+                        >;
                     }
                 )?.coaches || [];
             const setRefreshState = (
                 table.options.meta as {
                     coaches?: { userId: string; fullName: string }[];
-                    setRefreshState: () => null;
+                    setRefreshState: React.Dispatch<
+                        React.SetStateAction<boolean>
+                    >;
                 }
             )?.setRefreshState;
             return (

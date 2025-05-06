@@ -10,9 +10,10 @@ import { InfiniteTable } from "../../my-clients/infinite-table";
 import { columns } from "../../my-clients/columns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, Calendar, Pencil } from "lucide-react";
+import { User, Mail, Phone, Calendar, Pencil, Cake } from "lucide-react";
 import { safeImageUrl } from "@/lib/utils";
 import Image from "next/image";
+import Link from "next/link";
 
 export default async function TrainerProfilePage({
     params,
@@ -78,6 +79,18 @@ export default async function TrainerProfilePage({
         }
     }
 
+    // Calculate age if DOB is available
+    let age = null;
+    if (trainerData.dob) {
+        const today = new Date();
+        const birthDate = new Date(trainerData.dob);
+        age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+    }
+
     const getInitials = (name: string) => {
         return name
             .split(" ")
@@ -134,59 +147,99 @@ export default async function TrainerProfilePage({
 
                 {/* Details (2/3 width) */}
                 <Card className="flex flex-col justify-center p-6 md:col-span-2">
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <Mail className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                                <div className="text-sm font-medium">Email</div>
-                                <div className="text-sm text-muted-foreground">
-                                    {trainerData.email || "- -"}
+                    <CardContent className="p-0">
+                        {/* Use grid for layout with responsive columns */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                            {/* Email */}
+                            <div className="flex items-center gap-3">
+                                <Mail className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium">
+                                        Email
+                                    </div>
+                                    <div className="text-sm text-muted-foreground truncate">
+                                        {trainerData.email || "- -"}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Phone */}
+                            <div className="flex items-center gap-3">
+                                <Phone className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium">
+                                        Phone
+                                    </div>
+                                    <div className="text-sm text-muted-foreground truncate">
+                                        {trainerData.phone || "- -"}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Gender */}
+                            <div className="flex items-center gap-3">
+                                <User className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium">
+                                        Gender
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                        {formatGender(trainerData.gender)}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Age */}
+                            <div className="flex items-center gap-3">
+                                <Cake className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium">
+                                        Age
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                        {age !== null
+                                            ? `${age} years`
+                                            : "Not specified"}
+                                    </div>
+                                    {trainerData.dob && (
+                                        <div className="text-xs text-muted-foreground">
+                                            {new Date(
+                                                trainerData.dob
+                                            ).toLocaleDateString(undefined, {
+                                                year: "numeric",
+                                                month: "long",
+                                                day: "numeric",
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Joined - spans full width on all screens */}
+                            <div className="flex items-center gap-3 col-span-1 sm:col-span-2">
+                                <Calendar className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium">
+                                        Joined
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                        {registrationDate}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {timeWithMovement} with Movement
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <Phone className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                                <div className="text-sm font-medium">Phone</div>
-                                <div className="text-sm text-muted-foreground">
-                                    {trainerData.phone || "- -"}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <User className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                                <div className="text-sm font-medium">
-                                    Gender
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                    {formatGender(trainerData.gender)}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Calendar className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                                <div className="text-sm font-medium">
-                                    Joined
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                    {registrationDate}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                    {timeWithMovement} with Movement
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex gap-2 mt-4">
-                            <Button variant="outline" size="sm">
-                                <Pencil className="h-4 w-4 mr-2" />
-                                Edit Profile
-                            </Button>
-                            {/* <Button variant="destructive" size="sm">
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                            </Button> */}
+
+                        {/* Buttons - always full width */}
+                        <div className="flex gap-2 mt-6">
+                            <Link href={`/edit-trainer?id=${userId}`}>
+                                <Button variant="outline" size="sm">
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Edit Profile
+                                </Button>
+                            </Link>
                         </div>
                     </CardContent>
                 </Card>

@@ -18,6 +18,7 @@ import { Calendar, Mail, Pencil, Phone, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ClientTabs from "@/components/client-tabs/client-tabs";
 import { safeImageUrl } from "@/lib/utils";
+import Link from "next/link";
 
 type PageProps = {
     params: Promise<{
@@ -220,10 +221,16 @@ export default async function ClientProfilePage({ params }: PageProps) {
                             </div>
                         </div>
                         <div className="flex justify-center mt-2">
-                            <Button variant="outline" size="sm" className="h-8">
-                                <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                                Edit
-                            </Button>
+                            <Link href={`/edit-client?id=${client.userId}`}>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 cursor-pointer"
+                                >
+                                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                                    Edit
+                                </Button>
+                            </Link>
                         </div>
                     </CardContent>
                 </Card>
