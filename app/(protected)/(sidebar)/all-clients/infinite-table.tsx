@@ -10,6 +10,7 @@ import {
     useInfiniteQuery,
     useQueryClient,
     useMutation,
+    keepPreviousData,
 } from "@tanstack/react-query";
 import { bulkDeleteClientRelationships } from "@/actions/client_actions";
 import { toast } from "sonner";
@@ -107,10 +108,10 @@ export function InfiniteTable({
                 // This will be 1, 2, 3, etc. as pages are added
                 return allPages.length;
             },
-            refetchOnWindowFocus: true,
+            refetchOnWindowFocus: false,
             refetchOnMount: true,
             staleTime: 60 * 1000,
-            // placeholderData: keepPreviousData,
+            placeholderData: keepPreviousData,
         });
 
     // Flatten the data from all pages
