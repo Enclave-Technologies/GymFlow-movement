@@ -1,5 +1,6 @@
 import { Phase, Session, Exercise } from "./types";
 import { v4 as uuidv4 } from "uuid";
+import type { SelectExercise } from "@/db/schemas";
 
 // Define the CSV column structure
 export interface WorkoutPlanCsvRow {
@@ -77,9 +78,13 @@ export function exportWorkoutPlanToCsv(phases: Phase[]): string {
 /**
  * Parses a CSV string into workout plan data
  * @param csvContent The CSV content to parse
+ * @param exercisesList Optional list of exercises to match descriptions with
  * @returns Structured workout plan phases
  */
-export function importWorkoutPlanFromCsv(csvContent: string): Phase[] {
+export function importWorkoutPlanFromCsv(
+    csvContent: string,
+    exercisesList?: SelectExercise[]
+): Phase[] {
     // Split CSV into lines
     const lines = csvContent.split(/\r?\n/);
 
@@ -109,7 +114,13 @@ export function importWorkoutPlanFromCsv(csvContent: string): Phase[] {
     // Parse data rows
     const dataRows = lines.slice(1).filter((line) => line.trim() !== "");
     const csvRows: WorkoutPlanCsvRow[] = dataRows.map((line) => {
+        // Skip completely empty rows
+        if (line.trim() === "") return null;
+
         const values = line.split(",");
+
+        // Skip rows that don't have enough data
+        if (values.length < 4) return null;
         // Create a properly typed row object
         const row: Partial<WorkoutPlanCsvRow> = {};
 
@@ -174,18 +185,22 @@ export function importWorkoutPlanFromCsv(csvContent: string): Phase[] {
             RestMax: row.RestMax || "",
             Customizations: row.Customizations || "",
         };
-    });
+    }).filter((row): row is WorkoutPlanCsvRow => row !== null);
 
     // Convert CSV rows to phases structure
-    return convertCsvRowsToPhases(csvRows);
+    return convertCsvRowsToPhases(csvRows, exercisesList);
 }
 
 /**
  * Converts CSV rows to workout plan phases
  * @param csvRows The CSV rows to convert
+ * @param exercisesList Optional list of exercises to match descriptions with
  * @returns Structured workout plan phases
  */
-function convertCsvRowsToPhases(csvRows: WorkoutPlanCsvRow[]): Phase[] {
+function convertCsvRowsToPhases(
+    csvRows: WorkoutPlanCsvRow[],
+    exercisesList?: SelectExercise[]
+): Phase[] {
     const phases: Phase[] = [];
     const phaseMap = new Map<string, Phase>();
     const sessionMap = new Map<string, Session>();
@@ -225,12 +240,66 @@ function convertCsvRowsToPhases(csvRows: WorkoutPlanCsvRow[]): Phase[] {
         }
 
         // Create exercise
+        let motion = "";
+        let targetArea = "";
+        let exerciseId = "";
+
+        // Try to find matching exercise in the exercises list
+        if (
+            exercisesList &&
+            Array.isArray(exercisesList) &&
+            exercisesList.length > 0
+        ) {
+            // First try exact match (case-insensitive)
+            let matchingExercise = exercisesList.find(
+                (ex) =>
+                    ex.exerciseName &&
+                    ex.exerciseName.toLowerCase().trim() ===
+                        row.ExerciseDescription.toLowerCase().trim()
+            );
+
+            // If no exact match, try partial match
+            if (!matchingExercise) {
+                matchingExercise = exercisesList.find(
+                    (ex) =>
+                        ex.exerciseName &&
+                        row.ExerciseDescription.toLowerCase().includes(
+                            ex.exerciseName.toLowerCase()
+                        )
+                );
+            }
+
+            // If still no match, try the other way around
+            if (!matchingExercise) {
+                matchingExercise = exercisesList.find(
+                    (ex) =>
+                        ex.exerciseName &&
+                        ex.exerciseName
+                            .toLowerCase()
+                            .includes(row.ExerciseDescription.toLowerCase())
+                );
+            }
+
+            if (matchingExercise) {
+                console.log(
+                    `Matched exercise: "${row.ExerciseDescription}" with "${matchingExercise.exerciseName}"`
+                );
+                motion = matchingExercise.motion || "";
+                targetArea = matchingExercise.targetArea || "";
+                exerciseId = matchingExercise.exerciseId || "";
+            } else {
+                console.log(
+                    `No match found for exercise: "${row.ExerciseDescription}"`
+                );
+            }
+        }
+
         const exercise: Exercise = {
             id: uuidv4(),
             order: row.ExerciseOrder,
-            motion: "", // Will be populated from exercise database if available
-            targetArea: "", // Will be populated from exercise database if available
-            exerciseId: "", // Will be populated from exercise database if available
+            motion: motion,
+            targetArea: targetArea,
+            exerciseId: exerciseId,
             description: row.ExerciseDescription,
             setsMin: row.SetsMin,
             setsMax: row.SetsMax,

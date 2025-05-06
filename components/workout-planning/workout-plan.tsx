@@ -1274,15 +1274,16 @@ export default function WorkoutPlanner({
                         </TooltipTrigger>
                         <TooltipContent>Save all changes</TooltipContent>
                     </Tooltip>
-                    
+
                     {/* CSV Import/Export Component */}
-                    <WorkoutPlanCsvImportExport 
-                        phases={phases} 
+                    <WorkoutPlanCsvImportExport
+                        phases={phases}
                         onImport={(importedPhases) => {
                             updatePhases(importedPhases);
                             setHasUnsavedChanges(true);
                         }}
                         clientId={client_id}
+                        exercises={exercises}
                     />
                     {hasUnsavedChanges && (
                         <span className="ml-2 text-yellow-600 font-medium text-sm">
