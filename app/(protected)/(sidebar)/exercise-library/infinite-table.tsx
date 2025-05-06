@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import * as React from "react";
+import { useRouter } from "next/navigation";
 
 import { useTableActions } from "@/hooks/use-table-actions";
 import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
@@ -36,6 +37,7 @@ export function InfiniteTable({
     columns,
     queryId = "default",
 }: InfiniteTableProps) {
+    const router = useRouter();
     // Reference to the scrolling element
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
     const [rowSelection, setRowSelection] = React.useState({});
@@ -296,8 +298,7 @@ export function InfiniteTable({
                 }}
                 showNewButton={true}
                 onNewClick={() => {
-                    console.log("New button clicked");
-                    // In a real application, you might want to navigate to a create form or open a modal
+                    router.push("/exercise");
                 }}
                 selectedRows={selectedRows}
                 showDeleteButton={true}
