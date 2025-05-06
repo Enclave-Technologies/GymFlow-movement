@@ -122,6 +122,7 @@ export default function WorkoutPlanner({ client_id }: { client_id: string }) {
                                         order: e.order || "",
                                         motion: e.motion || "",
                                         targetArea: e.targetArea || "",
+                                        exerciseId: e.exerciseId || "",
                                         description: e.description || "",
                                         // Include additional properties if they exist
                                         ...(e.sets && { sets: e.sets }),

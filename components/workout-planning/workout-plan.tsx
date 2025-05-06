@@ -3,6 +3,7 @@
 import { v4 as uuidv4 } from "uuid";
 
 import { useEffect, useState } from "react";
+import WorkoutPlanCsvImportExport from "./workout-plan-csv-import-export";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 // Table components are now used in ExerciseTableInline component
@@ -32,8 +33,10 @@ import {
     updateWorkoutPlan,
     updatePhaseActivation,
     createWorkoutPlan,
-    updateSessionOrder, // <-- Import the new action
+    updateSessionOrder,
+    applyWorkoutPlanChanges, // <-- Import the optimized action
 } from "@/actions/workout_plan_actions";
+import { WorkoutPlanChangeTracker } from "./change-tracker";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { DndProvider } from "react-dnd";
@@ -59,6 +62,7 @@ type WorkoutPlanResponse = {
                 order: string;
                 motion: string | null;
                 targetArea: string | null;
+                exerciseId: string | null;
                 description: string | null;
                 duration?: number;
                 sets?: string;
@@ -100,6 +104,7 @@ export default function WorkoutPlanner({
     const [lastKnownUpdatedAt, setLastKnownUpdatedAt] = useState<Date | null>(
         null
     );
+    const [savePerformed, setSavePerformed] = useState<number>(0); // Counter to trigger refetch after save
     const [conflictError, setConflictError] = useState<{
         message: string;
         serverTime: Date;
@@ -115,6 +120,10 @@ export default function WorkoutPlanner({
     const [startingSessionId, setStartingSessionId] = useState<string | null>(
         null
     );
+
+    // Change tracker for efficient updates
+    const [changeTracker, setChangeTracker] =
+        useState<WorkoutPlanChangeTracker | null>(null);
     // These states are no longer needed as dialog is removed
     // but we're keeping the interface for now to avoid breaking changes
 
@@ -127,7 +136,10 @@ export default function WorkoutPlanner({
             setIsLoading(true);
             try {
                 const response = await getWorkoutPlanByClientId(client_id);
-                console.log("Fetched workout plan (raw):", response);
+                console.log(
+                    "Fetched workout plan (raw):",
+                    JSON.stringify(response, null, 2)
+                );
 
                 // If no plan exists yet or empty array is returned
                 if (
@@ -135,6 +147,8 @@ export default function WorkoutPlanner({
                     (Array.isArray(response) && response.length === 0)
                 ) {
                     setPhases([]);
+                    // Initialize change tracker with empty phases
+                    setChangeTracker(new WorkoutPlanChangeTracker([]));
                     return;
                 }
 
@@ -171,6 +185,7 @@ export default function WorkoutPlanner({
                                     order: e.order || "",
                                     motion: e.motion || "",
                                     targetArea: e.targetArea || "",
+                                    exerciseId: e.exerciseId || "",
                                     description: e.description || "",
                                     duration:
                                         typeof e.duration === "number"
@@ -217,19 +232,156 @@ export default function WorkoutPlanner({
 
                 console.log(
                     "Mapped workout plan (frontend structure):",
-                    mapped
+                    JSON.stringify(mapped, null, 2)
                 );
-                setPhases(mapped);
+                updatePhases(mapped);
+
+                // Initialize change tracker with the fetched phases
+                setChangeTracker(new WorkoutPlanChangeTracker(mapped));
             } catch (error) {
                 console.error("Error fetching workout plan:", error);
                 // Fallback to empty data
-                setPhases([]);
+                updatePhases([]);
+                // Initialize change tracker with empty phases
+                setChangeTracker(new WorkoutPlanChangeTracker([]));
             } finally {
                 setIsLoading(false);
             }
         }
         getWorkout();
     }, [client_id]);
+
+    // Removed auto-save functionality to ensure all saves are performed by the Save All button
+
+    // Refetch data when savePerformed changes (after successful save)
+    useEffect(() => {
+        if (savePerformed > 0) {
+            const refetchWorkout = async () => {
+                try {
+                    const response = await getWorkoutPlanByClientId(client_id);
+                    if (
+                        response &&
+                        "planId" in response &&
+                        "updatedAt" in response
+                    ) {
+                        setPlanId(response.planId);
+                        setLastKnownUpdatedAt(new Date(response.updatedAt));
+
+                        // Map the phases from the response
+                        const mapped = (
+                            response as WorkoutPlanResponse
+                        ).phases.map((phase) => ({
+                            id: phase.id,
+                            name: phase.name,
+                            isActive: phase.isActive,
+                            isExpanded: phase.isExpanded,
+                            sessions: phase.sessions.map((session) => {
+                                // Map exercises with safe defaults and include all fields
+                                const exercises = session.exercises?.map(
+                                    (e) => {
+                                        if (
+                                            !e.id ||
+                                            !e.order ||
+                                            !e.motion ||
+                                            !e.targetArea ||
+                                            !e.description
+                                        ) {
+                                            console.warn(
+                                                "Missing required exercise properties",
+                                                e
+                                            );
+                                        }
+                                        const exercise: Exercise = {
+                                            id: e.id || uuidv4(),
+                                            order: e.order || "",
+                                            motion: e.motion || "",
+                                            targetArea: e.targetArea || "",
+                                            exerciseId: e.exerciseId || "",
+                                            description: e.description || "",
+                                            duration:
+                                                typeof e.duration === "number"
+                                                    ? e.duration
+                                                    : 8,
+                                            // Include all possible fields from Exercise interface
+                                            sets: e.sets ?? "",
+                                            reps: e.reps ?? "",
+                                            tut: e.tut ?? "",
+                                            tempo: e.tempo ?? "",
+                                            rest: e.rest ?? "",
+                                            additionalInfo:
+                                                e.additionalInfo ?? "",
+                                            setsMin: e.setsMin ?? "",
+                                            setsMax: e.setsMax ?? "",
+                                            repsMin: e.repsMin ?? "",
+                                            repsMax: e.repsMax ?? "",
+                                            restMin: e.restMin ?? "",
+                                            restMax: e.restMax ?? "",
+                                            // Map additionalInfo to customizations for backend
+                                            customizations:
+                                                e.additionalInfo ?? "",
+                                        };
+
+                                        return exercise;
+                                    }
+                                );
+
+                                // Calculate total session duration
+                                const calculatedDuration =
+                                    exercises?.reduce(
+                                        (total: number, ex: Exercise) =>
+                                            total + (ex.duration || 8),
+                                        0
+                                    ) || 0;
+
+                                return {
+                                    id: session.id || uuidv4(),
+                                    name: session.name || "Unnamed Session",
+                                    duration: calculatedDuration,
+                                    isExpanded: Boolean(session.isExpanded),
+                                    exercises: exercises || [],
+                                };
+                            }),
+                        }));
+
+                        updatePhases(mapped);
+
+                        // Reset the change tracker with the fetched phases
+                        if (changeTracker) {
+                            changeTracker.reset(mapped);
+                        } else {
+                            setChangeTracker(
+                                new WorkoutPlanChangeTracker(mapped)
+                            );
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error refetching workout plan:", error);
+                }
+            };
+
+            refetchWorkout();
+        }
+    }, [savePerformed, client_id]);
+
+    // Custom setPhases function that also updates the change tracker
+    const updatePhases = (
+        newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
+    ) => {
+        setPhases((prevPhases) => {
+            // Handle both direct value and function updates
+            const updatedPhases =
+                typeof newPhases === "function"
+                    ? newPhases(prevPhases)
+                    : newPhases;
+
+            // Update the change tracker if it exists
+            if (changeTracker) {
+                changeTracker.updateCurrentState(updatedPhases);
+            }
+
+            return updatedPhases;
+        });
+    };
 
     // ===== Global Save =====
     const saveAll = async () => {
@@ -252,12 +404,50 @@ export default function WorkoutPlanner({
                 if (result.success && result.planId && result.updatedAt) {
                     setPlanId(result.planId);
                     setLastKnownUpdatedAt(new Date(result.updatedAt));
+
+                    // Reset the change tracker with the current phases
+                    if (changeTracker) {
+                        changeTracker.reset(phases);
+                    }
                 }
             } else {
-                // Update existing plan
-                result = await updateWorkoutPlan(planId, lastKnownUpdatedAt, {
-                    phases,
-                });
+                // Get changes from the change tracker
+                const changes = changeTracker
+                    ? changeTracker.getChanges()
+                    : null;
+
+                if (
+                    changes &&
+                    (changes.created.phases.length > 0 ||
+                        changes.created.sessions.length > 0 ||
+                        changes.created.exercises.length > 0 ||
+                        changes.updated.phases.length > 0 ||
+                        changes.updated.sessions.length > 0 ||
+                        changes.updated.exercises.length > 0 ||
+                        changes.deleted.phases.length > 0 ||
+                        changes.deleted.sessions.length > 0 ||
+                        changes.deleted.exercises.length > 0)
+                ) {
+                    // Use the optimized action that only sends changes
+                    console.log("Applying changes:", changes);
+                    result = await applyWorkoutPlanChanges(
+                        planId,
+                        lastKnownUpdatedAt,
+                        changes
+                    );
+                } else {
+                    // Fallback to full update if no changes detected or change tracker not available
+                    console.log(
+                        "No changes detected or change tracker not available, using full update"
+                    );
+                    result = await updateWorkoutPlan(
+                        planId,
+                        lastKnownUpdatedAt,
+                        {
+                            phases,
+                        }
+                    );
+                }
             }
 
             if (result.success) {
@@ -266,112 +456,18 @@ export default function WorkoutPlanner({
                 // Clear any previous conflict errors
                 setConflictError(null);
 
-                // Force a refetch of the workout plan to ensure we have the latest data
-                const refetchWorkout = async () => {
-                    try {
-                        const response = await getWorkoutPlanByClientId(
-                            client_id
-                        );
-                        if (
-                            response &&
-                            "planId" in response &&
-                            "updatedAt" in response
-                        ) {
-                            setPlanId(response.planId);
-                            setLastKnownUpdatedAt(new Date(response.updatedAt));
+                // Update the last known timestamp
+                if (result.updatedAt) {
+                    setLastKnownUpdatedAt(new Date(result.updatedAt));
+                }
 
-                            // Map the phases from the response
-                            const mapped = (
-                                response as WorkoutPlanResponse
-                            ).phases.map(
-                                // ... (same mapping logic as in the useEffect)
-                                (phase) => ({
-                                    id: phase.id,
-                                    name: phase.name,
-                                    isActive: phase.isActive,
-                                    isExpanded: phase.isExpanded,
-                                    sessions: phase.sessions.map((session) => {
-                                        // Map exercises with safe defaults and include all fields
-                                        const exercises =
-                                            session.exercises?.map((e) => {
-                                                if (
-                                                    !e.id ||
-                                                    !e.order ||
-                                                    !e.motion ||
-                                                    !e.targetArea ||
-                                                    !e.description
-                                                ) {
-                                                    console.warn(
-                                                        "Missing required exercise properties",
-                                                        e
-                                                    );
-                                                }
-                                                const exercise: Exercise = {
-                                                    id: e.id || uuidv4(),
-                                                    order: e.order || "",
-                                                    motion: e.motion || "",
-                                                    targetArea:
-                                                        e.targetArea || "",
-                                                    description:
-                                                        e.description || "",
-                                                    duration:
-                                                        typeof e.duration ===
-                                                        "number"
-                                                            ? e.duration
-                                                            : 8,
-                                                    // Include all possible fields from Exercise interface
-                                                    sets: e.sets ?? "",
-                                                    reps: e.reps ?? "",
-                                                    tut: e.tut ?? "",
-                                                    tempo: e.tempo ?? "",
-                                                    rest: e.rest ?? "",
-                                                    additionalInfo:
-                                                        e.additionalInfo ?? "",
-                                                    setsMin: e.setsMin ?? "",
-                                                    setsMax: e.setsMax ?? "",
-                                                    repsMin: e.repsMin ?? "",
-                                                    repsMax: e.repsMax ?? "",
-                                                    restMin: e.restMin ?? "",
-                                                    restMax: e.restMax ?? "",
-                                                    // Map additionalInfo to customizations for backend
-                                                    customizations:
-                                                        e.additionalInfo ?? "",
-                                                };
+                // Reset the change tracker with the current phases
+                if (changeTracker) {
+                    changeTracker.reset(phases);
+                }
 
-                                                return exercise;
-                                            });
-
-                                        // Calculate total session duration
-                                        const calculatedDuration =
-                                            exercises?.reduce(
-                                                (total: number, ex: Exercise) =>
-                                                    total + (ex.duration || 8),
-                                                0
-                                            ) || 0;
-
-                                        return {
-                                            id: session.id || uuidv4(),
-                                            name:
-                                                session.name ||
-                                                "Unnamed Session",
-                                            duration: calculatedDuration,
-                                            isExpanded: Boolean(
-                                                session.isExpanded
-                                            ),
-                                            exercises: exercises || [],
-                                        };
-                                    }),
-                                })
-                            );
-
-                            setPhases(mapped);
-                        }
-                    } catch (error) {
-                        console.error("Error refetching workout plan:", error);
-                    }
-                };
-
-                refetchWorkout();
+                // Trigger a refetch by incrementing the savePerformed counter
+                setSavePerformed((prev) => prev + 1);
             } else {
                 // Handle errors
                 if (result.conflict) {
@@ -385,6 +481,172 @@ export default function WorkoutPlanner({
                     toast.error(
                         "Conflict detected: Plan has been modified by another user"
                     );
+
+                    // Force a refetch to get the latest data
+                    const refetchWorkout = async () => {
+                        try {
+                            const response = await getWorkoutPlanByClientId(
+                                client_id
+                            );
+                            if (
+                                response &&
+                                "planId" in response &&
+                                "updatedAt" in response
+                            ) {
+                                setPlanId(response.planId);
+                                setLastKnownUpdatedAt(
+                                    new Date(response.updatedAt)
+                                );
+
+                                // Map the phases from the response
+                                const mapped = (
+                                    response as WorkoutPlanResponse
+                                ).phases.map(
+                                    // ... (same mapping logic as in the useEffect)
+                                    (phase) => ({
+                                        id: phase.id,
+                                        name: phase.name,
+                                        isActive: phase.isActive,
+                                        isExpanded: phase.isExpanded,
+                                        sessions: phase.sessions.map(
+                                            (session) => {
+                                                // Map exercises with safe defaults and include all fields
+                                                const exercises =
+                                                    session.exercises?.map(
+                                                        (e) => {
+                                                            if (
+                                                                !e.id ||
+                                                                !e.order ||
+                                                                !e.motion ||
+                                                                !e.targetArea ||
+                                                                !e.description
+                                                            ) {
+                                                                console.warn(
+                                                                    "Missing required exercise properties",
+                                                                    e
+                                                                );
+                                                            }
+                                                            const exercise: Exercise =
+                                                                {
+                                                                    id:
+                                                                        e.id ||
+                                                                        uuidv4(),
+                                                                    order:
+                                                                        e.order ||
+                                                                        "",
+                                                                    motion:
+                                                                        e.motion ||
+                                                                        "",
+                                                                    targetArea:
+                                                                        e.targetArea ||
+                                                                        "",
+                                                                    exerciseId:
+                                                                        e.exerciseId ||
+                                                                        "",
+                                                                    description:
+                                                                        e.description ||
+                                                                        "",
+                                                                    duration:
+                                                                        typeof e.duration ===
+                                                                        "number"
+                                                                            ? e.duration
+                                                                            : 8,
+                                                                    // Include all possible fields from Exercise interface
+                                                                    sets:
+                                                                        e.sets ??
+                                                                        "",
+                                                                    reps:
+                                                                        e.reps ??
+                                                                        "",
+                                                                    tut:
+                                                                        e.tut ??
+                                                                        "",
+                                                                    tempo:
+                                                                        e.tempo ??
+                                                                        "",
+                                                                    rest:
+                                                                        e.rest ??
+                                                                        "",
+                                                                    additionalInfo:
+                                                                        e.additionalInfo ??
+                                                                        "",
+                                                                    setsMin:
+                                                                        e.setsMin ??
+                                                                        "",
+                                                                    setsMax:
+                                                                        e.setsMax ??
+                                                                        "",
+                                                                    repsMin:
+                                                                        e.repsMin ??
+                                                                        "",
+                                                                    repsMax:
+                                                                        e.repsMax ??
+                                                                        "",
+                                                                    restMin:
+                                                                        e.restMin ??
+                                                                        "",
+                                                                    restMax:
+                                                                        e.restMax ??
+                                                                        "",
+                                                                    // Map additionalInfo to customizations for backend
+                                                                    customizations:
+                                                                        e.additionalInfo ??
+                                                                        "",
+                                                                };
+
+                                                            return exercise;
+                                                        }
+                                                    );
+
+                                                // Calculate total session duration
+                                                const calculatedDuration =
+                                                    exercises?.reduce(
+                                                        (
+                                                            total: number,
+                                                            ex: Exercise
+                                                        ) =>
+                                                            total +
+                                                            (ex.duration || 8),
+                                                        0
+                                                    ) || 0;
+
+                                                return {
+                                                    id: session.id || uuidv4(),
+                                                    name:
+                                                        session.name ||
+                                                        "Unnamed Session",
+                                                    duration:
+                                                        calculatedDuration,
+                                                    isExpanded: Boolean(
+                                                        session.isExpanded
+                                                    ),
+                                                    exercises: exercises || [],
+                                                };
+                                            }
+                                        ),
+                                    })
+                                );
+
+                                updatePhases(mapped);
+
+                                // Reset the change tracker with the fetched phases
+                                if (changeTracker) {
+                                    changeTracker.reset(mapped);
+                                } else {
+                                    setChangeTracker(
+                                        new WorkoutPlanChangeTracker(mapped)
+                                    );
+                                }
+                            }
+                        } catch (error) {
+                            console.error(
+                                "Error refetching workout plan:",
+                                error
+                            );
+                        }
+                    };
+
+                    refetchWorkout();
                 } else {
                     // Handle other errors
                     toast.error(result.error || "Failed to save changes");
@@ -407,12 +669,12 @@ export default function WorkoutPlanner({
             isExpanded: true,
             sessions: [],
         };
-        setPhases([...phases, newPhase]);
+        updatePhases([...phases, newPhase]);
         setHasUnsavedChanges(true);
     };
 
     const togglePhaseExpansion = (phaseId: string) => {
-        setPhases(
+        updatePhases(
             phases.map((phase) =>
                 phase.id === phaseId
                     ? { ...phase, isExpanded: !phase.isExpanded }
@@ -427,7 +689,7 @@ export default function WorkoutPlanner({
         const isActive = !phases.find((p) => p.id === phaseId)?.isActive;
 
         // Optimistically update the UI
-        setPhases(
+        updatePhases(
             phases.map((phase) =>
                 phase.id === phaseId
                     ? { ...phase, isActive }
@@ -460,6 +722,9 @@ export default function WorkoutPlanner({
                 if (result.serverUpdatedAt) {
                     setLastKnownUpdatedAt(new Date(result.serverUpdatedAt));
                 }
+
+                // Trigger a refetch by incrementing the savePerformed counter
+                setSavePerformed((prev) => prev + 1);
             } else {
                 // Handle errors
                 if (result.conflict) {
@@ -476,7 +741,7 @@ export default function WorkoutPlanner({
 
                     // Revert the optimistic update
                     // We should refetch the plan here, but for simplicity we'll just revert the local state
-                    setPhases(
+                    updatePhases(
                         phases.map((phase) =>
                             phase.id === phaseId
                                 ? { ...phase, isActive: !isActive }
@@ -492,7 +757,7 @@ export default function WorkoutPlanner({
                     );
 
                     // Revert the optimistic update
-                    setPhases(
+                    updatePhases(
                         phases.map((phase) =>
                             phase.id === phaseId
                                 ? { ...phase, isActive: !isActive }
@@ -506,7 +771,7 @@ export default function WorkoutPlanner({
             toast.error("An error occurred while updating phase");
 
             // Revert the optimistic update
-            setPhases(
+            updatePhases(
                 phases.map((phase) =>
                     phase.id === phaseId
                         ? { ...phase, isActive: !isActive }
@@ -521,7 +786,7 @@ export default function WorkoutPlanner({
     const deletePhase = (phaseId: string) =>
         setShowConfirm({ type: "phase", phaseId });
     const confirmDeletePhase = (phaseId: string) => {
-        setPhases(phases.filter((phase) => phase.id !== phaseId));
+        updatePhases(phases.filter((phase) => phase.id !== phaseId));
         setShowConfirm({ type: null });
         setHasUnsavedChanges(true);
     };
@@ -529,39 +794,39 @@ export default function WorkoutPlanner({
     const duplicatePhase = (phaseId: string) => {
         const target = phases.find((p) => p.id === phaseId);
         if (!target) return;
-        
+
         // Create deep copies of sessions and exercises with new IDs
-        const copiedSessions = target.sessions.map(session => {
+        const copiedSessions = target.sessions.map((session) => {
             // Create deep copies of exercises with new IDs
-            const copiedExercises = session.exercises.map(exercise => ({
+            const copiedExercises = session.exercises.map((exercise) => ({
                 ...exercise,
-                id: uuidv4() // Generate new ID for each exercise
+                id: uuidv4(), // Generate new ID for each exercise
             }));
-            
+
             // Create a new session with a new ID and the copied exercises
             return {
                 ...session,
                 id: uuidv4(), // Generate new ID for the session
-                exercises: copiedExercises
+                exercises: copiedExercises,
             };
         });
-        
+
         // Create the copied phase with new sessions
         const copy: Phase = {
             ...target,
             id: uuidv4(), // Generate new ID for the phase
             name: `${target.name} (Copy)`,
             isActive: false,
-            sessions: copiedSessions
+            sessions: copiedSessions,
         };
-        
-        setPhases([...phases, copy]);
+
+        updatePhases([...phases, copy]);
         setHasUnsavedChanges(true);
     };
 
     // ===== Session CRUD =====
     const addSession = (phaseId: string) => {
-        setPhases(
+        updatePhases(
             phases.map((phase) => {
                 if (phase.id !== phaseId) return phase;
                 const count = phase.sessions.length + 1;
@@ -579,7 +844,7 @@ export default function WorkoutPlanner({
     };
 
     const toggleSessionExpansion = (phaseId: string, sessionId: string) => {
-        setPhases(
+        updatePhases(
             phases.map((phase) => {
                 if (phase.id !== phaseId) return phase;
                 return {
@@ -598,7 +863,7 @@ export default function WorkoutPlanner({
     const deleteSession = (phaseId: string, sessionId: string) =>
         setShowConfirm({ type: "session", phaseId, sessionId });
     const confirmDeleteSession = (phaseId: string, sessionId: string) => {
-        setPhases(
+        updatePhases(
             phases.map((phase) =>
                 phase.id !== phaseId
                     ? phase
@@ -615,26 +880,26 @@ export default function WorkoutPlanner({
     };
 
     const duplicateSession = (phaseId: string, sessionId: string) => {
-        setPhases(
+        updatePhases(
             phases.map((phase) => {
                 if (phase.id !== phaseId) return phase;
                 const target = phase.sessions.find((s) => s.id === sessionId);
                 if (!target) return phase;
-                
+
                 // Create deep copies of exercises with new IDs
-                const copiedExercises = target.exercises.map(exercise => ({
+                const copiedExercises = target.exercises.map((exercise) => ({
                     ...exercise,
-                    id: uuidv4() // Generate new ID for each exercise
+                    id: uuidv4(), // Generate new ID for each exercise
                 }));
-                
+
                 // Create a new session with a new ID and the copied exercises
                 const copy: Session = {
                     ...target,
                     id: uuidv4(), // Generate new ID for the session
                     name: `${target.name} (Copy)`,
-                    exercises: copiedExercises
+                    exercises: copiedExercises,
                 };
-                
+
                 return { ...phase, sessions: [...phase.sessions, copy] };
             })
         );
@@ -651,24 +916,25 @@ export default function WorkoutPlanner({
     // This function is called when the "Add Exercise" button is clicked in the session header
     const addExercise = (phaseId: string, sessionId: string) => {
         // Create a new blank exercise
-        const newExercise = {
+        const newExercise: Exercise = {
             id: uuidv4(),
             order: "",
             motion: "",
             targetArea: "",
+            exerciseId: "", // Add exerciseId property
             description: "",
             duration: 8,
             setsMin: "3",
             setsMax: "5",
             repsMin: "8",
             repsMax: "12",
-            tempo: "4-1-2-1",
+            tempo: "3 0 1 0",
             restMin: "45",
             restMax: "60",
             additionalInfo: "",
         };
         // Push the new exercise to the correct session in phases
-        setPhases(
+        updatePhases(
             phases.map((phase) =>
                 phase.id !== phaseId
                     ? phase
@@ -708,7 +974,7 @@ export default function WorkoutPlanner({
         sessionId: string,
         exerciseId: string
     ) => {
-        setPhases(
+        updatePhases(
             phases.map((phase) =>
                 phase.id !== phaseId
                     ? phase
@@ -748,7 +1014,7 @@ export default function WorkoutPlanner({
     };
     const savePhaseEdit = () => {
         if (!editingPhase) return;
-        setPhases(
+        updatePhases(
             phases.map((p) =>
                 p.id === editingPhase ? { ...p, name: editPhaseValue } : p
             )
@@ -765,7 +1031,7 @@ export default function WorkoutPlanner({
     };
     const saveSessionEdit = () => {
         if (!editingSession) return;
-        setPhases(
+        updatePhases(
             phases.map((phase) => ({
                 ...phase,
                 sessions: phase.sessions.map((s) =>
@@ -821,7 +1087,7 @@ export default function WorkoutPlanner({
         hoverIndex: number
     ) => {
         // This function only updates the UI for visual feedback during dragging
-        setPhases(
+        updatePhases(
             phases.map((phase) => {
                 if (phase.id !== phaseId) return phase;
 
@@ -862,7 +1128,7 @@ export default function WorkoutPlanner({
         });
 
         // Update the state with the new phases
-        setPhases(updatedPhases);
+        updatePhases(updatedPhases);
 
         // Mark as having unsaved changes
         setHasUnsavedChanges(true);
@@ -907,6 +1173,9 @@ export default function WorkoutPlanner({
                 if (!hasUnsavedChanges) {
                     setHasUnsavedChanges(false);
                 }
+
+                // Trigger a refetch by incrementing the savePerformed counter
+                setSavePerformed((prev) => prev + 1);
 
                 // toast.success("Session order updated"); // Optional: Might be too noisy
             } else {
@@ -986,7 +1255,7 @@ export default function WorkoutPlanner({
                         <TooltipTrigger asChild>
                             <Button
                                 onClick={addPhase}
-                                className="cursor-pointer"
+                                className="cursor-pointer h-10"
                             >
                                 <Plus className="h-4 w-4 mr-2" /> Add Phase
                             </Button>
@@ -998,13 +1267,26 @@ export default function WorkoutPlanner({
                         <TooltipTrigger asChild>
                             <Button
                                 onClick={saveAll}
-                                className="cursor-pointer"
+                                className="cursor-pointer h-10"
                             >
                                 <Save className="h-4 w-4 mr-2" /> Save All
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>Save all changes</TooltipContent>
                     </Tooltip>
+
+                    <div className="flex items-center gap-2">
+                        <WorkoutPlanCsvImportExport
+                            phases={phases}
+                            onImport={(importedPhases) => {
+                                updatePhases(importedPhases);
+                                setHasUnsavedChanges(true);
+                            }}
+                            clientId={client_id}
+                            exercises={exercises}
+                        />
+                    </div>
+
                     {hasUnsavedChanges && (
                         <span className="ml-2 text-yellow-600 font-medium text-sm">
                             * You have unsaved changes

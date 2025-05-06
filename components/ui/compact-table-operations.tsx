@@ -228,12 +228,12 @@ export default function CompactTableOperations<TData, TValue>({
     onSortChange?.("", false);
   };
 
-  const applyFilter = () => {
-    if (selectedFilterColumn && filterValue) {
-      onFilterChange?.(selectedFilterColumn, filterValue);
-      setFilterPopoverOpen(false);
-    }
-  };
+    const applyFilter = () => {
+        if (selectedFilterColumn) {
+            onFilterChange?.(selectedFilterColumn, filterValue);
+            setFilterPopoverOpen(false);
+        }
+    };
 
   const clearAll = () => {
     setSelectedFilterColumn(null);
@@ -391,32 +391,50 @@ export default function CompactTableOperations<TData, TValue>({
                       </Button>
                     </div>
 
-                    <div className="relative">
-                      <Input
-                        id="filter-input"
-                        placeholder={`Filter by ${
-                          selectedFilterLabel || selectedFilterColumn
-                        }...`}
-                        className="h-8 pr-8"
-                        value={filterValue}
-                        onChange={(e) => setFilterValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            applyFilter();
-                          }
-                        }}
-                        autoFocus
-                      />
-                      {filterValue && (
-                        <button
-                          type="button"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          onClick={() => setFilterValue("")}
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
-                    </div>
+                                        <div className="relative">
+                                            <Input
+                                                id="filter-input"
+                                                placeholder={`Filter by ${
+                                                    selectedFilterLabel ||
+                                                    selectedFilterColumn
+                                                }...`}
+                                                className="h-8 pr-8"
+                                                value={filterValue}
+                                                onChange={(e) => {
+                                                    const newValue =
+                                                        e.target.value;
+                                                    setFilterValue(newValue);
+
+                                                    // If the input is cleared, immediately apply the empty filter
+                                                    if (
+                                                        !newValue &&
+                                                        selectedFilterColumn
+                                                    ) {
+                                                        onFilterChange?.(
+                                                            selectedFilterColumn,
+                                                            ""
+                                                        );
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        applyFilter();
+                                                    }
+                                                }}
+                                                autoFocus
+                                            />
+                                            {filterValue && (
+                                                <button
+                                                    type="button"
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                    onClick={() =>
+                                                        setFilterValue("")
+                                                    }
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            )}
+                                        </div>
 
                     <div className="flex justify-end gap-2">
                       <Button

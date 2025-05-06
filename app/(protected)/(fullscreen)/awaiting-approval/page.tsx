@@ -17,7 +17,11 @@ export default async function AwaitingApprovalPage() {
     // Check if the user is authenticated
     const auth_user = await get_logged_in_user();
 
-    if (auth_user && auth_user.roles?.includes("Guest")) {
+    if (
+        auth_user &&
+        !auth_user.roles?.includes("Guest") &&
+        auth_user.approvedByAdmin
+    ) {
         redirect("/my-clients");
     }
 

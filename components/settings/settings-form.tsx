@@ -352,22 +352,6 @@ export function SettingsForm({ user: initialUser }: SettingsFormProps) {
 
     return (
         <div className="space-y-6">
-            {/* Unsaved changes alert */}
-            {hasUnsavedChanges && (
-                // <Alert className="bg-amber-50 border-amber-200">
-                //     <AlertCircle className="h-4 w-4 text-amber-600" />
-                //     <AlertDescription className="text-amber-800">
-                //         You have unsaved changes. Don&apos;t forget to save your
-                //         settings.
-                //     </AlertDescription>
-                // </Alert>
-                <div className="flex items-center text-sm text-muted-foreground">
-                    <span className="ml-2 text-yellow-600 font-medium">
-                        * You have unsaved changes
-                    </span>
-                </div>
-            )}
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Primary Column - User Settings */}
                 <div className="md:col-span-2">

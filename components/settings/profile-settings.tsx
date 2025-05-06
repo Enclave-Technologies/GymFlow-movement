@@ -216,19 +216,27 @@ export function ProfileSettings({
                             )}
                         />
 
-                        <Button
-                            type="submit"
-                            disabled={isSubmitting || !hasUnsavedChanges}
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                "Save Changes"
+                        <div className="flex items-center justify-between">
+                            <Button
+                                type="submit"
+                                disabled={isSubmitting || !hasUnsavedChanges}
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    "Save Changes"
+                                )}
+                            </Button>
+                            {/* Unsaved changes alert */}
+                            {hasUnsavedChanges && (
+                                <div className="text-sm text-yellow-600 font-medium ml-4">
+                                    * You have unsaved changes
+                                </div>
                             )}
-                        </Button>
+                        </div>
                     </form>
                 </Form>
             </CardContent>

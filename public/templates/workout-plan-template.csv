@@ -1,0 +1,6 @@
+PhaseName,SessionName,ExerciseOrder,ExerciseDescription,Sets Min,Sets Max,Reps Min,Reps Max,Tempo,Rest Min,Rest Max,Customizations
+Phase 1,Session 1,A1,Inverted Row,3,5,10,12,3 0 1 0,45,60,BW
+Phase 1,Session 1,A2,Iliac Lat Pulldown,3,3,8,12,3 0 1 0,45,60,40kg
+Phase 1,Session 2,A1,Good Morning - Standing,4,4,8,10,3 0 1 0,60,75,AMRAP
+Phase 1,Session 2,A2,Pull Up,4,4,8,10,3 0 1 0,60,75,BW
+Phase 2,Session 1,A1,Hyperextension,3,3,15,15,3 0 1 0,60,60,
