@@ -17,6 +17,7 @@ import {
 } from "./workout-plan-csv";
 import { toast } from "sonner";
 import type { SelectExercise } from "@/db/schemas";
+import Link from "next/link";
 
 interface WorkoutPlanCsvImportExportProps {
     phases: Phase[];
@@ -100,15 +101,15 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
     };
 
     return (
-        <div className="flex flex-col gap-4 mb-4">
-            <div className="flex flex-wrap gap-2">
+        <div className="">
+            <div className="flex flex-wrap gap-2 items-center">
                 <Button
                     variant="outline"
                     size="sm"
                     onClick={handleExport}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 h-10"
                 >
-                    <Download className="h-4 w-4" />
+                    <Upload className="h-4 w-4" />
                     Export CSV
                 </Button>
 
@@ -116,9 +117,9 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 h-10"
                 >
-                    <Upload className="h-4 w-4" />
+                    <Download className="h-4 w-4" />
                     Import CSV
                     <input
                         type="file"
@@ -129,14 +130,14 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
                     />
                 </Button>
 
-                <a
+                <Link
                     href="/templates/workout-plan-template.csv"
                     download
-                    className="inline-flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                    className="inline-flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10"
                 >
                     <Download className="h-3 w-3" />
                     Template
-                </a>
+                </Link>
             </div>
 
             {error && (

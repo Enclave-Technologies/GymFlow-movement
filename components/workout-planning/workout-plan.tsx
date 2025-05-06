@@ -1255,7 +1255,7 @@ export default function WorkoutPlanner({
                         <TooltipTrigger asChild>
                             <Button
                                 onClick={addPhase}
-                                className="cursor-pointer"
+                                className="cursor-pointer h-10"
                             >
                                 <Plus className="h-4 w-4 mr-2" /> Add Phase
                             </Button>
@@ -1267,7 +1267,7 @@ export default function WorkoutPlanner({
                         <TooltipTrigger asChild>
                             <Button
                                 onClick={saveAll}
-                                className="cursor-pointer"
+                                className="cursor-pointer h-10"
                             >
                                 <Save className="h-4 w-4 mr-2" /> Save All
                             </Button>
@@ -1275,16 +1275,18 @@ export default function WorkoutPlanner({
                         <TooltipContent>Save all changes</TooltipContent>
                     </Tooltip>
 
-                    {/* CSV Import/Export Component */}
-                    <WorkoutPlanCsvImportExport
-                        phases={phases}
-                        onImport={(importedPhases) => {
-                            updatePhases(importedPhases);
-                            setHasUnsavedChanges(true);
-                        }}
-                        clientId={client_id}
-                        exercises={exercises}
-                    />
+                    <div className="flex items-center gap-2">
+                        <WorkoutPlanCsvImportExport
+                            phases={phases}
+                            onImport={(importedPhases) => {
+                                updatePhases(importedPhases);
+                                setHasUnsavedChanges(true);
+                            }}
+                            clientId={client_id}
+                            exercises={exercises}
+                        />
+                    </div>
+
                     {hasUnsavedChanges && (
                         <span className="ml-2 text-yellow-600 font-medium text-sm">
                             * You have unsaved changes
