@@ -232,7 +232,11 @@ export function TrainerCell({
     );
 }
 
-// Component for the Actions cell
+/**
+ * Renders a dropdown menu with actions for a client, including viewing the profile, editing, and deleting the user.
+ *
+ * @param userId - The unique identifier of the client for whom actions are displayed.
+ */
 function ActionsCell({ userId }: { userId: string }) {
 
     const handleDeleteUser = async () => {

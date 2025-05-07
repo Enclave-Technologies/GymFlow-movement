@@ -1472,6 +1472,15 @@ export async function switchClientCoach(params: {
   }
 }
 
+/**
+ * Updates a client's user information and optionally changes their trainer relationship.
+ *
+ * Updates fields such as name, contact details, gender, date of birth, ideal weight, and emergency contacts for the specified client. If a new trainer ID is provided and differs from the current trainer, the function deactivates the existing trainer-client relationship and either reactivates an existing relationship with the new trainer or creates a new one.
+ *
+ * @param clientId - The unique identifier of the client to update.
+ * @param clientData - An object containing the fields to update for the client. If a trainerId is provided, the trainer-client relationship is updated accordingly.
+ * @returns An object indicating success and the updated client data, or an error message if the update fails.
+ */
 export async function updateClient(
   clientId: string,
   clientData: {
@@ -1611,6 +1620,13 @@ export async function updateClient(
   }
 }
 
+/**
+ * Deletes the "Client" role and associated trainer-client relationships for a user.
+ *
+ * If the user has multiple roles, only the "Client" role and trainer-client relationships are removed, preserving the user record. If the user has only the "Client" role, all client-related data is deleted. No action is taken if the user does not have the "Client" role.
+ *
+ * @param clientId - The user ID of the client to delete.
+ */
 export async function deleteClient(clientId: string) {
     let deletedUser = null;
     const {roleId} = (await db.select({roleId: Roles.roleId}).from(Roles).where(eq(Roles.roleName, "Client")))[0];
