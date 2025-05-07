@@ -108,8 +108,6 @@ export default function WorkoutPlanner({
         );
     }, [client_id]);
 
-    // Removed auto-save functionality to ensure all saves are performed by the Save All button
-
     // Refetch data when savePerformed changes (after successful save)
     useEffect(() => {
         if (savePerformed > 0) {
@@ -154,8 +152,8 @@ export default function WorkoutPlanner({
         togglePhaseExpansion(
             phaseId,
             phases,
-            updatePhases,
-            setHasUnsavedChanges
+            updatePhases
+            // setHasUnsavedChanges
         );
     };
 

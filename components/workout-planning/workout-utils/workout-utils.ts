@@ -176,6 +176,10 @@ export const createUpdatePhasesFunction = (
             // Update the change tracker if it exists
             if (changeTracker) {
                 changeTracker.updateCurrentState(updatedPhases);
+                console.log(
+                    "[CREATE UPDATE PHASE] Change Tracker:\n",
+                    JSON.stringify(changeTracker, null, 2)
+                );
             }
 
             return updatedPhases;

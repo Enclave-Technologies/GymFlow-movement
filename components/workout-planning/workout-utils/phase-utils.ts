@@ -32,8 +32,8 @@ export const togglePhaseExpansion = (
     phases: Phase[],
     updatePhases: (
         newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
-    ) => void,
-    setHasUnsavedChanges: (value: boolean) => void
+    ) => void
+    // setHasUnsavedChanges: (value: boolean) => void
 ) => {
     updatePhases(
         phases.map((phase) =>
@@ -42,7 +42,7 @@ export const togglePhaseExpansion = (
                 : phase
         )
     );
-    setHasUnsavedChanges(true);
+    // setHasUnsavedChanges(true);
 };
 
 /**
