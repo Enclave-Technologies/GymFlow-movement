@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 // Table components and Dialog components are now used in other components
 // Select components are now used in ExerciseTableInline component
-import { updateSessionOrder } from "@/actions/workout_plan_actions";
+import { updateSessionOrder } from "@/actions/workout_client_actions";
 import { WorkoutPlanChangeTracker } from "./workout-utils/change-tracker";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -145,7 +145,7 @@ export default function WorkoutPlanner({
 
     // ===== Phase CRUD =====
     const handleAddPhase = () => {
-        addPhase(phases, updatePhases, setHasUnsavedChanges);
+        addPhase(phases, updatePhases, setHasUnsavedChanges, planId);
     };
 
     const handleTogglePhaseExpansion = (phaseId: string) => {
@@ -311,7 +311,7 @@ export default function WorkoutPlanner({
         setStartingSessionId(sessionId);
         try {
             // API call
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // await new Promise((resolve) => setTimeout(resolve, 1000));
 
             router.push(
                 `/record-workout?sessionId=${sessionId}&phaseId=${phaseId}&clientId=${client_id}`
@@ -478,7 +478,7 @@ export default function WorkoutPlanner({
             <ExerciseTableInline
                 phase={phase}
                 session={session}
-                setPhases={setPhases}
+                updatePhases={updatePhases}
                 phases={phases}
                 deleteExercise={deleteExerciseHandler}
                 calculateSessionDuration={calculateSessionDuration}

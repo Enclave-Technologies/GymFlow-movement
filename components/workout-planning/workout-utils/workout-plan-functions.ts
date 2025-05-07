@@ -1,12 +1,11 @@
 import { toast } from "sonner";
-import { Phase, Session, Exercise, WorkoutPlanResponse } from "../types";
+import { Phase, WorkoutPlanResponse } from "../types";
 import { WorkoutPlanChangeTracker } from "./change-tracker";
 import {
     createWorkoutPlan,
     updateWorkoutPlan,
-    applyWorkoutPlanChanges,
-    getWorkoutPlanByClientId,
 } from "@/actions/workout_plan_actions";
+import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
 import { mapWorkoutPlanResponseToPhase } from "./workout-utils";
 
 /**
@@ -29,7 +28,10 @@ export async function saveAll(
     updatePhases: (phases: Phase[]) => void
 ) {
     // Log the current state to the console
-    console.log("Saving workout plan (current state):", phases);
+    console.log(
+        "Saving workout plan (current changes):",
+        JSON.stringify(changeTracker, null, 2)
+    );
 
     // Set saving state
     setSaving(true);
@@ -55,151 +57,15 @@ export async function saveAll(
             }
         } else {
             // Get changes from the change tracker
-            const changes = changeTracker ? changeTracker.getChanges() : null;
+            // const changes = changeTracker ? changeTracker.getChanges() : null;
 
-            if (
-                changes &&
-                (changes.created.phases.length > 0 ||
-                    changes.created.sessions.length > 0 ||
-                    changes.created.exercises.length > 0 ||
-                    changes.updated.phases.length > 0 ||
-                    changes.updated.sessions.length > 0 ||
-                    changes.updated.exercises.length > 0 ||
-                    changes.deleted.phases.length > 0 ||
-                    changes.deleted.sessions.length > 0 ||
-                    changes.deleted.exercises.length > 0)
-            ) {
-                console.log(
-                    `Detected changes: ${JSON.stringify(changes, null, 2)}`
-                );
-                // Use the optimized action that only sends changes
-                // First, create a serialized copy of the changes to avoid sending client component references
-                const serializedChanges = {
-                    created: {
-                        phases: changes.created.phases.map((phase: Phase) => ({
-                            ...phase,
-                        })),
-                        sessions: changes.created.sessions.map(
-                            (item: { phaseId: string; session: Session }) => ({
-                                phaseId: item.phaseId,
-                                session: { ...item.session },
-                            })
-                        ),
-                        exercises: changes.created.exercises.map(
-                            (item: {
-                                sessionId: string;
-                                exercise: Exercise;
-                            }) => ({
-                                sessionId: item.sessionId,
-                                exercise: {
-                                    ...item.exercise,
-                                    // Ensure all properties are properly serialized
-                                    id: item.exercise.id,
-                                    order: item.exercise.order,
-                                    motion: item.exercise.motion,
-                                    targetArea: item.exercise.targetArea,
-                                    exerciseId: item.exercise.exerciseId,
-                                    description: item.exercise.description,
-                                    sets: item.exercise.sets,
-                                    reps: item.exercise.reps,
-                                    tut: item.exercise.tut,
-                                    tempo: item.exercise.tempo,
-                                    rest: item.exercise.rest,
-                                    additionalInfo:
-                                        item.exercise.additionalInfo,
-                                    customizations:
-                                        item.exercise.customizations,
-                                    duration: item.exercise.duration,
-                                    setsMin: item.exercise.setsMin,
-                                    setsMax: item.exercise.setsMax,
-                                    repsMin: item.exercise.repsMin,
-                                    repsMax: item.exercise.repsMax,
-                                    restMin: item.exercise.restMin,
-                                    restMax: item.exercise.restMax,
-                                    notes: item.exercise.notes,
-                                },
-                            })
-                        ),
-                    },
-                    updated: {
-                        phases: changes.updated.phases.map(
-                            (item: {
-                                id: string;
-                                changes: Partial<Phase>;
-                            }) => ({
-                                id: item.id,
-                                changes: { ...item.changes },
-                            })
-                        ),
-                        sessions: changes.updated.sessions.map(
-                            (item: {
-                                id: string;
-                                changes: Partial<Session>;
-                            }) => ({
-                                id: item.id,
-                                changes: { ...item.changes },
-                            })
-                        ),
-                        exercises: changes.updated.exercises.map(
-                            (item: {
-                                id: string;
-                                changes: Partial<Exercise>;
-                            }) => ({
-                                id: item.id,
-                                changes: { ...item.changes },
-                            })
-                        ),
-                    },
-                    deleted: {
-                        phases: [...changes.deleted.phases],
-                        sessions: [...changes.deleted.sessions],
-                        exercises: [...changes.deleted.exercises],
-                    },
-                };
-
-                console.log("Applying serialized changes:", serializedChanges);
-
-                // Validate UUIDs before applying changes
-                const invalidPhaseId = serializedChanges.created.sessions.some(
-                    (item) => !item.phaseId || item.phaseId.trim() === ""
-                );
-                const invalidSessionId =
-                    serializedChanges.created.exercises.some(
-                        (item) =>
-                            !item.sessionId || item.sessionId.trim() === ""
-                    );
-
-                if (invalidPhaseId) {
-                    throw new Error(
-                        "Invalid phaseId detected in created sessions"
-                    );
-                }
-                if (invalidSessionId) {
-                    throw new Error(
-                        "Invalid sessionId detected in created exercises"
-                    );
-                }
-
-                try {
-                    result = await applyWorkoutPlanChanges(
-                        planId,
-                        lastKnownUpdatedAt,
-                        serializedChanges
-                    );
-                    console.log("Result from applyWorkoutPlanChanges:", result);
-                } catch (error) {
-                    console.error("Error in applyWorkoutPlanChanges:", error);
-                    throw error;
-                }
-            } else {
-                // Fallback to full update if no changes detected or change tracker not available
-                console.log(
-                    "No changes detected or change tracker not available, using full update"
-                );
-                result = await updateWorkoutPlan(planId, lastKnownUpdatedAt, {
-                    phases,
-                });
-            }
+            // Fallback to full update if no changes detected or change tracker not available
+            console.log(
+                "No changes detected or change tracker not available, using full update"
+            );
+            result = await updateWorkoutPlan(planId, lastKnownUpdatedAt, {
+                phases,
+            });
         }
 
         if (result.success) {

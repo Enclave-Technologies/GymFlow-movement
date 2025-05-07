@@ -5,12 +5,19 @@ export function addSession(phases: Phase[], phaseId: string): Phase[] {
     return phases.map((phase) => {
         if (phase.id !== phaseId) return phase;
         const count = phase.sessions.length + 1;
+        // Calculate the order number based on existing sessions
+        const orderNumber = phase.sessions.length;
+        
         const newSession: Session = {
             id: uuidv4(),
             name: `Untitled Session ${count}`,
             duration: 0,
             isExpanded: true,
             exercises: [],
+            // Add phaseId to ensure parent-child relationship
+            phaseId: phaseId,
+            // Set orderNumber for proper ordering
+            orderNumber: orderNumber,
         };
         return { ...phase, sessions: [...phase.sessions, newSession] };
     });
@@ -44,16 +51,21 @@ export function duplicateSession(
         const target = phase.sessions.find((s) => s.id === sessionId);
         if (!target) return phase;
 
+        const newSessionId = uuidv4();
+
+        // Copy exercises and update their sessionId to point to the new session
         const copiedExercises = target.exercises.map((exercise) => ({
             ...exercise,
             id: uuidv4(),
+            sessionId: newSessionId, // Update sessionId to point to the new session
         }));
 
         const copy: Session = {
             ...target,
-            id: uuidv4(),
+            id: newSessionId,
             name: `${target.name} (Copy)`,
             exercises: copiedExercises,
+            phaseId: phaseId, // Ensure phaseId is set
         };
 
         return { ...phase, sessions: [...phase.sessions, copy] };

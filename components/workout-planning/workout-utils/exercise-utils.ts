@@ -6,14 +6,20 @@ export function addExercise(
     phaseId: string,
     sessionId: string
 ): { updatedPhases: Phase[]; newExerciseId: string } {
+    const newExerciseId = uuidv4();
     const newExercise: Exercise = {
-        id: uuidv4(),
+        id: newExerciseId,
         order: "",
         motion: "Unspecified",
         targetArea: "Unspecified",
-        exerciseId: uuidv4(),
+        exerciseId: uuidv4(), // This will be replaced with actual exercise ID when saved
         description: "New Exercise",
         duration: 8,
+        // Legacy fields for backward compatibility
+        sets: "3-5",
+        reps: "8-12",
+        rest: "45-60",
+        // New fields
         setsMin: "3",
         setsMax: "5",
         repsMin: "8",
@@ -22,6 +28,10 @@ export function addExercise(
         restMin: "45",
         restMax: "60",
         additionalInfo: "",
+        customizations: "",
+        notes: "",
+        // Add sessionId to ensure parent-child relationship
+        sessionId: sessionId,
     };
 
     const updatedPhases = phases.map((phase) =>

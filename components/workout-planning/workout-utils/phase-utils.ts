@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
-import { updatePhaseActivation } from "@/actions/workout_plan_actions";
+import { updatePhaseActivation } from "@/actions/workout_client_actions";
 import { Phase, Exercise, Session } from "../types";
 
 /**
@@ -11,14 +11,22 @@ export const addPhase = (
     updatePhases: (
         newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
     ) => void,
-    setHasUnsavedChanges: (value: boolean) => void
+    setHasUnsavedChanges: (value: boolean) => void,
+    planId?: string | null
 ) => {
+    // Calculate the order number based on existing phases
+    const orderNumber = phases.length;
+
     const newPhase: Phase = {
         id: uuidv4(),
         name: `Untitled Phase`,
         isActive: false,
         isExpanded: true,
         sessions: [],
+        // Add planId to ensure parent-child relationship
+        planId: planId || undefined,
+        // Set orderNumber for proper ordering
+        orderNumber: orderNumber,
     };
     updatePhases([...phases, newPhase]);
     setHasUnsavedChanges(true);
@@ -207,29 +215,40 @@ export const duplicatePhase = (
     const target = phases.find((p) => p.id === phaseId);
     if (!target) return;
 
+    // Generate new IDs
+    const newPhaseId = uuidv4();
+
     // Create deep copies of sessions and exercises with new IDs
     const copiedSessions = target.sessions.map((session: Session) => {
+        const newSessionId = uuidv4();
+
         // Create deep copies of exercises with new IDs
         const copiedExercises = session.exercises.map((exercise: Exercise) => ({
             ...exercise,
             id: uuidv4(), // Generate new ID for each exercise
+            sessionId: newSessionId, // Update sessionId to point to the new session
         }));
 
         // Create a new session with a new ID and the copied exercises
         return {
             ...session,
-            id: uuidv4(), // Generate new ID for the session
+            id: newSessionId, // Generate new ID for the session
+            phaseId: newPhaseId, // Update phaseId to point to the new phase
             exercises: copiedExercises,
         };
     });
 
+    // Calculate the order number for the new phase
+    const orderNumber = phases.length;
+
     // Create the copied phase with new sessions
     const copy: Phase = {
         ...target,
-        id: uuidv4(), // Generate new ID for the phase
+        id: newPhaseId, // Generate new ID for the phase
         name: `${target.name} (Copy)`,
         isActive: false,
         sessions: copiedSessions,
+        orderNumber: orderNumber, // Set orderNumber for proper ordering
     };
 
     updatePhases([...phases, copy]);
