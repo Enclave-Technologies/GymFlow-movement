@@ -24,6 +24,14 @@ type DeleteConfirmationDialogProps = {
     ) => void;
 };
 
+/**
+ * Renders a modal dialog to confirm deletion of a phase, session, or exercise.
+ *
+ * Displays a confirmation message and provides options to cancel or proceed with deletion. Invokes the appropriate deletion callback based on the item type specified in {@link showConfirm}.
+ *
+ * @remark
+ * Assumes that the required IDs are present in {@link showConfirm} for the selected deletion type.
+ */
 export function DeleteConfirmationDialog({
     showConfirm,
     onCancel,

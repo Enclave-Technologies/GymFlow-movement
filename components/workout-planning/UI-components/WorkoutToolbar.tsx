@@ -22,6 +22,11 @@ type WorkoutToolbarProps = {
     setHasUnsavedChanges: (value: boolean) => void;
 };
 
+/**
+ * Renders a toolbar for managing workout phases, providing controls to add phases, save changes, and import/export workout plans.
+ *
+ * Displays tooltips for each action, visual indicators for unsaved changes and conflict errors, and disables actions appropriately based on saving state.
+ */
 export function WorkoutToolbar({
     onAddPhase,
     onSaveAll,

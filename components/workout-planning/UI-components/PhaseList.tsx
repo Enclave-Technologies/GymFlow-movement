@@ -47,6 +47,9 @@ interface PhaseListProps {
     onEditSessionValueChange: (value: string) => void;
 }
 
+/**
+ * Displays a centered loading spinner and message indicating that the workout plan is loading.
+ */
 function LoadingState() {
     return (
         <div className="flex items-center justify-center h-64">
@@ -60,6 +63,11 @@ function LoadingState() {
     );
 }
 
+/**
+ * Displays a message indicating that no workout phases have been added.
+ *
+ * Shows a prompt encouraging the user to add a new phase.
+ */
 function EmptyState() {
     return (
         <div className="flex flex-col items-center justify-center p-10">
@@ -75,6 +83,14 @@ function EmptyState() {
     );
 }
 
+/**
+ * Renders a list of workout phases with drag-and-drop support, displaying loading or empty states as appropriate.
+ *
+ * Displays a loading spinner if data is loading, an empty state if no phases exist, or a draggable list of phase cards with full control over phase and session management via provided handlers.
+ *
+ * @param phases - Array of workout phases to display.
+ * @param isLoading - Whether the phase data is currently loading.
+ */
 export function PhaseList({
     phases,
     isLoading,

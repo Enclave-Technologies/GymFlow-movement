@@ -3,6 +3,16 @@ import { v4 as uuidv4 } from "uuid";
 import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
 import { WorkoutPlanChangeTracker } from "./change-tracker";
 
+/**
+ * Converts a raw workout plan response into an array of structured Phase objects for frontend use.
+ *
+ * Each phase includes its sessions and exercises, with missing IDs generated as needed and default values applied for missing or invalid fields. Parent-child relationships are maintained via IDs, and session durations are calculated by summing exercise durations.
+ *
+ * @param response - The raw workout plan response to convert.
+ * @returns An array of Phase objects with nested sessions and exercises, ready for frontend consumption.
+ *
+ * @remark Logs a warning if required exercise properties are missing in the response.
+ */
 export function mapWorkoutPlanResponseToPhase(
     response: WorkoutPlanResponse
 ): Phase[] {
@@ -91,6 +101,13 @@ export function mapWorkoutPlanResponseToPhase(
     });
 }
 
+/**
+ * Fetches a workout plan for the specified client and updates relevant frontend state.
+ *
+ * Retrieves the workout plan by client ID, updates loading state, stores plan metadata, maps the response to frontend phases, and initializes the change tracker. If no plan exists or an error occurs, resets phases and the change tracker to empty.
+ *
+ * @param client_id - The unique identifier of the client whose workout plan is being fetched.
+ */
 export async function fetchWorkoutPlan(
     client_id: string,
     setIsLoading: (value: boolean) => void,
@@ -146,7 +163,9 @@ export async function fetchWorkoutPlan(
 }
 
 /**
- * Refetches workout plan data after a save operation
+ * Reloads the workout plan for a client after a save, updating state and synchronizing the change tracker.
+ *
+ * Fetches the latest workout plan data for the specified client, updates the plan ID and last updated timestamp, maps the response to frontend phases, and resets or initializes the change tracker to reflect the new plan state.
  */
 export async function refetchWorkoutPlan(
     client_id: string,

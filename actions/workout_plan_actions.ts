@@ -36,11 +36,17 @@ interface SessionData {
 }
 
 /**
- * Updates a workout plan with optimistic concurrency control
- * @param planId The ID of the plan to update
- * @param lastKnownUpdatedAt The last known updatedAt timestamp from the client
- * @param planData The updated plan data
- * @returns Success status and error message if applicable
+ * Creates or updates a workout plan with optimistic concurrency control.
+ *
+ * If no {@link planId} or {@link lastKnownUpdatedAt} is provided, creates a new workout plan for the specified client. Otherwise, updates the existing plan by applying changes to phases, sessions, and exercises, using diff utilities to determine additions, updates, and deletions. All operations are performed within a transaction to ensure atomicity. If the plan has been modified since the client's last fetch, returns a conflict response.
+ *
+ * @param planId - The ID of the workout plan to update, or undefined to create a new plan.
+ * @param lastKnownUpdatedAt - The last known `updatedAt` timestamp from the client, used for concurrency control.
+ * @param planData - The updated plan data, including phases and optionally a client ID for new plans.
+ * @returns An object indicating success, conflict status, error message if applicable, and updated timestamps.
+ *
+ * @remark
+ * Returns a conflict response if the plan has been modified since the client's last fetch, based on the `updatedAt` timestamp.
  */
 export async function updateWorkoutPlan(
     planId: string | undefined,
@@ -676,10 +682,13 @@ export async function updateWorkoutPlan(
 }
 
 /**
- * Creates a new workout plan for a client
- * @param clientId The ID of the client to create the plan for
- * @param planData The plan data containing phases, sessions, and exercises
- * @returns Success status, plan ID, and updatedAt timestamp
+ * Creates a new workout plan for a client, including all associated phases, sessions, and exercises.
+ *
+ * The function generates a new plan ID, prepares all related data for batch insertion, resolves exercise IDs by matching descriptions to existing exercises, and inserts all entities within a single database transaction.
+ *
+ * @param clientId - The ID of the client for whom the plan is created.
+ * @param planData - The workout plan data, including phases, sessions, and exercises.
+ * @returns An object indicating success status, the new plan ID, and the plan's updated timestamp.
  */
 export async function createWorkoutPlan(
     clientId: string,

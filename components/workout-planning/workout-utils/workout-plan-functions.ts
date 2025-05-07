@@ -9,7 +9,25 @@ import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
 import { mapWorkoutPlanResponseToPhase } from "./workout-utils";
 
 /**
- * Saves all changes to the workout plan
+ * Persists all changes to a workout plan, creating a new plan or updating an existing one as needed.
+ *
+ * Handles creation or update of the workout plan based on the presence of a plan ID and last update timestamp. On successful save, updates local state, resets change tracking, and triggers UI updates. If a concurrency conflict is detected, refetches the latest plan from the server and updates local state accordingly. Displays user feedback via toast notifications and manages saving and error states throughout the process.
+ *
+ * @param phases - The current list of workout phases to be saved.
+ * @param planId - The unique identifier of the workout plan, or `null` if creating a new plan.
+ * @param lastKnownUpdatedAt - The timestamp of the last known update to the plan, or `null` if creating a new plan.
+ * @param client_id - The identifier for the client whose plan is being saved.
+ * @param changeTracker - An instance used to track changes to the workout plan, or `null` if not available.
+ * @param setSaving - Callback to update the saving state indicator.
+ * @param setPlanId - Callback to update the stored plan ID.
+ * @param setLastKnownUpdatedAt - Callback to update the last known update timestamp.
+ * @param setHasUnsavedChanges - Callback to update the unsaved changes indicator.
+ * @param setConflictError - Callback to set or clear conflict error state.
+ * @param setSavePerformed - Callback to increment the save counter for triggering UI updates or refetches.
+ * @param updatePhases - Callback to update the local phases state.
+ *
+ * @remark
+ * If a concurrency conflict is detected (the plan was modified by another user), the function refetches the latest plan from the server and updates local state to resolve the conflict.
  */
 export async function saveAll(
     phases: Phase[],
@@ -28,8 +46,10 @@ export async function saveAll(
     updatePhases: (phases: Phase[]) => void
 ) {
     // Log the current state to the console
-    // Do not block the save flow because of a logging issue
-    console.log("Saving workout plan (current changes):", changeTracker);
+    console.log(
+        "Saving workout plan (current changes):",
+        JSON.stringify(changeTracker, null, 2)
+    );
 
     // Set saving state
     setSaving(true);
