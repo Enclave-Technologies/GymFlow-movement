@@ -26,8 +26,8 @@ type DragItem = {
     type: string;
 };
 
-import { Phase, Session } from "./types";
-import { TooltipContent, Tooltip, TooltipTrigger } from "../ui/tooltip";
+import { Phase, Session } from "../types";
+import { TooltipContent, Tooltip, TooltipTrigger } from "../../ui/tooltip";
 
 type DraggableSessionProps = {
     phase: Phase;

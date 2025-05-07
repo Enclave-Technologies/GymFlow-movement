@@ -8,474 +8,22 @@ import {
     ExercisePlanExercises,
     Exercises,
 } from "@/db/schemas";
-import { eq, or, and, not, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import "server-only";
 import { v4 as uuidv4 } from "uuid";
 import {
+    Phase,
     WorkoutPlanActionResponse,
     WorkoutPlanChanges,
 } from "@/components/workout-planning/types";
 import { revalidatePath } from "next/cache";
 import { requireTrainerOrAdmin } from "@/lib/auth-utils";
-
-// Define types for workout plan data
-interface ExerciseItem {
-    id: string;
-    order: string;
-    motion: string | null;
-    targetArea: string | null;
-    exerciseId: string | null;
-    description: string | null;
-    tut?: string | null;
-    tempo?: string | null;
-    customizations?: string | null;
-    additionalInfo?: string | null; // Added for frontend compatibility
-    setsMin?: string | null;
-    setsMax?: string | null;
-    repsMin?: string | null;
-    repsMax?: string | null;
-    restMin?: string | null;
-    restMax?: string | null;
-    notes?: string | null;
-}
-
-interface SessionItem {
-    id: string;
-    name: string;
-    duration: number | null;
-    isExpanded: boolean;
-    exercises: ExerciseItem[];
-}
-
-interface PhaseItem {
-    id: string;
-    name: string;
-    isActive: boolean;
-    isExpanded: boolean;
-    sessions: SessionItem[];
-}
-
-interface WorkoutPlanResponse {
-    planId: string;
-    updatedAt: Date;
-    phases: PhaseItem[];
-}
-
-export async function getWorkoutPlanByClientId(
-    clientId: string
-): Promise<WorkoutPlanResponse | []> {
-    await requireTrainerOrAdmin();
-    // Fetch the plan first to ensure we return something even if there are no phases/sessions/exercises
-    const plan = await db
-        .select({
-            planId: ExercisePlans.planId,
-            updatedAt: ExercisePlans.updatedAt,
-        })
-        .from(ExercisePlans)
-        .where(or(eq(ExercisePlans.assignedToUserId, clientId)))
-        .limit(1); // Assuming one active plan per client for simplicity, adjust if needed
-
-    if (!plan.length) {
-        return []; // No plan found for this client
-    }
-
-    const planId = plan[0].planId;
-    const planUpdatedAt = plan[0].updatedAt;
-
-    // Now fetch the full structure using LEFT JOINs starting from the plan
-    const rows = await db
-        .select({
-            planId: ExercisePlans.planId,
-            planUpdatedAt: ExercisePlans.updatedAt,
-            phaseId: Phases.phaseId,
-            phaseName: Phases.phaseName,
-            phaseIsActive: Phases.isActive,
-            phaseOrder: Phases.orderNumber,
-            sessionId: Sessions.sessionId,
-            sessionName: Sessions.sessionName,
-            sessionTime: Sessions.sessionTime,
-            sessionOrder: Sessions.orderNumber,
-            planExerciseId: ExercisePlanExercises.planExerciseId, // Renamed from exerciseId for clarity
-            exerciseOrder: ExercisePlanExercises.exerciseOrder,
-            setOrderMarker: ExercisePlanExercises.setOrderMarker,
-            motion: ExercisePlanExercises.motion,
-            targetArea: ExercisePlanExercises.targetArea,
-            exerciseId: ExercisePlanExercises.exerciseId,
-            exerciseName: Exercises.exerciseName, // Renamed from description
-            tut: ExercisePlanExercises.tut,
-            tempo: ExercisePlanExercises.tempo,
-            customizations: ExercisePlanExercises.customizations,
-            setsMin: ExercisePlanExercises.setsMin,
-            setsMax: ExercisePlanExercises.setsMax,
-            repsMin: ExercisePlanExercises.repsMin,
-            repsMax: ExercisePlanExercises.repsMax,
-            restMin: ExercisePlanExercises.restMin,
-            restMax: ExercisePlanExercises.restMax,
-            notes: ExercisePlanExercises.notes, // Added notes
-        })
-        .from(ExercisePlans)
-        .leftJoin(Phases, eq(Phases.planId, ExercisePlans.planId))
-        .leftJoin(Sessions, eq(Sessions.phaseId, Phases.phaseId))
-        .leftJoin(
-            ExercisePlanExercises,
-            eq(ExercisePlanExercises.sessionId, Sessions.sessionId)
-        )
-        .leftJoin(
-            Exercises,
-            eq(ExercisePlanExercises.exerciseId, Exercises.exerciseId)
-        ) // Join Exercises based on the FK in ExercisePlanExercises
-        .where(eq(ExercisePlans.planId, planId)) // Filter by the specific plan ID found earlier
-        .orderBy(
-            Phases.orderNumber,
-            Sessions.orderNumber,
-            ExercisePlanExercises.exerciseOrder
-        );
-
-    // If rows is empty after the join, it means the plan exists but has no phases.
-    // We still need to return the basic plan structure.
-    if (!rows.length || rows[0].phaseId === null) {
-        // Check if the first row indicates no phases joined
-        return {
-            planId: planId,
-            updatedAt: planUpdatedAt,
-            phases: [], // Return empty phases array
-        };
-    }
-
-    // Group into phases -> sessions -> exercises
-    const phasesMap = new Map<string, PhaseItem>();
-
-    for (const row of rows) {
-        // If phaseId is null, skip (shouldn't happen with the check above, but safe)
-        if (!row.phaseId || !row.phaseName) continue;
-
-        // Initialize phase
-        let phase = phasesMap.get(row.phaseId);
-        if (!phase) {
-            phase = {
-                id: row.phaseId,
-                name: row.phaseName,
-                isActive: row.phaseIsActive ?? false,
-                isExpanded: true, // Default to expanded
-                sessions: [],
-            };
-            phasesMap.set(row.phaseId, phase);
-        }
-
-        // If sessionId is null, it means the phase has no sessions, so skip session/exercise processing for this row
-        if (!row.sessionId || !row.sessionName) continue;
-
-        // Initialize session
-        let session = phase.sessions.find((s) => s.id === row.sessionId);
-        if (!session) {
-            session = {
-                id: row.sessionId,
-                name: row.sessionName,
-                duration: row.sessionTime, // Use sessionTime directly
-                isExpanded: true, // Default to expanded
-                exercises: [],
-            };
-            phase.sessions.push(session);
-        }
-
-        // If planExerciseId is null, it means the session has no exercises, so skip exercise processing for this row
-        if (!row.planExerciseId || !row.exerciseName) continue;
-
-        // Add exercise with all fields, handling potential nulls from LEFT JOIN
-        session.exercises.push({
-            id: row.planExerciseId,
-            order:
-                row.setOrderMarker ??
-                (row.exerciseOrder != null ? String(row.exerciseOrder) : ""),
-            motion: row.motion,
-            targetArea: row.targetArea,
-            exerciseId: row.exerciseId,
-            description: row.exerciseName, // Use exerciseName from Exercises table
-            tut: row.tut != null ? String(row.tut) : undefined,
-            tempo: row.tempo ?? undefined,
-            customizations: row.customizations ?? undefined,
-            additionalInfo: row.customizations ?? undefined, // Map customizations to additionalInfo for frontend
-            setsMin: row.setsMin != null ? String(row.setsMin) : undefined,
-            setsMax: row.setsMax != null ? String(row.setsMax) : undefined,
-            repsMin: row.repsMin != null ? String(row.repsMin) : undefined,
-            repsMax: row.repsMax != null ? String(row.repsMax) : undefined,
-            restMin: row.restMin != null ? String(row.restMin) : undefined,
-            restMax: row.restMax != null ? String(row.restMax) : undefined,
-            notes: row.notes ?? undefined, // Added notes
-        });
-    }
-
-    // console.log(
-    //     "[GETTING WORKOUT PLAN BY ID : ",
-    //     clientId,
-    //     "] - ",
-    //     JSON.stringify(Array.from(phasesMap.values()), null, 2)
-    // );
-
-    // Return the structured plan data
-    return {
-        planId: planId,
-        updatedAt: planUpdatedAt,
-        phases: Array.from(phasesMap.values()),
-    };
-}
-
-/**
- * Updates a phase's activation status with optimistic concurrency control
- * @param phaseId The ID of the phase to update
- * @param isActive Whether the phase should be active
- * @param lastKnownUpdatedAt Optional parameter for concurrency control
- * @returns Success status and error message if applicable
- */
-export async function updatePhaseActivation(
-    phaseId: string,
-    isActive: boolean,
-    lastKnownUpdatedAt?: Date // Optional parameter for concurrency control
-): Promise<WorkoutPlanActionResponse> {
-    try {
-        // First get the planId for this phase
-        const phase = await db
-            .select({ planId: Phases.planId })
-            .from(Phases)
-            .where(eq(Phases.phaseId, phaseId))
-            .limit(1);
-
-        if (!phase.length) {
-            return {
-                success: false,
-                error: "Phase not found",
-                conflict: false,
-                planId: "",
-                updatedAt: new Date(),
-                serverUpdatedAt: new Date(),
-            };
-        }
-
-        const planId = phase[0].planId;
-
-        // If lastKnownUpdatedAt is provided, check for conflicts
-        if (lastKnownUpdatedAt) {
-            const currentPlan = await db
-                .select({ updatedAt: ExercisePlans.updatedAt })
-                .from(ExercisePlans)
-                .where(eq(ExercisePlans.planId, planId))
-                .limit(1);
-
-            if (
-                currentPlan.length &&
-                currentPlan[0].updatedAt.toISOString() !==
-                    lastKnownUpdatedAt.toISOString()
-            ) {
-                return {
-                    success: false,
-                    error: "Plan has been modified since last fetch",
-                    conflict: true,
-                    serverUpdatedAt: currentPlan[0].updatedAt,
-                    planId: planId,
-                    updatedAt: currentPlan[0].updatedAt,
-                };
-            }
-        }
-
-        // Use a transaction for atomicity
-        return await db.transaction(async (tx) => {
-            const now = new Date();
-
-            // Update the phase's active status in the database
-            await tx
-                .update(Phases)
-                .set({ isActive })
-                .where(eq(Phases.phaseId, phaseId));
-
-            // If activating this phase, deactivate all other phases in the same plan
-            if (isActive) {
-                // Deactivate all other phases in this plan
-                await tx
-                    .update(Phases)
-                    .set({ isActive: false })
-                    .where(
-                        and(
-                            eq(Phases.planId, planId),
-                            not(eq(Phases.phaseId, phaseId))
-                        )
-                    );
-            }
-
-            // Update the plan's updatedAt timestamp to reflect the change
-            await tx
-                .update(ExercisePlans)
-                .set({ updatedAt: now })
-                .where(eq(ExercisePlans.planId, planId));
-
-            // Get the client ID associated with this plan
-            const plan = await tx
-                .select({ assignedToUserId: ExercisePlans.assignedToUserId })
-                .from(ExercisePlans)
-                .where(eq(ExercisePlans.planId, planId))
-                .limit(1);
-
-            if (plan.length && plan[0].assignedToUserId) {
-                // Invalidate the client cache
-                const clientId = plan[0].assignedToUserId;
-                console.log(`Invalidating cache for client: ${clientId}`);
-                // Force a complete revalidation of the client page to trigger refetches
-                revalidatePath(`/clients/${clientId}`, "layout");
-            }
-
-            return {
-                success: true,
-                planId: planId,
-                updatedAt: now,
-                conflict: false,
-                error: undefined,
-                serverUpdatedAt: now,
-            };
-        });
-    } catch (error) {
-        console.error("Error updating phase activation:", error);
-        return {
-            success: false,
-            error: "Failed to update phase activation",
-            conflict: false,
-            planId: "",
-            updatedAt: new Date(),
-            serverUpdatedAt: new Date(),
-        };
-    }
-}
-
-/**
- * Updates the order of sessions within a phase with optimistic concurrency control
- * @param phaseId The ID of the phase containing the sessions
- * @param sessionIds An array of session IDs in the desired order
- * @param lastKnownUpdatedAt Optional parameter for concurrency control
- * @returns Success status and error message if applicable
- */
-export async function updateSessionOrder(
-    phaseId: string,
-    sessionIds: string[],
-    lastKnownUpdatedAt?: Date // Optional parameter for concurrency control
-): Promise<WorkoutPlanActionResponse> {
-    try {
-        // Get the plan ID from the phase
-        const phase = await db
-            .select({
-                planId: Phases.planId,
-            })
-            .from(Phases)
-            .where(eq(Phases.phaseId, phaseId))
-            .limit(1);
-
-        if (!phase.length) {
-            return {
-                success: false,
-                error: "Phase not found",
-                conflict: false,
-                planId: "",
-                updatedAt: new Date(),
-                serverUpdatedAt: new Date(),
-            };
-        }
-
-        const planId = phase[0].planId;
-
-        // If lastKnownUpdatedAt is provided, check for conflicts
-        if (lastKnownUpdatedAt) {
-            const currentPlan = await db
-                .select({ updatedAt: ExercisePlans.updatedAt })
-                .from(ExercisePlans)
-                .where(eq(ExercisePlans.planId, planId))
-                .limit(1);
-
-            if (
-                !currentPlan.length || // Plan deleted?
-                currentPlan[0].updatedAt.toISOString() !==
-                    lastKnownUpdatedAt.toISOString()
-            ) {
-                const serverTime = currentPlan.length
-                    ? currentPlan[0].updatedAt
-                    : new Date();
-                return {
-                    success: false,
-                    error: "Plan has been modified since last fetch",
-                    conflict: true,
-                    serverUpdatedAt: serverTime,
-                    planId: planId,
-                    updatedAt: serverTime,
-                };
-            }
-        }
-
-        // Use a transaction for atomicity
-        return await db.transaction(async (tx) => {
-            const now = new Date();
-
-            // Update the orderNumber for each session based on its index in the array
-            for (let i = 0; i < sessionIds.length; i++) {
-                await tx
-                    .update(Sessions)
-                    .set({ orderNumber: i })
-                    .where(eq(Sessions.sessionId, sessionIds[i]));
-                // We assume the sessionIds provided belong to the correct phaseId
-                // Add .where(eq(Sessions.phaseId, phaseId)) if extra safety needed
-            }
-
-            // Update the plan's updatedAt timestamp to reflect the change
-            await tx
-                .update(ExercisePlans)
-                .set({ updatedAt: now })
-                .where(eq(ExercisePlans.planId, planId));
-
-            // Get the client ID associated with this plan for cache revalidation
-            const planDetails = await tx
-                .select({ assignedToUserId: ExercisePlans.assignedToUserId })
-                .from(ExercisePlans)
-                .where(eq(ExercisePlans.planId, planId))
-                .limit(1);
-
-            if (planDetails.length && planDetails[0].assignedToUserId) {
-                const clientId = planDetails[0].assignedToUserId;
-                console.log(
-                    `Invalidating cache for client due to session reorder: ${clientId}`
-                );
-                // Force a complete revalidation of the client page to trigger refetches
-                revalidatePath(`/clients/${clientId}`, "layout");
-            }
-
-            return {
-                success: true,
-                planId: planId,
-                updatedAt: now,
-                conflict: false,
-                error: undefined,
-                serverUpdatedAt: now,
-            };
-        });
-    } catch (error) {
-        console.error("Error updating session order:", error);
-        // Attempt to find planId even in case of error for better response context
-        let planId = "";
-        try {
-            const phase = await db
-                .select({ planId: Phases.planId })
-                .from(Phases)
-                .where(eq(Phases.phaseId, phaseId))
-                .limit(1);
-            if (phase.length) planId = phase[0].planId;
-        } catch {
-            /* ignore */
-        }
-
-        return {
-            success: false,
-            error: "Failed to update session order",
-            conflict: false,
-            planId: planId, // Include planId if found
-            updatedAt: new Date(),
-            serverUpdatedAt: new Date(),
-        };
-    }
-}
+import {
+    convertOrderToNumber,
+    diffExercises,
+    diffPhases,
+    diffSessions,
+} from "@/components/workout-planning/workout-utils/data-mapper";
 
 interface SessionData {
     name: string;
@@ -486,43 +34,6 @@ interface SessionData {
         targetArea: string;
     }>;
 }
-interface ExerciseUpdateData {
-    id: string;
-    motion: string | null;
-    targetArea: string | null;
-    repsMin: number | null;
-    repsMax: number | null;
-    setsMin: number | null;
-    setsMax: number | null;
-    tempo: string | null;
-    tut: number | null;
-    restMin: number | null;
-    restMax: number | null;
-    exerciseOrder: number;
-    setOrderMarker: string;
-    customizations: string | null;
-    notes: string;
-}
-
-interface ExerciseInsertData {
-    planExerciseId: string;
-    sessionId: string;
-    exerciseId: string;
-    motion: string | null;
-    targetArea: string | null;
-    repsMin: number | null;
-    repsMax: number | null;
-    setsMin: number | null;
-    setsMax: number | null;
-    tempo: string | null;
-    tut: number | null;
-    restMin: number | null;
-    restMax: number | null;
-    exerciseOrder: number;
-    setOrderMarker: string;
-    customizations: string | null;
-    notes: string;
-}
 
 /**
  * Updates a workout plan with optimistic concurrency control
@@ -532,14 +43,34 @@ interface ExerciseInsertData {
  * @returns Success status and error message if applicable
  */
 export async function updateWorkoutPlan(
-    planId: string,
-    lastKnownUpdatedAt: Date,
+    planId: string | undefined,
+    lastKnownUpdatedAt: Date | undefined,
     planData: {
-        phases: PhaseItem[];
+        phases: Phase[];
+        clientId?: string;
     }
 ): Promise<WorkoutPlanActionResponse> {
     const currentTrainer = await requireTrainerOrAdmin();
+
     try {
+        // Case 1: This is a new plan being created (planId and lastKnownUpdatedAt are empty)
+        if (!planId || !lastKnownUpdatedAt) {
+            if (!planData.clientId) {
+                return {
+                    success: false,
+                    error: "Client ID is required for creating a new plan",
+                    conflict: false,
+                    planId: "",
+                    updatedAt: new Date(),
+                    serverUpdatedAt: new Date(),
+                };
+            }
+
+            // Create a new plan
+            return await createWorkoutPlan(planData.clientId, planData);
+        }
+
+        // Case 2: This is an update to an existing plan
         // First, check if the plan has been modified since the client last fetched it
         const currentPlan = await db
             .select({ updatedAt: ExercisePlans.updatedAt })
@@ -581,7 +112,12 @@ export async function updateWorkoutPlan(
             await Promise.all([
                 // Get all phases for this plan
                 db
-                    .select({ phaseId: Phases.phaseId })
+                    .select({
+                        phaseId: Phases.phaseId,
+                        phaseName: Phases.phaseName,
+                        isActive: Phases.isActive,
+                        orderNumber: Phases.orderNumber,
+                    })
                     .from(Phases)
                     .where(eq(Phases.planId, planId)),
 
@@ -590,6 +126,9 @@ export async function updateWorkoutPlan(
                     .select({
                         sessionId: Sessions.sessionId,
                         phaseId: Sessions.phaseId,
+                        sessionName: Sessions.sessionName,
+                        sessionTime: Sessions.sessionTime,
+                        sessionOrder: Sessions.orderNumber,
                     })
                     .from(Sessions)
                     .innerJoin(Phases, eq(Sessions.phaseId, Phases.phaseId))
@@ -600,6 +139,21 @@ export async function updateWorkoutPlan(
                     .select({
                         planExerciseId: ExercisePlanExercises.planExerciseId,
                         sessionId: ExercisePlanExercises.sessionId,
+                        exerciseId: ExercisePlanExercises.exerciseId,
+                        exerciseOrder: ExercisePlanExercises.exerciseOrder,
+                        orderMarker: ExercisePlanExercises.setOrderMarker,
+                        setsMin: ExercisePlanExercises.setsMin,
+                        setsMax: ExercisePlanExercises.setsMax,
+                        repsMin: ExercisePlanExercises.repsMin,
+                        repsMax: ExercisePlanExercises.repsMax,
+                        tempo: ExercisePlanExercises.tempo,
+                        tut: ExercisePlanExercises.tut,
+                        restMin: ExercisePlanExercises.restMin,
+                        restMax: ExercisePlanExercises.restMax,
+                        customization: ExercisePlanExercises.customizations,
+                        notes: ExercisePlanExercises.notes,
+                        motion: ExercisePlanExercises.motion,
+                        targetArea: ExercisePlanExercises.targetArea,
                     })
                     .from(ExercisePlanExercises)
                     .innerJoin(
@@ -610,133 +164,146 @@ export async function updateWorkoutPlan(
                     .where(eq(Phases.planId, planId)),
             ]);
 
-        // Extract IDs for comparison
-        const currentPhaseIds = currentPhases.map((p) => p.phaseId);
-        const currentSessionIds = currentSessions.map((s) => s.sessionId);
-        const currentExerciseIds = currentExercises.map(
-            (e) => e.planExerciseId
+        // Map DB data to types for diffing
+        const dbPhases = currentPhases.map((p) => ({
+            id: p.phaseId,
+            name: p.phaseName,
+            isActive: p.isActive ?? true,
+            orderNumber: typeof p.orderNumber === "number" ? p.orderNumber : 0,
+            planId: planId ?? "",
+            isExpanded: false,
+            sessions: [],
+        }));
+        const dbSessions = currentSessions.map((s) => ({
+            id: s.sessionId,
+            phaseId: s.phaseId ?? "",
+            name: s.sessionName,
+            duration: typeof s.sessionTime === "number" ? s.sessionTime : 0,
+            orderNumber:
+                typeof s.sessionOrder === "number" ? s.sessionOrder : 0,
+            isExpanded: false,
+            exercises: [],
+        }));
+        const dbExercises = currentExercises.map((e) => ({
+            id: e.planExerciseId,
+            sessionId: e.sessionId ?? "",
+            exerciseId: e.exerciseId ?? "",
+            order: e.orderMarker ?? "",
+            setsMin:
+                e.setsMin !== undefined && e.setsMin !== null
+                    ? e.setsMin.toString()
+                    : "0",
+            setsMax:
+                e.setsMax !== undefined && e.setsMax !== null
+                    ? e.setsMax.toString()
+                    : "0",
+            repsMin:
+                e.repsMin !== undefined && e.repsMin !== null
+                    ? e.repsMin.toString()
+                    : "0",
+            repsMax:
+                e.repsMax !== undefined && e.repsMax !== null
+                    ? e.repsMax.toString()
+                    : "0",
+            tempo: e.tempo ?? "",
+            tut: e.tut !== undefined && e.tut !== null ? e.tut.toString() : "0",
+            restMin:
+                e.restMin !== undefined && e.restMin !== null
+                    ? e.restMin.toString()
+                    : "0",
+            restMax:
+                e.restMax !== undefined && e.restMax !== null
+                    ? e.restMax.toString()
+                    : "0",
+            motion: e.motion ?? "",
+            targetArea: e.targetArea ?? "",
+            customizations: e.customization ?? "",
+            notes: e.notes ?? "",
+            description: "",
+            additionalInfo: "",
+            duration: 0,
+            sets: "",
+            reps: "",
+        }));
+
+        // Flatten FE data for sessions and exercises
+        // const feSessions = planData.phases.flatMap((p) => p.sessions);
+        // const feExercises = planData.phases.flatMap((p) =>
+        //     p.sessions.flatMap((s) => s.exercises)
+        // );
+        const feSessions = planData.phases.flatMap((phase) =>
+            phase.sessions.map((session) => ({
+                ...session,
+                phaseId: phase.id, // Include phaseId in each session
+            }))
         );
 
-        // Get new structure from planData
-        const newPhaseIds = planData.phases.map((p) => p.id);
-        const newSessionIds = planData.phases.flatMap((p) =>
-            p.sessions.map((s) => s.id)
-        );
-        const newExerciseIds = planData.phases.flatMap((p) =>
-            p.sessions.flatMap((s) => s.exercises.map((e) => e.id))
-        );
-
-        // --- OPTIMIZATION: Prepare all data structures before transaction ---
-        // Identify items to delete
-        const phasesToDelete = currentPhaseIds.filter(
-            (id) => !newPhaseIds.includes(id)
-        );
-        const sessionsToDelete = currentSessionIds.filter(
-            (id) => !newSessionIds.includes(id)
-        );
-        const exercisesToDelete = currentExerciseIds.filter(
-            (id) => !newExerciseIds.includes(id)
+        const feExercises = planData.phases.flatMap((phase) =>
+            phase.sessions.flatMap((session) =>
+                session.exercises.map((exercise) => ({
+                    ...exercise,
+                    sessionId: session.id, // Include sessionId in each exercise
+                }))
+            )
         );
 
-        // Prepare phase data for batch operations
-        const phasesToUpdate: {
-            id: string;
-            name: string;
-            isActive: boolean;
-        }[] = [];
-        const phasesToInsert: {
-            phaseId: string;
-            planId: string;
-            phaseName: string;
-            orderNumber: number;
-            isActive: boolean;
-        }[] = [];
+        console.log(
+            "FLATTENED SESSIONS\n",
+            JSON.stringify(feSessions),
+            "\n===================="
+        );
 
-        // Prepare session data for batch operations
-        const sessionsToUpdate: {
-            id: string;
-            name: string;
-            duration: number | null;
-        }[] = [];
-        const sessionsToInsert: {
-            sessionId: string;
-            phaseId: string;
-            sessionName: string;
-            orderNumber: number;
-            sessionTime: number | null;
-        }[] = [];
+        // Use diff utilities
+        const {
+            added: phasesToAdd,
+            updated: phasesToUpdate,
+            deleted: phasesToDelete,
+        } = diffPhases(dbPhases, planData.phases);
 
-        // Prepare exercise data for batch operations
+        const {
+            added: sessionsToAdd,
+            updated: sessionsToUpdate,
+            deleted: sessionsToDelete,
+        } = diffSessions(dbSessions, feSessions);
 
-        const exercisesToUpdate: ExerciseUpdateData[] = [];
-        const exercisesToInsert: ExerciseInsertData[] = [];
+        const {
+            added: exercisesToAdd,
+            updated: exercisesToUpdate,
+            deleted: exercisesToDelete,
+        } = diffExercises(dbExercises, feExercises);
 
-        // Map to store exercise IDs for new exercises
-        const exerciseNameToIdMap = new Map<string, string>();
+        console.log("PHASE UPDATES: =================\n");
+        console.log(JSON.stringify(phasesToUpdate));
+
+        console.log("SESSIONS UPDATES: =================\n");
+        console.log(JSON.stringify(sessionsToUpdate));
+
+        console.log("EXERCISE UPDATES: =================\n");
+        console.log(JSON.stringify(exercisesToUpdate));
+
+        console.log("PHASE ADDED: =================\n");
+        console.log(JSON.stringify(phasesToAdd));
+
+        console.log("SESSIONS ADDED: =================\n");
+        console.log(JSON.stringify(sessionsToAdd));
+
+        console.log("EXERCISE ADDED: =================\n");
+        console.log(JSON.stringify(exercisesToAdd));
+
+        console.log("PHASE DELETED: =================\n");
+        console.log(JSON.stringify(phasesToDelete));
+
+        console.log("SESSIONS DELETED: =================\n");
+        console.log(JSON.stringify(sessionsToDelete));
+
+        console.log("EXERCISE DELETED: =================\n");
+        console.log(JSON.stringify(exercisesToDelete));
 
         // No conflict, proceed with update using a transaction
         return await db.transaction(async (tx) => {
             const now = new Date();
 
-            // --- OPTIMIZATION: Fetch exercise IDs for all descriptions at once ---
-            // Get all unique exercise descriptions from new exercises
-            const uniqueExerciseDescriptions = [
-                ...new Set(
-                    planData.phases.flatMap((p) =>
-                        p.sessions.flatMap((s) =>
-                            s.exercises
-                                .filter(
-                                    (e) =>
-                                        e.description &&
-                                        !currentExerciseIds.includes(e.id)
-                                )
-                                .map((e) => e.description)
-                        )
-                    )
-                ),
-            ].filter(Boolean) as string[];
-
-            // Fetch all matching exercises in one query
-            if (uniqueExerciseDescriptions.length > 0) {
-                const exerciseMatches = await tx
-                    .select({
-                        exerciseId: Exercises.exerciseId,
-                        exerciseName: Exercises.exerciseName,
-                    })
-                    .from(Exercises)
-                    .where(
-                        inArray(
-                            Exercises.exerciseName,
-                            uniqueExerciseDescriptions
-                        )
-                    );
-
-                // Build a map of exercise name to ID for quick lookup
-                exerciseMatches.forEach((match) => {
-                    exerciseNameToIdMap.set(
-                        match.exerciseName,
-                        match.exerciseId
-                    );
-                });
-
-                // Find descriptions not found in the existing exercises
-                const missingDescriptions = uniqueExerciseDescriptions.filter(
-                    (desc) => !exerciseNameToIdMap.has(desc)
-                );
-
-                // Insert missing exercises and update the map
-                for (const desc of missingDescriptions) {
-                    const newExerciseId = uuidv4();
-                    await tx.insert(Exercises).values({
-                        exerciseName: desc,
-                        uploadedByUserId: currentTrainer?.id ?? "system",
-                    });
-                    exerciseNameToIdMap.set(desc, newExerciseId);
-                }
-            }
-
-            // --- OPTIMIZATION: Bulk delete operations ---
-            // Delete removed exercises in one operation
+            // --- Bulk delete operations ---
             if (exercisesToDelete.length > 0) {
                 await tx
                     .delete(ExercisePlanExercises)
@@ -747,95 +314,126 @@ export async function updateWorkoutPlan(
                         )
                     );
             }
-
-            // Delete removed sessions in one operation
             if (sessionsToDelete.length > 0) {
                 await tx
                     .delete(Sessions)
                     .where(inArray(Sessions.sessionId, sessionsToDelete));
             }
-
-            // Delete removed phases in one operation
             if (phasesToDelete.length > 0) {
                 await tx
                     .delete(Phases)
                     .where(inArray(Phases.phaseId, phasesToDelete));
             }
 
-            // Update the plan's updatedAt timestamp
-            await tx
-                .update(ExercisePlans)
-                .set({ updatedAt: now })
-                .where(eq(ExercisePlans.planId, planId));
-
-            // --- OPTIMIZATION: Prepare all data for batch operations ---
-            // Process phases
-            for (
-                let phaseIndex = 0;
-                phaseIndex < planData.phases.length;
-                phaseIndex++
-            ) {
-                const phase = planData.phases[phaseIndex];
-
-                if (currentPhaseIds.includes(phase.id)) {
-                    // Update existing phase
-                    phasesToUpdate.push({
-                        id: phase.id,
-                        name: phase.name,
-                        isActive: phase.isActive,
+            // --- Bulk insert operations ---
+            // Insert new phases
+            if (phasesToAdd.length > 0) {
+                const phasesToInsert = phasesToAdd.map((phase) => ({
+                    phaseId: phase.id,
+                    planId: planId,
+                    phaseName: phase.name,
+                    orderNumber: phase.orderNumber ?? 0,
+                    isActive: phase.isActive ?? true,
+                }));
+                console.log("Phases:\n", phasesToInsert);
+                await tx.insert(Phases).values(phasesToInsert);
+            }
+            // Insert new sessions
+            if (sessionsToAdd.length > 0) {
+                const sessionsToInsert = sessionsToAdd.map((session) => ({
+                    sessionId: session.id,
+                    phaseId: session.phaseId ?? "",
+                    sessionName: session.name,
+                    orderNumber: session.orderNumber ?? 0,
+                    sessionTime: session.duration ?? 0,
+                }));
+                console.log("Sessions:\n", sessionsToInsert);
+                await tx.insert(Sessions).values(sessionsToInsert);
+            }
+            // Insert new exercises
+            if (exercisesToAdd.length > 0) {
+                // Prepare exerciseNameToIdMap for new exercises with description
+                const uniqueExerciseDescriptions = [
+                    ...new Set(
+                        exercisesToAdd.map((e) => e.description).filter(Boolean)
+                    ),
+                ] as string[];
+                const exerciseNameToIdMap = new Map<string, string>();
+                if (uniqueExerciseDescriptions.length > 0) {
+                    const exerciseMatches = await tx
+                        .select({
+                            exerciseId: Exercises.exerciseId,
+                            exerciseName: Exercises.exerciseName,
+                        })
+                        .from(Exercises)
+                        .where(
+                            inArray(
+                                Exercises.exerciseName,
+                                uniqueExerciseDescriptions
+                            )
+                        );
+                    exerciseMatches.forEach((match) => {
+                        exerciseNameToIdMap.set(
+                            match.exerciseName,
+                            match.exerciseId
+                        );
                     });
-                } else {
-                    // Insert new phase
-                    phasesToInsert.push({
-                        phaseId: phase.id,
-                        planId: planId,
-                        phaseName: phase.name,
-                        orderNumber: phaseIndex,
-                        isActive: phase.isActive,
-                    });
-                }
-
-                // Process sessions
-                for (
-                    let sessionIndex = 0;
-                    sessionIndex < phase.sessions.length;
-                    sessionIndex++
-                ) {
-                    const session = phase.sessions[sessionIndex];
-
-                    if (currentSessionIds.includes(session.id)) {
-                        // Update existing session
-                        sessionsToUpdate.push({
-                            id: session.id,
-                            name: session.name,
-                            duration: session.duration,
+                    // Insert missing exercises
+                    const missingDescriptions =
+                        uniqueExerciseDescriptions.filter(
+                            (desc) => !exerciseNameToIdMap.has(desc)
+                        );
+                    for (const desc of missingDescriptions) {
+                        const newExerciseId = uuidv4();
+                        await tx.insert(Exercises).values({
+                            exerciseId: newExerciseId,
+                            exerciseName: desc,
+                            uploadedByUserId: currentTrainer?.id ?? "system",
                         });
-                    } else {
-                        // Insert new session
-                        sessionsToInsert.push({
-                            sessionId: session.id,
-                            phaseId: phase.id,
-                            sessionName: session.name,
-                            orderNumber: sessionIndex,
-                            sessionTime: session.duration,
-                        });
+                        exerciseNameToIdMap.set(desc, newExerciseId);
                     }
-
-                    // Process exercises
-                    // Sort exercises by their setOrderMarker (order field) using lexicographical ordering
-                    const sortedExercises = [...session.exercises].sort(
-                        (a, b) => {
-                            return a.order.localeCompare(b.order);
+                }
+                // Insert new plan exercises
+                const exercisesToInsert: {
+                    planExerciseId: string;
+                    sessionId: string;
+                    exerciseId: string;
+                    motion: string | null;
+                    targetArea: string | null;
+                    repsMin: number | null;
+                    repsMax: number | null;
+                    setsMin: number | null;
+                    setsMax: number | null;
+                    tempo: string | null;
+                    tut: number | null;
+                    restMin: number | null;
+                    restMax: number | null;
+                    exerciseOrder: number;
+                    setOrderMarker: string;
+                    customizations: string | null;
+                    notes: string;
+                }[] = exercisesToAdd
+                    .map((exercise) => {
+                        // Always resolve exerciseId to a string, or skip if not possible
+                        let resolvedExerciseId = exercise.exerciseId;
+                        if (
+                            (!resolvedExerciseId ||
+                                resolvedExerciseId === "") &&
+                            exercise.description &&
+                            exerciseNameToIdMap.has(exercise.description)
+                        ) {
+                            resolvedExerciseId = exerciseNameToIdMap.get(
+                                exercise.description
+                            ) as string;
                         }
-                    );
-
-                    // Prepare exercise data
-                    for (let i = 0; i < sortedExercises.length; i++) {
-                        const exercise = sortedExercises[i];
-                        const exerciseOrder = i; // 0-based index for the sorted exercises
-
-                        // Common exercise data for both update and insert
-                        const exerciseData = {
+                        if (!resolvedExerciseId || resolvedExerciseId === "") {
+                            // skip this exercise
+                            return null;
+                        }
+                        return {
+                            planExerciseId: uuidv4(),
+                            sessionId: exercise.sessionId ?? "",
+                            exerciseId: resolvedExerciseId,
                             motion: exercise.motion ?? null,
                             targetArea: exercise.targetArea ?? null,
                             repsMin:
@@ -881,119 +479,179 @@ export async function updateWorkoutPlan(
                                 exercise.restMax !== ""
                                     ? Number(exercise.restMax)
                                     : null,
-                            exerciseOrder: exerciseOrder,
-                            setOrderMarker: exercise.order,
+                            exerciseOrder: convertOrderToNumber(
+                                exercise.order ?? ""
+                            ),
+                            setOrderMarker: exercise.order ?? "",
                             customizations:
                                 exercise.additionalInfo ??
                                 exercise.customizations ??
                                 null,
                             notes: exercise.notes ?? "",
                         };
-
-                        if (currentExerciseIds.includes(exercise.id)) {
-                            // Update existing exercise
-                            exercisesToUpdate.push({
-                                id: exercise.id,
-                                ...exerciseData,
-                            });
-                        } else {
-                            // For new exercises, we don't need to look up exerciseId since we're using the exercise.id directly
-                            // The planExerciseId will be a new UUID
-
-                            // Insert new exercise only if exerciseId is not null
-                            if (exercise.exerciseId) {
-                                exercisesToInsert.push({
-                                    planExerciseId: uuidv4(),
-                                    sessionId: session.id,
-                                    exerciseId: exercise.exerciseId, // Use exerciseId (foreign key) not id (primary key)
-                                    ...exerciseData,
-                                });
-                            } else {
-                                console.warn(
-                                    `Skipping exercise with null exerciseId: ${exercise.id}`
-                                );
-                            }
-                        }
+                    })
+                    .filter((e) => e !== null);
+                console.log("Exercises:\n", exercisesToInsert);
+                if (exercisesToInsert.length > 0) {
+                    const chunkSize = 100;
+                    for (
+                        let i = 0;
+                        i < exercisesToInsert.length;
+                        i += chunkSize
+                    ) {
+                        const chunk = exercisesToInsert.slice(i, i + chunkSize);
+                        await tx.insert(ExercisePlanExercises).values(chunk);
                     }
                 }
             }
 
-            // --- OPTIMIZATION: Execute batch operations ---
-            // Batch update phases
+            // --- Bulk update operations ---
+            // Update phases
             if (phasesToUpdate.length > 0) {
                 for (const phase of phasesToUpdate) {
                     await tx
                         .update(Phases)
                         .set({
-                            phaseName: phase.name,
-                            isActive: phase.isActive,
+                            ...(phase.changes.name !== undefined && {
+                                phaseName: phase.changes.name,
+                            }),
+                            ...(phase.changes.isActive !== undefined && {
+                                isActive: phase.changes.isActive,
+                            }),
+                            ...(phase.changes.orderNumber !== undefined && {
+                                orderNumber: phase.changes.orderNumber,
+                            }),
+                            ...(phase.changes.planId !== undefined && {
+                                planId: phase.changes.planId,
+                            }),
                         })
                         .where(eq(Phases.phaseId, phase.id));
                 }
             }
-
-            // Batch insert phases
-            if (phasesToInsert.length > 0) {
-                await tx.insert(Phases).values(phasesToInsert);
-            }
-
-            // Batch update sessions
+            // Update sessions
             if (sessionsToUpdate.length > 0) {
                 for (const session of sessionsToUpdate) {
                     await tx
                         .update(Sessions)
                         .set({
-                            sessionName: session.name,
-                            sessionTime: session.duration,
+                            ...(session.changes.name !== undefined && {
+                                sessionName: session.changes.name,
+                            }),
+                            ...(session.changes.duration !== undefined && {
+                                sessionTime: session.changes.duration,
+                            }),
+                            ...(session.changes.orderNumber !== undefined && {
+                                orderNumber: session.changes.orderNumber,
+                            }),
+                            ...(session.changes.phaseId !== undefined && {
+                                phaseId: session.changes.phaseId,
+                            }),
                         })
                         .where(eq(Sessions.sessionId, session.id));
                 }
             }
-
-            // Batch insert sessions
-            if (sessionsToInsert.length > 0) {
-                await tx.insert(Sessions).values(sessionsToInsert);
-            }
-
-            // Batch update exercises
+            // Update exercises
             if (exercisesToUpdate.length > 0) {
                 for (const exercise of exercisesToUpdate) {
-                    await tx
-                        .update(ExercisePlanExercises)
-                        .set({
-                            motion: exercise.motion,
-                            targetArea: exercise.targetArea,
-                            repsMin: exercise.repsMin,
-                            repsMax: exercise.repsMax,
-                            setsMin: exercise.setsMin,
-                            setsMax: exercise.setsMax,
-                            tempo: exercise.tempo,
-                            tut: exercise.tut,
-                            restMin: exercise.restMin,
-                            restMax: exercise.restMax,
-                            exerciseOrder: exercise.exerciseOrder,
-                            setOrderMarker: exercise.setOrderMarker,
-                            customizations: exercise.customizations,
-                            notes: exercise.notes,
-                        })
-                        .where(
-                            eq(
-                                ExercisePlanExercises.planExerciseId,
-                                exercise.id
-                            )
-                        );
+                    // Build the update object
+                    const updateObj: Record<string, unknown> = {
+                        ...(exercise.changes.motion !== undefined && {
+                            motion: exercise.changes.motion,
+                        }),
+                        ...(exercise.changes.sessionId !== undefined && {
+                            sessionId: exercise.changes.sessionId,
+                        }),
+                        ...(exercise.changes.targetArea !== undefined && {
+                            targetArea: exercise.changes.targetArea,
+                        }),
+                        ...(exercise.changes.exerciseId !== undefined && {
+                            exerciseId: exercise.changes.exerciseId,
+                        }),
+                        ...(exercise.changes.order !== undefined && {
+                            setOrderMarker: exercise.changes.order,
+                            exerciseOrder: convertOrderToNumber(
+                                exercise.changes.order ?? ""
+                            ),
+                        }),
+                        ...(exercise.changes.setsMin !== undefined && {
+                            setsMin:
+                                exercise.changes.setsMin !== null &&
+                                exercise.changes.setsMin !== ""
+                                    ? Number(exercise.changes.setsMin)
+                                    : null,
+                        }),
+                        ...(exercise.changes.setsMax !== undefined && {
+                            setsMax:
+                                exercise.changes.setsMax !== null &&
+                                exercise.changes.setsMax !== ""
+                                    ? Number(exercise.changes.setsMax)
+                                    : null,
+                        }),
+                        ...(exercise.changes.repsMin !== undefined && {
+                            repsMin:
+                                exercise.changes.repsMin !== null &&
+                                exercise.changes.repsMin !== ""
+                                    ? Number(exercise.changes.repsMin)
+                                    : null,
+                        }),
+                        ...(exercise.changes.repsMax !== undefined && {
+                            repsMax:
+                                exercise.changes.repsMax !== null &&
+                                exercise.changes.repsMax !== ""
+                                    ? Number(exercise.changes.repsMax)
+                                    : null,
+                        }),
+                        ...(exercise.changes.tempo !== undefined && {
+                            tempo: exercise.changes.tempo,
+                        }),
+                        ...(exercise.changes.tut !== undefined && {
+                            tut:
+                                exercise.changes.tut !== null &&
+                                exercise.changes.tut !== ""
+                                    ? Number(exercise.changes.tut)
+                                    : null,
+                        }),
+                        ...(exercise.changes.restMin !== undefined && {
+                            restMin:
+                                exercise.changes.restMin !== null &&
+                                exercise.changes.restMin !== ""
+                                    ? Number(exercise.changes.restMin)
+                                    : null,
+                        }),
+                        ...(exercise.changes.restMax !== undefined && {
+                            restMax:
+                                exercise.changes.restMax !== null &&
+                                exercise.changes.restMax !== ""
+                                    ? Number(exercise.changes.restMax)
+                                    : null,
+                        }),
+                        ...(exercise.changes.customizations !== undefined && {
+                            customizations: exercise.changes.customizations,
+                        }),
+                        ...(exercise.changes.notes !== undefined && {
+                            notes: exercise.changes.notes,
+                        }),
+                    };
+                    // Only update if there is at least one field to set
+                    if (Object.keys(updateObj).length > 0) {
+                        await tx
+                            .update(ExercisePlanExercises)
+                            .set(updateObj)
+                            .where(
+                                eq(
+                                    ExercisePlanExercises.planExerciseId,
+                                    exercise.id
+                                )
+                            );
+                    }
                 }
             }
 
-            // Batch insert exercises
-            if (exercisesToInsert.length > 0) {
-                // Split into chunks to avoid potential query size limits
-                const chunkSize = 100;
-                for (let i = 0; i < exercisesToInsert.length; i += chunkSize) {
-                    const chunk = exercisesToInsert.slice(i, i + chunkSize);
-                    await tx.insert(ExercisePlanExercises).values(chunk);
-                }
-            }
+            // Update the plan's updatedAt timestamp
+            await tx
+                .update(ExercisePlans)
+                .set({ updatedAt: now })
+                .where(eq(ExercisePlans.planId, planId));
 
             return {
                 success: true,
@@ -1026,7 +684,7 @@ export async function updateWorkoutPlan(
 export async function createWorkoutPlan(
     clientId: string,
     planData: {
-        phases: PhaseItem[];
+        phases: Phase[];
     }
 ): Promise<WorkoutPlanActionResponse> {
     try {
@@ -1054,7 +712,25 @@ export async function createWorkoutPlan(
         }[] = [];
 
         // Prepare exercise data for batch operations
-        const exercisesToInsert: ExerciseInsertData[] = [];
+        const exercisesToInsert: {
+            planExerciseId: string;
+            sessionId: string;
+            exerciseId: string;
+            motion: string | null;
+            targetArea: string | null;
+            repsMin: number | null;
+            repsMax: number | null;
+            setsMin: number | null;
+            setsMax: number | null;
+            tempo: string | null;
+            tut: number | null;
+            restMin: number | null;
+            restMax: number | null;
+            exerciseOrder: number;
+            setOrderMarker: string;
+            customizations: string | null;
+            notes: string;
+        }[] = [];
 
         // Collect all unique exercise descriptions for batch lookup
         const uniqueExerciseDescriptions = [
@@ -1168,7 +844,10 @@ export async function createWorkoutPlan(
                                     : null,
                             exerciseOrder: exerciseOrder,
                             setOrderMarker: exercise.order,
-                            customizations: exercise.customizations ?? null,
+                            customizations:
+                                exercise.additionalInfo ??
+                                exercise.customizations ??
+                                null,
                             notes: exercise.notes ?? "",
                         });
                     }
@@ -1233,17 +912,20 @@ export async function createWorkoutPlan(
             }
 
             // --- OPTIMIZATION: Execute batch operations ---
+
             // Batch insert phases
             if (phasesToInsert.length > 0) {
                 await tx.insert(Phases).values(phasesToInsert);
             }
 
             // Batch insert sessions
+
             if (sessionsToInsert.length > 0) {
                 await tx.insert(Sessions).values(sessionsToInsert);
             }
 
             // Batch insert exercises
+
             if (exercisesToInsert.length > 0) {
                 // Split into chunks to avoid potential query size limits
                 const chunkSize = 100;

@@ -16,8 +16,8 @@ import {
     SelectItem,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, Save, X } from "lucide-react";
-import { Phase, Session, Exercise } from "./types";
+import { Edit, Trash2, X, Check } from "lucide-react";
+import { Phase, Session, Exercise } from "../types";
 import { toast } from "sonner";
 import type { SelectExercise } from "@/db/schemas";
 import {
@@ -47,7 +47,9 @@ type ExerciseRow = Exercise & {
 interface ExerciseTableInlineProps {
     phase: Phase;
     session: Session;
-    setPhases: (newPhases: Phase[]) => void;
+    updatePhases: (
+        newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
+    ) => void;
     phases: Phase[];
     deleteExercise: (
         phaseId: string,
@@ -89,7 +91,7 @@ const getUniqueTargetAreas = (
 const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
     phase,
     session,
-    setPhases,
+    updatePhases,
     phases,
     deleteExercise,
     calculateSessionDuration,
@@ -161,7 +163,35 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
             toast.error("Order and Description are required");
             return;
         }
-        setPhases(
+
+        // Make sure exerciseId is set - this is critical for backend updates
+        if (!editingExerciseRow.exerciseId) {
+            // Find the exercise in the exercises list by description
+            const matchingExercise = exercises.find(
+                (ex) => ex.exerciseName === editingExerciseRow.description
+            );
+
+            if (matchingExercise) {
+                // If found, use its exerciseId
+                editingExerciseRow.exerciseId = matchingExercise.exerciseId;
+                console.log(
+                    "Set exerciseId from matching exercise:",
+                    matchingExercise.exerciseId
+                );
+            } else {
+                toast.error(
+                    "Could not find matching exercise ID. Changes may not be saved properly."
+                );
+                console.error(
+                    "No matching exercise found for:",
+                    editingExerciseRow.description
+                );
+            }
+        }
+
+        console.log("Saving exercise with data:", editingExerciseRow);
+
+        updatePhases(
             phases.map((phaseItem) =>
                 phaseItem.id !== phase.id
                     ? phaseItem
@@ -174,7 +204,13 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                               const updatedExercises =
                                   sessionItem.exercises.map((e) =>
                                       e.id === editingExerciseRow.id
-                                          ? editingExerciseRow
+                                          ? {
+                                                ...editingExerciseRow,
+                                                // Ensure exerciseId is preserved
+                                                exerciseId:
+                                                    editingExerciseRow.exerciseId ||
+                                                    e.exerciseId,
+                                            }
                                           : e
                                   );
                               return {
@@ -200,9 +236,10 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
         phases,
         session.id,
         calculateSessionDuration,
-        setPhases,
+        updatePhases,
         setHasUnsavedChanges,
         onEditEnd,
+        exercises,
     ]);
 
     const cancelInlineExercise = useCallback(() => {
@@ -214,7 +251,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                 !editingExerciseRow.targetArea &&
                 !editingExerciseRow.description;
             if (isBlank) {
-                setPhases(
+                updatePhases(
                     phases.map((phaseItem) =>
                         phaseItem.id !== phase.id
                             ? phaseItem
@@ -253,7 +290,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
         phases,
         session.id,
         calculateSessionDuration,
-        setPhases,
+        updatePhases,
         onEditEnd,
     ]);
 
@@ -725,12 +762,16 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                                     editingExerciseRow.additionalInfo ??
                                                     ""
                                                 }
-                                                onChange={(e) =>
+                                                onChange={(e) => {
                                                     handleInlineExerciseChange(
                                                         "additionalInfo",
                                                         e.target.value
-                                                    )
-                                                }
+                                                    );
+                                                    // handleInlineExerciseChange(
+                                                    //     "customizations",
+                                                    //     e.target.value
+                                                    // );
+                                                }}
                                                 placeholder="Additional Instructions"
                                                 className="w-full"
                                             />
@@ -744,7 +785,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                                     onClick={saveInlineExercise}
                                                     className="h-8 w-8 cursor-pointer"
                                                 >
-                                                    <Save className="h-4 w-4" />
+                                                    <Check className="h-4 w-4" />
                                                 </Button>
                                                 <Button
                                                     variant="ghost"

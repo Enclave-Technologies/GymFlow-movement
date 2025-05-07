@@ -1,4 +1,4 @@
-import { Phase, Session, Exercise } from "./types";
+import { Phase, Session, Exercise } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import type { SelectExercise } from "@/db/schemas";
 
