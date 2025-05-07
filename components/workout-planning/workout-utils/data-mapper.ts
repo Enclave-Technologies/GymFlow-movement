@@ -219,6 +219,8 @@ export function diffPhases(
                 changes.isActive = fePhase.isActive;
             if (fePhase.orderNumber !== dbPhase.orderNumber)
                 changes.orderNumber = fePhase.orderNumber;
+            // Always include planId in changes for downstream logic
+            changes.planId = fePhase.planId;
             // planId and isExpanded are not compared (planId is static, isExpanded is UI only)
             if (Object.keys(changes).length > 0) {
                 updated.push({ id: fePhase.id, changes });
@@ -262,6 +264,8 @@ export function diffSessions(
                 changes.duration = feSession.duration;
             if (feSession.orderNumber !== dbSession.orderNumber)
                 changes.orderNumber = feSession.orderNumber;
+            // Always include phaseId in changes for downstream logic
+            changes.phaseId = feSession.phaseId;
             // phaseId and isExpanded are not compared (phaseId is static, isExpanded is UI only)
             if (Object.keys(changes).length > 0) {
                 updated.push({ id: feSession.id, changes });
@@ -330,6 +334,8 @@ export function diffExercises(
                 changes.customizations = feExercise.additionalInfo;
             if (feExercise.notes !== dbExercise.notes)
                 changes.notes = feExercise.notes;
+            // Always include sessionId in changes for downstream logic
+            changes.sessionId = feExercise.sessionId;
             // sessionId, description, additionalInfo, duration, sets, reps are not compared (sessionId is static, others are UI only/legacy)
             if (Object.keys(changes).length > 0) {
                 updated.push({ id: feExercise.id, changes });

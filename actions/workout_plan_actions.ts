@@ -227,9 +227,30 @@ export async function updateWorkoutPlan(
         }));
 
         // Flatten FE data for sessions and exercises
-        const feSessions = planData.phases.flatMap((p) => p.sessions);
-        const feExercises = planData.phases.flatMap((p) =>
-            p.sessions.flatMap((s) => s.exercises)
+        // const feSessions = planData.phases.flatMap((p) => p.sessions);
+        // const feExercises = planData.phases.flatMap((p) =>
+        //     p.sessions.flatMap((s) => s.exercises)
+        // );
+        const feSessions = planData.phases.flatMap((phase) =>
+            phase.sessions.map((session) => ({
+                ...session,
+                phaseId: phase.id, // Include phaseId in each session
+            }))
+        );
+
+        const feExercises = planData.phases.flatMap((phase) =>
+            phase.sessions.flatMap((session) =>
+                session.exercises.map((exercise) => ({
+                    ...exercise,
+                    sessionId: session.id, // Include sessionId in each exercise
+                }))
+            )
+        );
+
+        console.log(
+            "FLATTENED SESSIONS\n",
+            JSON.stringify(feSessions),
+            "\n===================="
         );
 
         // Use diff utilities
@@ -500,6 +521,9 @@ export async function updateWorkoutPlan(
                             ...(phase.changes.orderNumber !== undefined && {
                                 orderNumber: phase.changes.orderNumber,
                             }),
+                            ...(phase.changes.planId !== undefined && {
+                                planId: phase.changes.planId,
+                            }),
                         })
                         .where(eq(Phases.phaseId, phase.id));
                 }
@@ -519,6 +543,9 @@ export async function updateWorkoutPlan(
                             ...(session.changes.orderNumber !== undefined && {
                                 orderNumber: session.changes.orderNumber,
                             }),
+                            ...(session.changes.phaseId !== undefined && {
+                                phaseId: session.changes.phaseId,
+                            }),
                         })
                         .where(eq(Sessions.sessionId, session.id));
                 }
@@ -530,6 +557,9 @@ export async function updateWorkoutPlan(
                     const updateObj: Record<string, unknown> = {
                         ...(exercise.changes.motion !== undefined && {
                             motion: exercise.changes.motion,
+                        }),
+                        ...(exercise.changes.sessionId !== undefined && {
+                            sessionId: exercise.changes.sessionId,
                         }),
                         ...(exercise.changes.targetArea !== undefined && {
                             targetArea: exercise.changes.targetArea,
