@@ -429,11 +429,69 @@ export default function WorkoutPlanner({
                         changes.deleted.exercises.length > 0)
                 ) {
                     // Use the optimized action that only sends changes
-                    console.log("Applying changes:", changes);
+                    // First, create a serialized copy of the changes to avoid sending client component references
+                    const serializedChanges = {
+                        created: {
+                            phases: changes.created.phases.map(phase => ({...phase})),
+                            sessions: changes.created.sessions.map(item => ({
+                                phaseId: item.phaseId,
+                                session: {...item.session}
+                            })),
+                            exercises: changes.created.exercises.map(item => ({
+                                sessionId: item.sessionId,
+                                exercise: {
+                                    ...item.exercise,
+                                    // Ensure all properties are properly serialized
+                                    id: item.exercise.id,
+                                    order: item.exercise.order,
+                                    motion: item.exercise.motion,
+                                    targetArea: item.exercise.targetArea,
+                                    exerciseId: item.exercise.exerciseId,
+                                    description: item.exercise.description,
+                                    sets: item.exercise.sets,
+                                    reps: item.exercise.reps,
+                                    tut: item.exercise.tut,
+                                    tempo: item.exercise.tempo,
+                                    rest: item.exercise.rest,
+                                    additionalInfo: item.exercise.additionalInfo,
+                                    customizations: item.exercise.customizations,
+                                    duration: item.exercise.duration,
+                                    setsMin: item.exercise.setsMin,
+                                    setsMax: item.exercise.setsMax,
+                                    repsMin: item.exercise.repsMin,
+                                    repsMax: item.exercise.repsMax,
+                                    restMin: item.exercise.restMin,
+                                    restMax: item.exercise.restMax,
+                                    notes: item.exercise.notes
+                                }
+                            }))
+                        },
+                        updated: {
+                            phases: changes.updated.phases.map(item => ({
+                                id: item.id,
+                                changes: {...item.changes}
+                            })),
+                            sessions: changes.updated.sessions.map(item => ({
+                                id: item.id,
+                                changes: {...item.changes}
+                            })),
+                            exercises: changes.updated.exercises.map(item => ({
+                                id: item.id,
+                                changes: {...item.changes}
+                            }))
+                        },
+                        deleted: {
+                            phases: [...changes.deleted.phases],
+                            sessions: [...changes.deleted.sessions],
+                            exercises: [...changes.deleted.exercises]
+                        }
+                    };
+                    
+                    console.log("Applying serialized changes:", serializedChanges);
                     result = await applyWorkoutPlanChanges(
                         planId,
                         lastKnownUpdatedAt,
-                        changes
+                        serializedChanges
                     );
                 } else {
                     // Fallback to full update if no changes detected or change tracker not available
