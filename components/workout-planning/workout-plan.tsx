@@ -41,50 +41,18 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { Exercise, Session, Phase } from "./types";
+import { Exercise, Session, Phase, WorkoutPlanResponse } from "./types";
 
 // Define the response type from getWorkoutPlanByClientId
-type WorkoutPlanResponse = {
-    planId: string;
-    updatedAt: Date;
-    phases: Array<{
-        id: string;
-        name: string;
-        isActive: boolean;
-        isExpanded: boolean;
-        sessions: Array<{
-            id: string;
-            name: string;
-            duration: number | null;
-            isExpanded: boolean;
-            exercises: Array<{
-                id: string;
-                order: string;
-                motion: string | null;
-                targetArea: string | null;
-                exerciseId: string | null;
-                description: string | null;
-                duration?: number;
-                sets?: string;
-                reps?: string;
-                tut?: string;
-                tempo?: string;
-                rest?: string;
-                additionalInfo?: string;
-                setsMin?: string;
-                setsMax?: string;
-                repsMin?: string;
-                repsMax?: string;
-                restMin?: string;
-                restMax?: string;
-            }>;
-        }>;
-    }>;
-};
+
 import DraggableSession from "./draggable-session";
 import ExerciseTableInline from "./ExerciseTableInline";
 import { TooltipContent, Tooltip, TooltipTrigger } from "../ui/tooltip";
 import type { SelectExercise } from "@/db/schemas";
+import {
+    fetchWorkoutPlan,
+    refetchWorkoutPlan,
+} from "./workout-utils/workout-utils";
 
 type WorkoutPlannerProps = {
     client_id: string;
@@ -132,123 +100,14 @@ export default function WorkoutPlanner({
 
     // ===== Data Fetching =====
     useEffect(() => {
-        async function getWorkout() {
-            setIsLoading(true);
-            try {
-                const response = await getWorkoutPlanByClientId(client_id);
-                console.log(
-                    "Fetched workout plan (raw):",
-                    JSON.stringify(response, null, 2)
-                );
-
-                // If no plan exists yet or empty array is returned
-                if (
-                    !response ||
-                    (Array.isArray(response) && response.length === 0)
-                ) {
-                    setPhases([]);
-                    // Initialize change tracker with empty phases
-                    setChangeTracker(new WorkoutPlanChangeTracker([]));
-                    return;
-                }
-
-                // Store the plan ID and last updated timestamp for concurrency control
-                if ("planId" in response && "updatedAt" in response) {
-                    setPlanId(response.planId);
-                    setLastKnownUpdatedAt(new Date(response.updatedAt));
-                }
-
-                // Map the phases from the response
-                const mapped = (response as WorkoutPlanResponse).phases.map(
-                    (phase) => ({
-                        id: phase.id,
-                        name: phase.name,
-                        isActive: phase.isActive,
-                        isExpanded: phase.isExpanded,
-                        sessions: phase.sessions.map((session) => {
-                            // Map exercises with safe defaults and include all fields
-                            const exercises = session.exercises?.map((e) => {
-                                if (
-                                    !e.id ||
-                                    !e.order ||
-                                    !e.motion ||
-                                    !e.targetArea ||
-                                    !e.description
-                                ) {
-                                    console.warn(
-                                        "Missing required exercise properties",
-                                        e
-                                    );
-                                }
-                                const exercise: Exercise = {
-                                    id: e.id || uuidv4(),
-                                    order: e.order || "",
-                                    motion: e.motion || "",
-                                    targetArea: e.targetArea || "",
-                                    exerciseId: e.exerciseId || "",
-                                    description: e.description || "",
-                                    duration:
-                                        typeof e.duration === "number"
-                                            ? e.duration
-                                            : 8,
-                                    // Include all possible fields from Exercise interface
-                                    sets: e.sets ?? "",
-                                    reps: e.reps ?? "",
-                                    tut: e.tut ?? "",
-                                    tempo: e.tempo ?? "",
-                                    rest: e.rest ?? "",
-                                    additionalInfo: e.additionalInfo ?? "",
-                                    setsMin: e.setsMin ?? "",
-                                    setsMax: e.setsMax ?? "",
-                                    repsMin: e.repsMin ?? "",
-                                    repsMax: e.repsMax ?? "",
-                                    restMin: e.restMin ?? "",
-                                    restMax: e.restMax ?? "",
-                                    // Map additionalInfo to customizations for backend
-                                    customizations: e.additionalInfo ?? "",
-                                };
-
-                                return exercise;
-                            });
-
-                            // Calculate total session duration
-                            const calculatedDuration =
-                                exercises?.reduce(
-                                    (total: number, ex: Exercise) =>
-                                        total + (ex.duration || 8),
-                                    0
-                                ) || 0;
-
-                            return {
-                                id: session.id || uuidv4(),
-                                name: session.name || "Unnamed Session",
-                                duration: calculatedDuration,
-                                isExpanded: Boolean(session.isExpanded),
-                                exercises: exercises || [],
-                            };
-                        }),
-                    })
-                );
-
-                console.log(
-                    "Mapped workout plan (frontend structure):",
-                    JSON.stringify(mapped, null, 2)
-                );
-                updatePhases(mapped);
-
-                // Initialize change tracker with the fetched phases
-                setChangeTracker(new WorkoutPlanChangeTracker(mapped));
-            } catch (error) {
-                console.error("Error fetching workout plan:", error);
-                // Fallback to empty data
-                updatePhases([]);
-                // Initialize change tracker with empty phases
-                setChangeTracker(new WorkoutPlanChangeTracker([]));
-            } finally {
-                setIsLoading(false);
-            }
-        }
-        getWorkout();
+        fetchWorkoutPlan(
+            client_id,
+            setIsLoading,
+            setPlanId,
+            setLastKnownUpdatedAt,
+            updatePhases,
+            setChangeTracker
+        );
     }, [client_id]);
 
     // Removed auto-save functionality to ensure all saves are performed by the Save All button
@@ -256,110 +115,14 @@ export default function WorkoutPlanner({
     // Refetch data when savePerformed changes (after successful save)
     useEffect(() => {
         if (savePerformed > 0) {
-            const refetchWorkout = async () => {
-                try {
-                    const response = await getWorkoutPlanByClientId(client_id);
-                    if (
-                        response &&
-                        "planId" in response &&
-                        "updatedAt" in response
-                    ) {
-                        setPlanId(response.planId);
-                        setLastKnownUpdatedAt(new Date(response.updatedAt));
-
-                        // Map the phases from the response
-                        const mapped = (
-                            response as WorkoutPlanResponse
-                        ).phases.map((phase) => ({
-                            id: phase.id,
-                            name: phase.name,
-                            isActive: phase.isActive,
-                            isExpanded: phase.isExpanded,
-                            sessions: phase.sessions.map((session) => {
-                                // Map exercises with safe defaults and include all fields
-                                const exercises = session.exercises?.map(
-                                    (e) => {
-                                        if (
-                                            !e.id ||
-                                            !e.order ||
-                                            !e.motion ||
-                                            !e.targetArea ||
-                                            !e.description
-                                        ) {
-                                            console.warn(
-                                                "Missing required exercise properties",
-                                                e
-                                            );
-                                        }
-                                        const exercise: Exercise = {
-                                            id: e.id || uuidv4(),
-                                            order: e.order || "",
-                                            motion: e.motion || "",
-                                            targetArea: e.targetArea || "",
-                                            exerciseId: e.exerciseId || "",
-                                            description: e.description || "",
-                                            duration:
-                                                typeof e.duration === "number"
-                                                    ? e.duration
-                                                    : 8,
-                                            // Include all possible fields from Exercise interface
-                                            sets: e.sets ?? "",
-                                            reps: e.reps ?? "",
-                                            tut: e.tut ?? "",
-                                            tempo: e.tempo ?? "",
-                                            rest: e.rest ?? "",
-                                            additionalInfo:
-                                                e.additionalInfo ?? "",
-                                            setsMin: e.setsMin ?? "",
-                                            setsMax: e.setsMax ?? "",
-                                            repsMin: e.repsMin ?? "",
-                                            repsMax: e.repsMax ?? "",
-                                            restMin: e.restMin ?? "",
-                                            restMax: e.restMax ?? "",
-                                            // Map additionalInfo to customizations for backend
-                                            customizations:
-                                                e.additionalInfo ?? "",
-                                        };
-
-                                        return exercise;
-                                    }
-                                );
-
-                                // Calculate total session duration
-                                const calculatedDuration =
-                                    exercises?.reduce(
-                                        (total: number, ex: Exercise) =>
-                                            total + (ex.duration || 8),
-                                        0
-                                    ) || 0;
-
-                                return {
-                                    id: session.id || uuidv4(),
-                                    name: session.name || "Unnamed Session",
-                                    duration: calculatedDuration,
-                                    isExpanded: Boolean(session.isExpanded),
-                                    exercises: exercises || [],
-                                };
-                            }),
-                        }));
-
-                        updatePhases(mapped);
-
-                        // Reset the change tracker with the fetched phases
-                        if (changeTracker) {
-                            changeTracker.reset(mapped);
-                        } else {
-                            setChangeTracker(
-                                new WorkoutPlanChangeTracker(mapped)
-                            );
-                        }
-                    }
-                } catch (error) {
-                    console.error("Error refetching workout plan:", error);
-                }
-            };
-
-            refetchWorkout();
+            refetchWorkoutPlan(
+                client_id,
+                setPlanId,
+                setLastKnownUpdatedAt,
+                updatePhases,
+                changeTracker,
+                setChangeTracker
+            );
         }
     }, [savePerformed, client_id]);
 
@@ -1026,7 +789,7 @@ export default function WorkoutPlanner({
         // Create a new blank exercise with default values
         const newExercise: Exercise = {
             id: uuidv4(),
-            order: "A1", // Default order
+            order: "", // Default order
             motion: "Unspecified", // Default motion
             targetArea: "Unspecified", // Default target area
             exerciseId: uuidv4(), // Generate a temporary exerciseId that will be replaced when user selects an exercise

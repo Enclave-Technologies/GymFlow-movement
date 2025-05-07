@@ -1,3 +1,41 @@
+export type WorkoutPlanResponse = {
+    planId: string;
+    updatedAt: Date;
+    phases: Array<{
+        id: string;
+        name: string;
+        isActive: boolean;
+        isExpanded: boolean;
+        sessions: Array<{
+            id: string;
+            name: string;
+            duration: number | null;
+            isExpanded: boolean;
+            exercises: Array<{
+                id: string;
+                order: string;
+                motion: string | null;
+                targetArea: string | null;
+                exerciseId: string | null;
+                description: string | null;
+                duration?: number;
+                sets?: string;
+                reps?: string;
+                tut?: string;
+                tempo?: string;
+                rest?: string;
+                additionalInfo?: string;
+                setsMin?: string;
+                setsMax?: string;
+                repsMin?: string;
+                repsMax?: string;
+                restMin?: string;
+                restMax?: string;
+            }>;
+        }>;
+    }>;
+};
+
 export interface Exercise {
     id: string;
     order: string;
