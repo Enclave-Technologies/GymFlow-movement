@@ -1023,14 +1023,14 @@ export default function WorkoutPlanner({
 
     // This function is called when the "Add Exercise" button is clicked in the session header
     const addExercise = (phaseId: string, sessionId: string) => {
-        // Create a new blank exercise
+        // Create a new blank exercise with default values
         const newExercise: Exercise = {
             id: uuidv4(),
-            order: "",
-            motion: "",
-            targetArea: "",
-            exerciseId: "", // Add exerciseId property
-            description: "",
+            order: "A1", // Default order
+            motion: "Unspecified", // Default motion
+            targetArea: "Unspecified", // Default target area
+            exerciseId: uuidv4(), // Generate a temporary exerciseId that will be replaced when user selects an exercise
+            description: "New Exercise", // Default description
             duration: 8,
             setsMin: "3",
             setsMax: "5",

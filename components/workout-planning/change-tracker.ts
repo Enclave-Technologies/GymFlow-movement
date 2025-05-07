@@ -407,6 +407,7 @@ export class WorkoutPlanChangeTracker {
             prev.motion !== curr.motion ||
             prev.targetArea !== curr.targetArea ||
             prev.description !== curr.description ||
+            prev.exerciseId !== curr.exerciseId ||
             prev.sets !== curr.sets ||
             prev.reps !== curr.reps ||
             prev.tut !== curr.tut ||
@@ -443,6 +444,8 @@ export class WorkoutPlanChangeTracker {
             changes.targetArea = curr.targetArea;
         if (prev.description !== curr.description)
             changes.description = curr.description;
+        if (prev.exerciseId !== curr.exerciseId) 
+            changes.exerciseId = curr.exerciseId;
         if (prev.sets !== curr.sets) changes.sets = curr.sets;
         if (prev.reps !== curr.reps) changes.reps = curr.reps;
         if (prev.tut !== curr.tut) changes.tut = curr.tut;

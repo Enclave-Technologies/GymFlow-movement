@@ -421,6 +421,12 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                                                                     "with ID:",
                                                                                     selectedExercise.exerciseId
                                                                                 );
+                                                                                console.log(
+                                                                                    "Selected exercise:",
+                                                                                    selectedExercise.exerciseName,
+                                                                                    "with ID:",
+                                                                                    selectedExercise.exerciseId
+                                                                                );
                                                                             } else {
                                                                                 // If no exercise found, just update the description
                                                                                 handleInlineExerciseChange(
