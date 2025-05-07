@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal, Eye, UserX, UserCog } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { deleteClient } from "@/actions/client_actions";
 
 // Define the client type to match what comes from the database
 export type Client = {
@@ -221,6 +222,7 @@ function ActionsCell({ userId }: { userId: string }) {
     };
 
     const handleDeleteUser = () => {
+        deleteClient(userId);
         // TODO: Implement delete user logic, e.g. API call with confirmation
         console.log(`Delete user ${userId}`);
     };
