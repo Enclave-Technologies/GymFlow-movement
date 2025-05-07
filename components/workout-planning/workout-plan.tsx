@@ -488,11 +488,33 @@ export default function WorkoutPlanner({
                     };
                     
                     console.log("Applying serialized changes:", serializedChanges);
-                    result = await applyWorkoutPlanChanges(
-                        planId,
-                        lastKnownUpdatedAt,
-                        serializedChanges
+
+                    // Validate UUIDs before applying changes
+                    const invalidPhaseId = serializedChanges.created.sessions.some(
+                        (item) => !item.phaseId || item.phaseId.trim() === ""
                     );
+                    const invalidSessionId = serializedChanges.created.exercises.some(
+                        (item) => !item.sessionId || item.sessionId.trim() === ""
+                    );
+
+                    if (invalidPhaseId) {
+                        throw new Error("Invalid phaseId detected in created sessions");
+                    }
+                    if (invalidSessionId) {
+                        throw new Error("Invalid sessionId detected in created exercises");
+                    }
+
+                    try {
+                        result = await applyWorkoutPlanChanges(
+                            planId,
+                            lastKnownUpdatedAt,
+                            serializedChanges
+                        );
+                        console.log("Result from applyWorkoutPlanChanges:", result);
+                    } catch (error) {
+                        console.error("Error in applyWorkoutPlanChanges:", error);
+                        throw error;
+                    }
                 } else {
                     // Fallback to full update if no changes detected or change tracker not available
                     console.log(

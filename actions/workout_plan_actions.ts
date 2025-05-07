@@ -1288,6 +1288,8 @@ export async function applyWorkoutPlanChanges(
     lastKnownUpdatedAt: Date,
     changes: WorkoutPlanChanges
 ): Promise<WorkoutPlanActionResponse> {
+    console.log("Starting applyWorkoutPlanChanges with planId:", planId);
+    
     // Skip processing if there are no actual changes - fast path return
     const hasNoChanges =
         changes.created.phases.length === 0 &&
@@ -1301,6 +1303,7 @@ export async function applyWorkoutPlanChanges(
         changes.deleted.exercises.length === 0;
 
     if (hasNoChanges) {
+        console.log("No changes detected, returning early");
         return {
             success: true,
             planId: planId,
@@ -1662,22 +1665,37 @@ export async function applyWorkoutPlanChanges(
                     });
                 }
 
-                // Prepare exercises for insertion - filter out exercises with null exerciseId
+                console.log("Processing exercise creations:", changes.created.exercises.length);
+                
+                // Prepare exercises for insertion - filter out exercises with null or empty exerciseId
                 // Using destructuring to avoid directly accessing properties of client component references
                 const exercisesToInsert = changes.created.exercises
                     .filter((exerciseData) => {
                         const exercise = exerciseData.exercise;
-                        return exercise && exercise.exerciseId !== null;
+                        // Check for null, undefined, or empty string
+                        const isValidExerciseId = exercise && 
+                            exercise.exerciseId !== null && 
+                            exercise.exerciseId !== undefined && 
+                            exercise.exerciseId !== "";
+                        
+                        if (!isValidExerciseId) {
+                            console.log("Skipping exercise with invalid exerciseId:", 
+                                exercise ? exercise.id : "unknown", 
+                                "exerciseId:", exercise ? exercise.exerciseId : "null");
+                        }
+                        
+                        return isValidExerciseId;
                     })
                     .map((exerciseData, index) => {
                         const exercise = exerciseData.exercise;
+                        console.log("Preparing to insert exercise:", exercise.id, "with exerciseId:", exercise.exerciseId);
 
                         // Make sure we're using exerciseId (reference to Exercises table) and not id (which is planExerciseId)
                         // This is critical to avoid foreign key violations
                         return {
                             planExerciseId: uuidv4(), // Generate new unique ID for this exercise instance
                             sessionId: exerciseData.sessionId,
-                            exerciseId: exercise.exerciseId!, // Use exerciseId (foreign key) not id (primary key)
+                            exerciseId: exercise.exerciseId, // Use exerciseId (foreign key) not id (primary key)
                             motion: exercise.motion ?? null,
                             targetArea: exercise.targetArea ?? null,
                             repsMin:
@@ -1738,23 +1756,29 @@ export async function applyWorkoutPlanChanges(
                     changes.created.exercises.length - exercisesToInsert.length;
                 if (skippedCount > 0) {
                     console.warn(
-                        `Skipped ${skippedCount} exercises with null exerciseId`
+                        `Skipped ${skippedCount} exercises with null or empty exerciseId`
                     );
                 }
+                
+                console.log("Exercises to insert:", exercisesToInsert.length);
 
                 // Split into chunks to avoid potential query size limits
                 const chunkSize = 100;
                 for (let i = 0; i < exercisesToInsert.length; i += chunkSize) {
                     const chunk = exercisesToInsert.slice(i, i + chunkSize);
+                    console.log(`Inserting chunk ${i/chunkSize + 1} of exercises (${chunk.length} items)`);
                     await tx.insert(ExercisePlanExercises).values(chunk);
+                    console.log(`Successfully inserted chunk ${i/chunkSize + 1}`);
                 }
             }
 
+            console.log("Updating plan timestamp");
             // Update the plan's updatedAt timestamp
             await tx
                 .update(ExercisePlans)
                 .set({ updatedAt: now })
                 .where(eq(ExercisePlans.planId, planId));
+            console.log("Plan timestamp updated successfully");
 
             // Get the client ID associated with this plan for cache revalidation
             const planDetails = await tx
@@ -1781,6 +1805,11 @@ export async function applyWorkoutPlanChanges(
         });
     } catch (error) {
         console.error("Error applying workout plan changes:", error);
+        // Log more details about the error
+        if (error instanceof Error) {
+            console.error("Error details:", error.message);
+            console.error("Error stack:", error.stack);
+        }
         return {
             success: false,
             error: "Failed to apply workout plan changes",
