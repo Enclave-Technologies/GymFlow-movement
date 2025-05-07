@@ -11,13 +11,10 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 // Select components are now used in ExerciseTableInline component
-import { Loader2 } from "lucide-react";
 import { updateSessionOrder } from "@/actions/workout_plan_actions";
 import { WorkoutPlanChangeTracker } from "./workout-utils/change-tracker";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { DndProvider } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
 import { Exercise, Session, Phase } from "./types";
 
 // Define the response type from getWorkoutPlanByClientId
@@ -47,8 +44,8 @@ import {
     toggleSessionExpansion,
 } from "./workout-utils/session-utils";
 import { addExercise, deleteExercise } from "./workout-utils/exercise-utils";
-import { PhaseCard } from "./UI-components/PhaseCard";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
+import { PhaseList } from "./UI-components/PhaseList";
 
 type WorkoutPlannerProps = {
     client_id: string;
@@ -516,63 +513,36 @@ export default function WorkoutPlanner({
                     setHasUnsavedChanges={setHasUnsavedChanges}
                 />
 
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-64">
-                        <div className="flex flex-col items-center">
-                            {/* Updated: Use Lucide Loader icon for loading spinner */}
-                            <Loader2 className="animate-spin h-8 w-8 text-primary" />
-                            <p className="mt-4 text-sm text-muted-foreground">
-                                Please wait...
-                            </p>
-                        </div>
-                    </div>
-                ) : phases.length > 0 ? (
-                    <DndProvider backend={HTML5Backend}>
-                        {phases.map((phase) => (
-                            <PhaseCard
-                                key={phase.id}
-                                phase={phase}
-                                // Phase handlers
-                                onToggleExpand={handleTogglePhaseExpansion}
-                                onAddSession={() => addSessionHandler(phase.id)}
-                                onEditPhase={handleStartEditPhase}
-                                onDeletePhase={handleDeletePhase}
-                                onDuplicatePhase={handleDuplicatePhase}
-                                onToggleActivation={handleTogglePhaseActivation}
-                                editingPhase={editingPhase}
-                                editPhaseValue={editPhaseValue}
-                                onSavePhaseEdit={handleSavePhaseEdit}
-                                onEditPhaseValueChange={setEditPhaseValue}
-                                // Session handlers
-                                onToggleSession={toggleSessionExpansionHandler}
-                                onDeleteSession={deleteSessionHandler}
-                                onDuplicateSession={duplicateSessionHandler}
-                                onAddExercise={addExerciseHandler}
-                                onStartSession={startSession}
-                                startingSessionId={startingSessionId}
-                                onStartEditSession={startEditSession}
-                                onMoveSession={moveSession}
-                                onDragVisual={handleDragVisual}
-                                onRenderExercises={renderExercisesTable}
-                                editingSession={editingSession}
-                                editSessionValue={editSessionValue}
-                                onSaveSessionEdit={saveSessionEdit}
-                                onEditSessionValueChange={setEditSessionValue}
-                            />
-                        ))}
-                    </DndProvider>
-                ) : (
-                    <div className="flex flex-col items-center justify-center p-10">
-                        <div className="text-center mb-6">
-                            <h3 className="text-xl font-semibold mb-2 text-foreground">
-                                No phases added yet
-                            </h3>
-                            <p className="text-muted-foreground">
-                                Click &quot;Add Phase&quot; to get started
-                            </p>
-                        </div>
-                    </div>
-                )}
+                <PhaseList
+                    phases={phases}
+                    isLoading={isLoading}
+                    // Phase handlers
+                    onToggleExpand={handleTogglePhaseExpansion}
+                    onAddSession={addSessionHandler}
+                    onEditPhase={handleStartEditPhase}
+                    onDeletePhase={handleDeletePhase}
+                    onDuplicatePhase={handleDuplicatePhase}
+                    onToggleActivation={handleTogglePhaseActivation}
+                    editingPhase={editingPhase}
+                    editPhaseValue={editPhaseValue}
+                    onSavePhaseEdit={handleSavePhaseEdit}
+                    onEditPhaseValueChange={setEditPhaseValue}
+                    // Session handlers
+                    onToggleSession={toggleSessionExpansionHandler}
+                    onDeleteSession={deleteSessionHandler}
+                    onDuplicateSession={duplicateSessionHandler}
+                    onAddExercise={addExerciseHandler}
+                    onStartSession={startSession}
+                    startingSessionId={startingSessionId}
+                    onStartEditSession={startEditSession}
+                    onMoveSession={moveSession}
+                    onDragVisual={handleDragVisual}
+                    onRenderExercises={renderExercisesTable}
+                    editingSession={editingSession}
+                    editSessionValue={editSessionValue}
+                    onSaveSessionEdit={saveSessionEdit}
+                    onEditSessionValueChange={setEditSessionValue}
+                />
             </div>
 
             {/* Confirm Delete Dialog */}
