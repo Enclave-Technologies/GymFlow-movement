@@ -28,10 +28,8 @@ export async function saveAll(
     updatePhases: (phases: Phase[]) => void
 ) {
     // Log the current state to the console
-    console.log(
-        "Saving workout plan (current changes):",
-        JSON.stringify(changeTracker, null, 2)
-    );
+    // Do not block the save flow because of a logging issue
+    console.log("Saving workout plan (current changes):", changeTracker);
 
     // Set saving state
     setSaving(true);
