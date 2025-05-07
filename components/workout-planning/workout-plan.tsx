@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import WorkoutPlanCsvImportExport from "./UI-components/workout-plan-csv-import-export";
 import { Button } from "@/components/ui/button";
 // Table components are now used in ExerciseTableInline component
 import {
@@ -12,7 +11,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 // Select components are now used in ExerciseTableInline component
-import { Loader, Plus, Save } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { updateSessionOrder } from "@/actions/workout_plan_actions";
 import { WorkoutPlanChangeTracker } from "./workout-utils/change-tracker";
 import { toast } from "sonner";
@@ -24,7 +23,6 @@ import { Exercise, Session, Phase } from "./types";
 // Define the response type from getWorkoutPlanByClientId
 
 import ExerciseTableInline from "./UI-components/ExerciseTableInline";
-import { TooltipContent, Tooltip, TooltipTrigger } from "../ui/tooltip";
 import type { SelectExercise } from "@/db/schemas";
 import {
     createUpdatePhasesFunction,
@@ -50,6 +48,7 @@ import {
 } from "./workout-utils/session-utils";
 import { addExercise, deleteExercise } from "./workout-utils/exercise-utils";
 import { PhaseCard } from "./UI-components/PhaseCard";
+import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
 
 type WorkoutPlannerProps = {
     client_id: string;
@@ -504,67 +503,24 @@ export default function WorkoutPlanner({
     return (
         <div className="w-full max-w-6xl mx-auto rounded-lg text-accent-foreground bg-card">
             <div className="w-full p-2">
-                <div className="mb-2 flex items-center gap-2">
-                    {/* Add Phase Button with Tooltip */}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                onClick={handleAddPhase}
-                                className="cursor-pointer h-10"
-                            >
-                                <Plus className="h-4 w-4 mr-2" /> Add Phase
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Add a new phase</TooltipContent>
-                    </Tooltip>
-                    {/* Save All Button with Tooltip */}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                onClick={handleSaveAll}
-                                className="cursor-pointer h-10"
-                            >
-                                <Save className="h-4 w-4 mr-2" /> Save All
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Save all changes</TooltipContent>
-                    </Tooltip>
-
-                    <div className="flex items-center gap-2">
-                        <WorkoutPlanCsvImportExport
-                            phases={phases}
-                            onImport={(importedPhases) => {
-                                updatePhases(importedPhases);
-                                setHasUnsavedChanges(true);
-                            }}
-                            clientId={client_id}
-                            exercises={exercises}
-                        />
-                    </div>
-
-                    {hasUnsavedChanges && (
-                        <span className="ml-2 text-yellow-600 font-medium text-sm">
-                            * You have unsaved changes
-                        </span>
-                    )}
-                    {isSaving && (
-                        <span className="ml-2 text-blue-600 font-medium text-sm flex items-center">
-                            <Loader className="animate-spin h-4 w-4 mr-1" />
-                            Saving...
-                        </span>
-                    )}
-                    {conflictError && (
-                        <span className="ml-2 text-red-600 font-medium text-sm">
-                            * {conflictError.message}
-                        </span>
-                    )}
-                </div>
+                <WorkoutToolbar
+                    onAddPhase={handleAddPhase}
+                    onSaveAll={handleSaveAll}
+                    hasUnsavedChanges={hasUnsavedChanges}
+                    isSaving={isSaving}
+                    conflictError={conflictError}
+                    client_id={client_id}
+                    phases={phases}
+                    exercises={exercises}
+                    updatePhases={updatePhases}
+                    setHasUnsavedChanges={setHasUnsavedChanges}
+                />
 
                 {isLoading ? (
                     <div className="flex items-center justify-center h-64">
                         <div className="flex flex-col items-center">
                             {/* Updated: Use Lucide Loader icon for loading spinner */}
-                            <Loader className="animate-spin h-8 w-8 text-primary" />
+                            <Loader2 className="animate-spin h-8 w-8 text-primary" />
                             <p className="mt-4 text-sm text-muted-foreground">
                                 Please wait...
                             </p>
