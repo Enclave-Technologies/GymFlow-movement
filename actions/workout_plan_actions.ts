@@ -1504,10 +1504,15 @@ export async function applyWorkoutPlanChanges(
 
         // --- OPTIMIZATION: Prepare exercise creations ---
         // Get all unique exercise descriptions for batch lookup
+        // Instead of directly accessing e.exercise.description which causes issues with Server Components,
+        // we'll use a safer approach by destructuring the exercise first
         const uniqueExerciseDescriptions = [
             ...new Set(
                 changes.created.exercises
-                    .map((e) => e.exercise.description)
+                    .map((e) => {
+                        const exercise = e.exercise;
+                        return exercise ? exercise.description : null;
+                    })
                     .filter(Boolean)
             ),
         ] as string[];
@@ -1658,11 +1663,12 @@ export async function applyWorkoutPlanChanges(
                 }
 
                 // Prepare exercises for insertion - filter out exercises with null exerciseId
+                // Using destructuring to avoid directly accessing properties of client component references
                 const exercisesToInsert = changes.created.exercises
-                    .filter(
-                        (exerciseData) =>
-                            exerciseData.exercise.exerciseId !== null
-                    )
+                    .filter((exerciseData) => {
+                        const exercise = exerciseData.exercise;
+                        return exercise && exercise.exerciseId !== null;
+                    })
                     .map((exerciseData, index) => {
                         const exercise = exerciseData.exercise;
 

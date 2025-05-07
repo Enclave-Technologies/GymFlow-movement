@@ -26,6 +26,12 @@ import {
 import { toast } from "sonner";
 import type { SelectExercise } from "@/db/schemas";
 import Link from "next/link";
+import {
+    DropdownMenu,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 interface WorkoutPlanCsvImportExportProps {
     phases: Phase[];
@@ -138,30 +144,43 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
                     />
                 </Button>
 
-                <Link
-                    href="/templates/workout-plan-template.csv"
-                    download
-                    className="inline-flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors h-10 shadow-sm"
-                >
-                    <SquareDashedKanban className="h-4 w-4" />
-                    Template
-                </Link>
-                {exercises.length > 0 && (
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                            downloadExercisesCsv(
-                                exercises,
-                                `exercises-${clientId}.csv`
-                            )
-                        }
-                        className="flex items-center gap-2 h-10"
-                    >
-                        <Dumbbell className="h-4 w-4" />
-                        Export Exercises CSV
-                    </Button>
-                )}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-2 h-10"
+                        >
+                            <SquareDashedKanban className="h-4 w-4" />
+                            Resources
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                            <Link
+                                href="/templates/workout-plan-template.csv"
+                                download
+                                className="flex items-center gap-2 cursor-pointer"
+                            >
+                                <SquareDashedKanban className="h-4 w-4" />
+                                Download Template
+                            </Link>
+                        </DropdownMenuItem>
+                        {exercises.length > 0 && (
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    downloadExercisesCsv(
+                                        exercises,
+                                        `exercises-${clientId}.csv`
+                                    )
+                                }
+                            >
+                                <Dumbbell className="h-4 w-4 mr-2" />
+                                Export Exercises CSV
+                            </DropdownMenuItem>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
 
             {error && (
