@@ -154,3 +154,31 @@ export async function refetchWorkoutPlan(
         console.error("Error refetching workout plan:", error);
     }
 }
+
+export const createUpdatePhasesFunction = (
+    setPhases: React.Dispatch<React.SetStateAction<Phase[]>>,
+    changeTracker: WorkoutPlanChangeTracker | null
+) => {
+    return (newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])) => {
+        console.log(
+            "Updating phases:",
+            typeof newPhases === "function"
+                ? "function"
+                : JSON.stringify(newPhases, null, 2)
+        );
+        setPhases((prevPhases) => {
+            // Handle both direct value and function updates
+            const updatedPhases =
+                typeof newPhases === "function"
+                    ? newPhases(prevPhases)
+                    : newPhases;
+
+            // Update the change tracker if it exists
+            if (changeTracker) {
+                changeTracker.updateCurrentState(updatedPhases);
+            }
+
+            return updatedPhases;
+        });
+    };
+};
