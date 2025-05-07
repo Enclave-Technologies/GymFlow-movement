@@ -1,15 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-// Table components are now used in ExerciseTableInline component
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
+// Table components and Dialog components are now used in other components
 // Select components are now used in ExerciseTableInline component
 import { updateSessionOrder } from "@/actions/workout_plan_actions";
 import { WorkoutPlanChangeTracker } from "./workout-utils/change-tracker";
@@ -46,6 +38,7 @@ import {
 import { addExercise, deleteExercise } from "./workout-utils/exercise-utils";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
 import { PhaseList } from "./UI-components/PhaseList";
+import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
 
 type WorkoutPlannerProps = {
     client_id: string;
@@ -547,80 +540,13 @@ export default function WorkoutPlanner({
 
             {/* Confirm Delete Dialog */}
             {showConfirm.type && (
-                <Dialog
-                    open
-                    onOpenChange={() => setShowConfirm({ type: null })}
-                >
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>
-                                {showConfirm.type === "phase" && "Delete Phase"}
-                                {showConfirm.type === "session" &&
-                                    "Delete Session"}
-                                {showConfirm.type === "exercise" &&
-                                    "Delete Exercise"}
-                            </DialogTitle>
-                        </DialogHeader>
-                        <p className="py-4">
-                            Are you sure you want to delete this{" "}
-                            {showConfirm.type === "phase"
-                                ? "phase"
-                                : showConfirm.type === "session"
-                                ? "session"
-                                : showConfirm.type === "exercise"
-                                ? "exercise"
-                                : "item"}
-                            ?
-                        </p>
-                        <DialogFooter>
-                            <Button
-                                variant="outline"
-                                onClick={() => setShowConfirm({ type: null })}
-                            >
-                                Cancel
-                            </Button>
-                            {showConfirm.type === "phase" && (
-                                <Button
-                                    variant="destructive"
-                                    onClick={() =>
-                                        handleConfirmDeletePhase(
-                                            showConfirm.phaseId!
-                                        )
-                                    }
-                                >
-                                    Delete
-                                </Button>
-                            )}
-                            {showConfirm.type === "session" && (
-                                <Button
-                                    variant="destructive"
-                                    onClick={() =>
-                                        confirmDeleteSessionHandler(
-                                            showConfirm.phaseId!,
-                                            showConfirm.sessionId!
-                                        )
-                                    }
-                                >
-                                    Delete
-                                </Button>
-                            )}
-                            {showConfirm.type === "exercise" && (
-                                <Button
-                                    variant="destructive"
-                                    onClick={() =>
-                                        confirmDeleteExerciseHandler(
-                                            showConfirm.phaseId!,
-                                            showConfirm.sessionId!,
-                                            showConfirm.exerciseId!
-                                        )
-                                    }
-                                >
-                                    Delete
-                                </Button>
-                            )}
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                <DeleteConfirmationDialog
+                    showConfirm={showConfirm}
+                    onCancel={() => setShowConfirm({ type: null })}
+                    onDeletePhase={handleConfirmDeletePhase}
+                    onDeleteSession={confirmDeleteSessionHandler}
+                    onDeleteExercise={confirmDeleteExerciseHandler}
+                />
             )}
 
             {/* Exercise editing is now handled inline by the ExerciseTableInline component */}
