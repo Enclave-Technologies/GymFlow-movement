@@ -49,37 +49,49 @@ export default function WorkoutPlanner({
     client_id,
     exercises,
 }: WorkoutPlannerProps) {
-    // ===== UI State =====
+    // ===== Data State =====
     const [phases, setPhases] = useState<Phase[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    const [isSaving, setSaving] = useState(false); // Used in saveAll and togglePhaseActivation
     const [planId, setPlanId] = useState<string | null>(null);
     const [lastKnownUpdatedAt, setLastKnownUpdatedAt] = useState<Date | null>(
         null
     );
-    const [savePerformed, setSavePerformed] = useState<number>(0); // Counter to trigger refetch after save
+
+    // ===== UI State =====
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setSaving] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [savePerformed, setSavePerformed] = useState<number>(0);
     const [conflictError, setConflictError] = useState<{
         message: string;
         serverTime: Date;
-    } | null>(null); // Used for conflict detection
-    // isSaving state is no longer needed as dialog is removed
-    // Undo/redo removed
+    } | null>(null);
+
+    // ===== Editing State =====
+    const [editingPhase, setEditingPhase] = useState<string | null>(null);
+    const [editPhaseValue, setEditPhaseValue] = useState("");
+    const [editingSession, setEditingSession] = useState<string | null>(null);
+    const [editSessionValue, setEditSessionValue] = useState("");
+    const [editingExercise, setEditingExercise] = useState<{
+        sessionId: string;
+        exerciseId: string;
+    } | null>(null);
+
+    // ===== Confirmation Dialogs =====
     const [showConfirm, setShowConfirm] = useState<{
         type: "phase" | "session" | "exercise" | null;
         phaseId?: string;
         sessionId?: string;
         exerciseId?: string;
     }>({ type: null });
+
+    // ===== Session State =====
     const [startingSessionId, setStartingSessionId] = useState<string | null>(
         null
     );
 
-    // Change tracker for efficient updates
+    // ===== Change Tracking =====
     const [changeTracker, setChangeTracker] =
         useState<WorkoutPlanChangeTracker | null>(null);
-    // These states are no longer needed as dialog is removed
-    // but we're keeping the interface for now to avoid breaking changes
 
     // ===== Router =====
     const router = useRouter();
@@ -211,11 +223,6 @@ export default function WorkoutPlanner({
     };
 
     // ===== Exercise CRUD =====
-    // State to track which session and exercise is being edited
-    const [editingExercise, setEditingExercise] = useState<{
-        sessionId: string;
-        exerciseId: string;
-    } | null>(null);
 
     const addExerciseHandler = (phaseId: string, sessionId: string) => {
         const { updatedPhases, newExerciseId } = addExercise(
@@ -250,8 +257,6 @@ export default function WorkoutPlanner({
     };
 
     // ===== Phase/Session/Exercise Editing State =====
-    const [editingPhase, setEditingPhase] = useState<string | null>(null);
-    const [editPhaseValue, setEditPhaseValue] = useState("");
     const handleStartEditPhase = (id: string, name: string) => {
         startEditPhase(id, name, setEditingPhase, setEditPhaseValue);
     };
@@ -267,8 +272,6 @@ export default function WorkoutPlanner({
         );
     };
 
-    const [editingSession, setEditingSession] = useState<string | null>(null);
-    const [editSessionValue, setEditSessionValue] = useState("");
     const startEditSession = (id: string, name: string) => {
         setEditingSession(id);
         setEditSessionValue(name);
