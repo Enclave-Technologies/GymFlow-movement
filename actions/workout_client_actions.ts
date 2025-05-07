@@ -220,6 +220,7 @@ export async function updatePhaseActivation(
     isActive: boolean,
     lastKnownUpdatedAt?: Date // Optional parameter for concurrency control
 ): Promise<WorkoutPlanActionResponse> {
+    await requireTrainerOrAdmin();
     try {
         // First get the planId for this phase
         const phase = await db
@@ -344,6 +345,7 @@ export async function updateSessionOrder(
     sessionIds: string[],
     lastKnownUpdatedAt?: Date // Optional parameter for concurrency control
 ): Promise<WorkoutPlanActionResponse> {
+    await requireTrainerOrAdmin();
     try {
         // Get the plan ID from the phase
         const phase = await db
