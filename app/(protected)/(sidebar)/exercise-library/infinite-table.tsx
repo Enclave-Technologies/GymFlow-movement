@@ -227,7 +227,6 @@ export function InfiniteTable({
         [fetchNextPage, isFetchingNextPage, totalFetched, totalRowCount]
     );
 
-    // Check on mount and after data changes if we need to fetch more
     React.useEffect(() => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
