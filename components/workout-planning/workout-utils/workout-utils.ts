@@ -1,7 +1,7 @@
 import { Exercise, Phase, WorkoutPlanResponse } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { getWorkoutPlanByClientId } from "@/actions/workout_plan_actions";
-import { WorkoutPlanChangeTracker } from "../change-tracker";
+import { WorkoutPlanChangeTracker } from "./change-tracker";
 
 export function mapWorkoutPlanResponseToPhase(
     response: WorkoutPlanResponse

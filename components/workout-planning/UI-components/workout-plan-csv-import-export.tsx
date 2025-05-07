@@ -17,12 +17,12 @@ import {
     SquareDashedKanban,
     Upload,
 } from "lucide-react";
-import { Phase } from "./types";
+import { Phase } from "../types";
 import {
     downloadWorkoutPlanCsv,
     importWorkoutPlanFromCsv,
     downloadExercisesCsv,
-} from "./workout-plan-csv";
+} from "../workout-utils/workout-plan-csv";
 import { toast } from "sonner";
 import type { SelectExercise } from "@/db/schemas";
 import Link from "next/link";

@@ -1,13 +1,9 @@
 "use client";
 
-import { v4 as uuidv4 } from "uuid";
-
 import { useEffect, useState } from "react";
-import WorkoutPlanCsvImportExport from "./workout-plan-csv-import-export";
+import WorkoutPlanCsvImportExport from "./UI-components/workout-plan-csv-import-export";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 // Table components are now used in ExerciseTableInline component
-import { Card, CardContent } from "@/components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -15,21 +11,10 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 // Select components are now used in ExerciseTableInline component
-import {
-    ChevronDown,
-    ChevronUp,
-    Copy,
-    Edit,
-    Loader,
-    Plus,
-    Save,
-    Trash2,
-} from "lucide-react";
+import { Loader, Plus, Save } from "lucide-react";
 import { updateSessionOrder } from "@/actions/workout_plan_actions";
-import { WorkoutPlanChangeTracker } from "./change-tracker";
+import { WorkoutPlanChangeTracker } from "./workout-utils/change-tracker";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { DndProvider } from "react-dnd";
@@ -38,8 +23,7 @@ import { Exercise, Session, Phase } from "./types";
 
 // Define the response type from getWorkoutPlanByClientId
 
-import DraggableSession from "./draggable-session";
-import ExerciseTableInline from "./ExerciseTableInline";
+import ExerciseTableInline from "./UI-components/ExerciseTableInline";
 import { TooltipContent, Tooltip, TooltipTrigger } from "../ui/tooltip";
 import type { SelectExercise } from "@/db/schemas";
 import {
@@ -58,6 +42,14 @@ import {
     togglePhaseExpansion,
 } from "./workout-utils/phase-utils";
 import { saveAll } from "./workout-utils/workout-plan-functions";
+import {
+    addSession,
+    deleteSession,
+    duplicateSession,
+    toggleSessionExpansion,
+} from "./workout-utils/session-utils";
+import { addExercise, deleteExercise } from "./workout-utils/exercise-utils";
+import { PhaseCard } from "./UI-components/PhaseCard";
 
 type WorkoutPlannerProps = {
     client_id: string;
@@ -199,84 +191,33 @@ export default function WorkoutPlanner({
     };
 
     // ===== Session CRUD =====
-    const addSession = (phaseId: string) => {
-        updatePhases(
-            phases.map((phase) => {
-                if (phase.id !== phaseId) return phase;
-                const count = phase.sessions.length + 1;
-                const newSession: Session = {
-                    id: uuidv4(),
-                    name: `Untitled Session ${count}`,
-                    duration: 0,
-                    isExpanded: true,
-                    exercises: [],
-                };
-                return { ...phase, sessions: [...phase.sessions, newSession] };
-            })
-        );
+    const addSessionHandler = (phaseId: string) => {
+        updatePhases(addSession(phases, phaseId));
         setHasUnsavedChanges(true);
     };
 
-    const toggleSessionExpansion = (phaseId: string, sessionId: string) => {
-        updatePhases(
-            phases.map((phase) => {
-                if (phase.id !== phaseId) return phase;
-                return {
-                    ...phase,
-                    sessions: phase.sessions.map((session) =>
-                        session.id === sessionId
-                            ? { ...session, isExpanded: !session.isExpanded }
-                            : session
-                    ),
-                };
-            })
-        );
-        setHasUnsavedChanges(true); // Mark changes as unsaved
+    const toggleSessionExpansionHandler = (
+        phaseId: string,
+        sessionId: string
+    ) => {
+        updatePhases(toggleSessionExpansion(phases, phaseId, sessionId));
+        setHasUnsavedChanges(true);
     };
 
-    const deleteSession = (phaseId: string, sessionId: string) =>
+    const duplicateSessionHandler = (phaseId: string, sessionId: string) => {
+        updatePhases(duplicateSession(phases, phaseId, sessionId));
+        setHasUnsavedChanges(true);
+    };
+
+    const deleteSessionHandler = (phaseId: string, sessionId: string) =>
         setShowConfirm({ type: "session", phaseId, sessionId });
-    const confirmDeleteSession = (phaseId: string, sessionId: string) => {
-        updatePhases(
-            phases.map((phase) =>
-                phase.id !== phaseId
-                    ? phase
-                    : {
-                          ...phase,
-                          sessions: phase.sessions.filter(
-                              (s) => s.id !== sessionId
-                          ),
-                      }
-            )
-        );
+
+    const confirmDeleteSessionHandler = (
+        phaseId: string,
+        sessionId: string
+    ) => {
+        updatePhases(deleteSession(phases, phaseId, sessionId));
         setShowConfirm({ type: null });
-        setHasUnsavedChanges(true);
-    };
-
-    const duplicateSession = (phaseId: string, sessionId: string) => {
-        updatePhases(
-            phases.map((phase) => {
-                if (phase.id !== phaseId) return phase;
-                const target = phase.sessions.find((s) => s.id === sessionId);
-                if (!target) return phase;
-
-                // Create deep copies of exercises with new IDs
-                const copiedExercises = target.exercises.map((exercise) => ({
-                    ...exercise,
-                    id: uuidv4(), // Generate new ID for each exercise
-                }));
-
-                // Create a new session with a new ID and the copied exercises
-                const copy: Session = {
-                    ...target,
-                    id: uuidv4(), // Generate new ID for the session
-                    name: `${target.name} (Copy)`,
-                    exercises: copiedExercises,
-                };
-
-                return { ...phase, sessions: [...phase.sessions, copy] };
-            })
-        );
         setHasUnsavedChanges(true);
     };
 
@@ -287,96 +228,36 @@ export default function WorkoutPlanner({
         exerciseId: string;
     } | null>(null);
 
-    // This function is called when the "Add Exercise" button is clicked in the session header
-    const addExercise = (phaseId: string, sessionId: string) => {
-        // Create a new blank exercise with default values
-        const newExercise: Exercise = {
-            id: uuidv4(),
-            order: "", // Default order
-            motion: "Unspecified", // Default motion
-            targetArea: "Unspecified", // Default target area
-            exerciseId: uuidv4(), // Generate a temporary exerciseId that will be replaced when user selects an exercise
-            description: "New Exercise", // Default description
-            duration: 8,
-            setsMin: "3",
-            setsMax: "5",
-            repsMin: "8",
-            repsMax: "12",
-            tempo: "3 0 1 0",
-            restMin: "45",
-            restMax: "60",
-            additionalInfo: "",
-        };
-        // Push the new exercise to the correct session in phases
-        updatePhases(
-            phases.map((phase) =>
-                phase.id !== phaseId
-                    ? phase
-                    : {
-                          ...phase,
-                          sessions: phase.sessions.map((session) =>
-                              session.id !== sessionId
-                                  ? session
-                                  : {
-                                        ...session,
-                                        exercises: [
-                                            ...session.exercises,
-                                            newExercise,
-                                        ],
-                                    }
-                          ),
-                      }
-            )
+    const addExerciseHandler = (phaseId: string, sessionId: string) => {
+        const { updatedPhases, newExerciseId } = addExercise(
+            phases,
+            phaseId,
+            sessionId
         );
-        // Set the editing exercise state
-        setEditingExercise({ sessionId, exerciseId: newExercise.id });
+        updatePhases(updatedPhases);
+        setEditingExercise({ sessionId, exerciseId: newExerciseId });
+        setHasUnsavedChanges(true);
+    };
+
+    const deleteExerciseHandler = (
+        phaseId: string,
+        sessionId: string,
+        exerciseId: string
+    ) => setShowConfirm({ type: "exercise", phaseId, sessionId, exerciseId });
+
+    const confirmDeleteExerciseHandler = (
+        phaseId: string,
+        sessionId: string,
+        exerciseId: string
+    ) => {
+        updatePhases(deleteExercise(phases, phaseId, sessionId, exerciseId));
+        setShowConfirm({ type: null });
         setHasUnsavedChanges(true);
     };
 
     // Reset the editingExercise state after the exercise has been saved or cancelled
     const handleExerciseEditEnd = () => {
         setEditingExercise(null);
-    };
-
-    const deleteExercise = (
-        phaseId: string,
-        sessionId: string,
-        exerciseId: string
-    ) => setShowConfirm({ type: "exercise", phaseId, sessionId, exerciseId });
-    const confirmDeleteExercise = (
-        phaseId: string,
-        sessionId: string,
-        exerciseId: string
-    ) => {
-        updatePhases(
-            phases.map((phase) =>
-                phase.id !== phaseId
-                    ? phase
-                    : {
-                          ...phase,
-                          sessions: phase.sessions.map((session) => {
-                              if (session.id !== sessionId) return session;
-
-                              // Remove the exercise
-                              const updatedExercises = session.exercises.filter(
-                                  (e) => e.id !== exerciseId
-                              );
-
-                              // Recalculate total session duration
-                              const totalDuration =
-                                  calculateSessionDuration(updatedExercises);
-
-                              return {
-                                  ...session,
-                                  exercises: updatedExercises,
-                                  duration: totalDuration,
-                              };
-                          }),
-                      }
-            )
-        );
-        setShowConfirm({ type: null });
-        setHasUnsavedChanges(true);
     };
 
     // ===== Phase/Session/Exercise Editing State =====
@@ -609,7 +490,7 @@ export default function WorkoutPlanner({
                 session={session}
                 setPhases={setPhases}
                 phases={phases}
-                deleteExercise={deleteExercise}
+                deleteExercise={deleteExerciseHandler}
                 calculateSessionDuration={calculateSessionDuration}
                 editingExerciseId={editingExerciseId}
                 onEditEnd={handleExerciseEditEnd}
@@ -692,240 +573,36 @@ export default function WorkoutPlanner({
                 ) : phases.length > 0 ? (
                     <DndProvider backend={HTML5Backend}>
                         {phases.map((phase) => (
-                            <Card
+                            <PhaseCard
                                 key={phase.id}
-                                className="mb-4 shadow-none bg-background py-2"
-                            >
-                                <CardContent className="p-0">
-                                    {/* Phase Header with distinct background */}
-                                    <div className="flex items-center justify-between pl-4 pr-5 bg-muted rounded-md">
-                                        <div className="flex items-center">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() =>
-                                                    handleTogglePhaseExpansion(
-                                                        phase.id
-                                                    )
-                                                }
-                                                className="p-1 h-auto mr-2 cursor-pointer"
-                                            >
-                                                {phase.isExpanded ? (
-                                                    <ChevronDown className="h-5 w-5" />
-                                                ) : (
-                                                    <ChevronUp className="h-5 w-5" />
-                                                )}
-                                            </Button>
-                                            {editingPhase === phase.id ? (
-                                                <div className="flex items-center">
-                                                    <Input
-                                                        value={editPhaseValue}
-                                                        onChange={(e) =>
-                                                            setEditPhaseValue(
-                                                                e.target.value
-                                                            )
-                                                        }
-                                                        className="h-8 w-48"
-                                                    />
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={
-                                                            handleSavePhaseEdit
-                                                        }
-                                                        className="ml-2 cursor-pointer"
-                                                    >
-                                                        Save
-                                                    </Button>
-                                                </div>
-                                            ) : (
-                                                <span className="font-semibold text-lg">
-                                                    {phase.name}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {/* Edit Phase */}
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            handleStartEditPhase(
-                                                                phase.id,
-                                                                phase.name
-                                                            )
-                                                        }
-                                                        className="h-8 w-8 cursor-pointer"
-                                                    >
-                                                        <Edit className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    Edit Phase Name
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            {/* Delete Phase */}
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            handleDeletePhase(
-                                                                phase.id
-                                                            )
-                                                        }
-                                                        className="h-8 w-8 cursor-pointer"
-                                                    >
-                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    Delete Phase
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            {/* Duplicate Phase */}
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            handleDuplicatePhase(
-                                                                phase.id
-                                                            )
-                                                        }
-                                                        className="h-8 w-8 cursor-pointer"
-                                                    >
-                                                        <Copy className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    Duplicate Phase
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            {/* Add Session */}
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            addSession(phase.id)
-                                                        }
-                                                        className="h-8 w-8 cursor-pointer"
-                                                    >
-                                                        <Plus className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    Add Session
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            {/* Activate/Deactivate Phase */}
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className="flex items-center ml-4">
-                                                        <div className="flex flex-col">
-                                                            <div className="flex items-center">
-                                                                <Switch
-                                                                    checked={
-                                                                        phase.isActive
-                                                                    }
-                                                                    onCheckedChange={() =>
-                                                                        handleTogglePhaseActivation(
-                                                                            phase.id
-                                                                        )
-                                                                    }
-                                                                    id={`activate-${phase.id}`}
-                                                                />
-                                                                <Label
-                                                                    htmlFor={`activate-${phase.id}`}
-                                                                    className="ml-2"
-                                                                >
-                                                                    {phase.isActive
-                                                                        ? "Deactivate Phase"
-                                                                        : "Activate Phase"}
-                                                                </Label>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    {phase.isActive
-                                                        ? "Deactivate this phase"
-                                                        : "Activate this phase"}
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </div>
-                                    </div>
-
-                                    {phase.isExpanded && (
-                                        <div className="p-4">
-                                            {phase.sessions.map(
-                                                (session, index) => (
-                                                    <DraggableSession
-                                                        key={session.id}
-                                                        phase={phase}
-                                                        session={session}
-                                                        index={index}
-                                                        toggleSessionExpansion={
-                                                            toggleSessionExpansion
-                                                        }
-                                                        deleteSession={
-                                                            deleteSession
-                                                        }
-                                                        duplicateSession={
-                                                            duplicateSession
-                                                        }
-                                                        addExercise={
-                                                            addExercise
-                                                        }
-                                                        startSession={
-                                                            startSession
-                                                        }
-                                                        startingSessionId={
-                                                            startingSessionId
-                                                        }
-                                                        startEditSession={
-                                                            startEditSession
-                                                        }
-                                                        moveSession={
-                                                            moveSession
-                                                        }
-                                                        handleDragVisual={
-                                                            handleDragVisual
-                                                        }
-                                                        renderExercisesTable={
-                                                            renderExercisesTable
-                                                        }
-                                                        editingSession={
-                                                            editingSession
-                                                        }
-                                                        editSessionValue={
-                                                            editSessionValue
-                                                        }
-                                                        saveSessionEdit={
-                                                            saveSessionEdit
-                                                        }
-                                                        setEditSessionValue={
-                                                            setEditSessionValue
-                                                        }
-                                                    />
-                                                )
-                                            )}
-                                            {phase.sessions.length === 0 && (
-                                                <div className="text-center py-8 text-muted-foreground">
-                                                    No sessions added. Click +
-                                                    to add.
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                phase={phase}
+                                // Phase handlers
+                                onToggleExpand={handleTogglePhaseExpansion}
+                                onAddSession={() => addSessionHandler(phase.id)}
+                                onEditPhase={handleStartEditPhase}
+                                onDeletePhase={handleDeletePhase}
+                                onDuplicatePhase={handleDuplicatePhase}
+                                onToggleActivation={handleTogglePhaseActivation}
+                                editingPhase={editingPhase}
+                                editPhaseValue={editPhaseValue}
+                                onSavePhaseEdit={handleSavePhaseEdit}
+                                onEditPhaseValueChange={setEditPhaseValue}
+                                // Session handlers
+                                onToggleSession={toggleSessionExpansionHandler}
+                                onDeleteSession={deleteSessionHandler}
+                                onDuplicateSession={duplicateSessionHandler}
+                                onAddExercise={addExerciseHandler}
+                                onStartSession={startSession}
+                                startingSessionId={startingSessionId}
+                                onStartEditSession={startEditSession}
+                                onMoveSession={moveSession}
+                                onDragVisual={handleDragVisual}
+                                onRenderExercises={renderExercisesTable}
+                                editingSession={editingSession}
+                                editSessionValue={editSessionValue}
+                                onSaveSessionEdit={saveSessionEdit}
+                                onEditSessionValueChange={setEditSessionValue}
+                            />
                         ))}
                     </DndProvider>
                 ) : (
@@ -992,7 +669,7 @@ export default function WorkoutPlanner({
                                 <Button
                                     variant="destructive"
                                     onClick={() =>
-                                        confirmDeleteSession(
+                                        confirmDeleteSessionHandler(
                                             showConfirm.phaseId!,
                                             showConfirm.sessionId!
                                         )
@@ -1005,7 +682,7 @@ export default function WorkoutPlanner({
                                 <Button
                                     variant="destructive"
                                     onClick={() =>
-                                        confirmDeleteExercise(
+                                        confirmDeleteExerciseHandler(
                                             showConfirm.phaseId!,
                                             showConfirm.sessionId!,
                                             showConfirm.exerciseId!

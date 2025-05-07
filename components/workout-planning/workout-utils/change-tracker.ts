@@ -1,4 +1,4 @@
-import { Phase, Session, Exercise, WorkoutPlanChanges } from "./types";
+import { Phase, Session, Exercise, WorkoutPlanChanges } from "../types";
 
 /**
  * Tracks changes to a workout plan by comparing the current state with the previous state
@@ -444,7 +444,7 @@ export class WorkoutPlanChangeTracker {
             changes.targetArea = curr.targetArea;
         if (prev.description !== curr.description)
             changes.description = curr.description;
-        if (prev.exerciseId !== curr.exerciseId) 
+        if (prev.exerciseId !== curr.exerciseId)
             changes.exerciseId = curr.exerciseId;
         if (prev.sets !== curr.sets) changes.sets = curr.sets;
         if (prev.reps !== curr.reps) changes.reps = curr.reps;

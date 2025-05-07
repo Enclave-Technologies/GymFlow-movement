@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Save, X } from "lucide-react";
-import { Phase, Session, Exercise } from "./types";
+import { Phase, Session, Exercise } from "../types";
 import { toast } from "sonner";
 import type { SelectExercise } from "@/db/schemas";
 import {

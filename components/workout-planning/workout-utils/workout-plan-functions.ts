@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { Phase, Session, Exercise, WorkoutPlanResponse } from "../types";
-import { WorkoutPlanChangeTracker } from "../change-tracker";
+import { WorkoutPlanChangeTracker } from "./change-tracker";
 import {
     createWorkoutPlan,
     updateWorkoutPlan,
@@ -122,18 +122,33 @@ export async function saveAll(
                         ),
                     },
                     updated: {
-                        phases: changes.updated.phases.map((item: { id: string; changes: Partial<Phase> }) => ({
-                            id: item.id,
-                            changes: { ...item.changes },
-                        })),
-                        sessions: changes.updated.sessions.map((item: { id: string; changes: Partial<Session> }) => ({
-                            id: item.id,
-                            changes: { ...item.changes },
-                        })),
-                        exercises: changes.updated.exercises.map((item: { id: string; changes: Partial<Exercise> }) => ({
-                            id: item.id,
-                            changes: { ...item.changes },
-                        })),
+                        phases: changes.updated.phases.map(
+                            (item: {
+                                id: string;
+                                changes: Partial<Phase>;
+                            }) => ({
+                                id: item.id,
+                                changes: { ...item.changes },
+                            })
+                        ),
+                        sessions: changes.updated.sessions.map(
+                            (item: {
+                                id: string;
+                                changes: Partial<Session>;
+                            }) => ({
+                                id: item.id,
+                                changes: { ...item.changes },
+                            })
+                        ),
+                        exercises: changes.updated.exercises.map(
+                            (item: {
+                                id: string;
+                                changes: Partial<Exercise>;
+                            }) => ({
+                                id: item.id,
+                                changes: { ...item.changes },
+                            })
+                        ),
                     },
                     deleted: {
                         phases: [...changes.deleted.phases],
