@@ -1,9 +1,12 @@
 import { Exercise, Phase, Session } from "../types";
 
 /**
- * Adds default values to an exercise object to ensure all required fields are present
- * @param exercise The exercise object to add defaults to
- * @returns The exercise object with defaults added
+ * Returns a complete Exercise object by filling in missing fields with default values.
+ *
+ * Ensures all required and optional fields are present, assigning sensible defaults for legacy and new fields to support both backward compatibility and current data requirements.
+ *
+ * @param exercise - A partial Exercise object with any subset of fields.
+ * @returns An Exercise object with all fields populated.
  */
 export function addExerciseDefaults(exercise: Partial<Exercise>): Exercise {
     return {
@@ -37,9 +40,12 @@ export function addExerciseDefaults(exercise: Partial<Exercise>): Exercise {
 }
 
 /**
- * Converts string order values (e.g., 'A0', 'B1') to numeric values for the database
- * @param order The string order value
- * @returns The numeric order value
+ * Converts a string-based order identifier (e.g., "A0", "B1") into a numeric value for database storage.
+ *
+ * If the input is already numeric, it is returned as a number. Otherwise, the alphabetical prefix is interpreted as a base-26 number and combined with the numeric suffix, allocating 100 numeric slots per letter sequence.
+ *
+ * @param order - The string order identifier to convert.
+ * @returns The numeric representation of the order.
  */
 export function convertOrderToNumber(order: string): number {
     if (!order) return 0;
@@ -67,9 +73,11 @@ export function convertOrderToNumber(order: string): number {
 }
 
 /**
- * Maps frontend exercise data to database format
- * @param exercise The frontend exercise object
- * @returns The database-formatted exercise object
+ * Converts a frontend Exercise object to a database-compatible format.
+ *
+ * Converts the string-based order to a numeric value, parses numeric string fields to integers or null, and maps all relevant properties for database storage. The original order string is preserved as `setOrderMarker`.
+ *
+ * @returns An object representing the exercise in database format.
  */
 export function mapExerciseToDb(exercise: Exercise): Record<string, unknown> {
     return {
@@ -96,9 +104,11 @@ export function mapExerciseToDb(exercise: Exercise): Record<string, unknown> {
 }
 
 /**
- * Maps frontend session data to database format
- * @param session The frontend session object
- * @returns The database-formatted session object
+ * Converts a frontend Session object to a database-compatible format.
+ *
+ * Maps session fields to database keys, converting the name to `sessionName`, duration to `sessionTime`, and ensuring `orderNumber` defaults to 0 if not provided.
+ *
+ * @returns An object representing the session in database format.
  */
 export function mapSessionToDb(session: Session): Record<string, unknown> {
     return {
@@ -111,9 +121,11 @@ export function mapSessionToDb(session: Session): Record<string, unknown> {
 }
 
 /**
- * Maps frontend phase data to database format
- * @param phase The frontend phase object
- * @returns The database-formatted phase object
+ * Converts a frontend Phase object to a database-compatible format.
+ *
+ * Maps the phase's id, planId, name (as phaseName), orderNumber (defaulting to 0 if missing), and isActive status to a plain object suitable for database storage.
+ *
+ * @returns An object representing the phase in database format.
  */
 export function mapPhaseToDb(phase: Phase): Record<string, unknown> {
     return {
@@ -126,9 +138,9 @@ export function mapPhaseToDb(phase: Phase): Record<string, unknown> {
 }
 
 /**
- * Validates an exercise object to ensure all required fields are present
- * @param exercise The exercise object to validate
- * @returns True if valid, false otherwise
+ * Checks whether an Exercise object has all required fields and valid numeric values.
+ *
+ * Returns `true` if the exercise has non-empty `id`, `exerciseId`, and `sessionId` fields, and if any present numeric fields (`setsMin`, `setsMax`, `repsMin`, `repsMax`, `restMin`, `restMax`) are valid numbers; otherwise returns `false`.
  */
 export function validateExercise(exercise: Exercise): boolean {
     // Check for required fields
@@ -158,9 +170,10 @@ export function validateExercise(exercise: Exercise): boolean {
 }
 
 /**
- * Validates a session object to ensure all required fields are present
- * @param session The session object to validate
- * @returns True if valid, false otherwise
+ * Checks whether a session object contains all required fields.
+ *
+ * @param session - The session object to validate.
+ * @returns True if both {@link session.id} and {@link session.phaseId} are present; otherwise, false.
  */
 export function validateSession(session: Session): boolean {
     // Check for required fields
@@ -173,9 +186,10 @@ export function validateSession(session: Session): boolean {
 }
 
 /**
- * Validates a phase object to ensure all required fields are present
- * @param phase The phase object to validate
- * @returns True if valid, false otherwise
+ * Checks whether a phase object contains all required fields.
+ *
+ * @param phase - The phase object to validate.
+ * @returns True if both {@link phase.id} and {@link phase.planId} are present; otherwise, false.
  */
 export function validatePhase(phase: Phase): boolean {
     // Check for required fields
@@ -188,8 +202,11 @@ export function validatePhase(phase: Phase): boolean {
 }
 
 /**
- * Computes the diff between two arrays of phases.
- * Returns { added, updated, deleted }.
+ * Computes the differences between two arrays of phases, identifying added, updated, and deleted phases.
+ *
+ * @returns An object containing arrays of added phases, updated phases with their changed fields, and IDs of deleted phases.
+ *
+ * @remark The `updated` array includes only phases with changes in `name`, `isActive`, or `orderNumber`, and always includes `planId` in the changes for downstream processing.
  */
 export function diffPhases(
     dbPhases: Phase[],
@@ -232,8 +249,11 @@ export function diffPhases(
 }
 
 /**
- * Computes the diff between two arrays of sessions.
- * Returns { added, updated, deleted }.
+ * Computes the differences between database and frontend session arrays.
+ *
+ * Returns an object containing sessions added in the frontend, deleted from the frontend, and updated in the frontend compared to the database. Updates include only changed fields (name, duration, orderNumber), and always include phaseId for downstream processing.
+ *
+ * @returns An object with `added`, `updated`, and `deleted` session entries.
  */
 export function diffSessions(
     dbSessions: Session[],
@@ -277,8 +297,11 @@ export function diffSessions(
 }
 
 /**
- * Computes the diff between two arrays of exercises.
- * Returns { added, updated, deleted }.
+ * Computes the differences between two arrays of exercises, identifying added, updated, and deleted exercises.
+ *
+ * @returns An object containing arrays of added exercises, updated exercises with their changed fields, and IDs of deleted exercises.
+ *
+ * @remark Only specific fields are compared for updates: order, motion, targetArea, exerciseId, setsMin, setsMax, repsMin, repsMax, tempo, tut, restMin, restMax, customizations, and notes. The sessionId is always included in the update payload for downstream processing, but is not compared for changes. Fields such as description, additionalInfo, duration, sets, and reps are ignored in the comparison.
  */
 export function diffExercises(
     dbExercises: Exercise[],

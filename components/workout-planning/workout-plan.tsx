@@ -45,6 +45,16 @@ type WorkoutPlannerProps = {
     exercises: SelectExercise[];
 };
 
+/**
+ * Displays and manages a workout plan interface for a client, supporting phases, sessions, and exercises with full CRUD operations, editing, drag-and-drop reordering, and server synchronization.
+ *
+ * This component handles data fetching, state management, change tracking, conflict resolution, and delegates UI rendering to modular subcomponents. It enables users to create, edit, reorder, and delete workout phases, sessions, and exercises, and to save or synchronize changes with the server.
+ *
+ * @param client_id - The unique identifier for the client whose workout plan is being managed.
+ * @param exercises - The list of available exercises that can be added to sessions.
+ *
+ * @returns The rendered workout planner UI for the specified client.
+ */
 export default function WorkoutPlanner({
     client_id,
     exercises,

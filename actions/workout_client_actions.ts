@@ -15,6 +15,16 @@ import { requireTrainerOrAdmin } from "@/lib/auth-utils";
 import { or, eq, and, not } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+/**
+ * Retrieves the active workout plan assigned to a specific client, including its full hierarchical structure.
+ *
+ * Returns a structured object containing the plan's phases, sessions, and exercises, or an empty array if no plan exists for the client.
+ *
+ * @param clientId - The unique identifier of the client whose workout plan is requested.
+ * @returns The workout plan with nested phases, sessions, and exercises, or an empty array if no plan is found.
+ *
+ * @remark Only users with trainer or admin privileges can access this function.
+ */
 export async function getWorkoutPlanByClientId(
     clientId: string
 ): Promise<WorkoutPlanResponse | []> {
@@ -208,11 +218,15 @@ export async function getWorkoutPlanByClientId(
     };
 }
 /**
- * Updates a phase's activation status with optimistic concurrency control
- * @param phaseId The ID of the phase to update
- * @param isActive Whether the phase should be active
- * @param lastKnownUpdatedAt Optional parameter for concurrency control
- * @returns Success status and error message if applicable
+ * Updates the activation status of a workout plan phase, ensuring only one phase is active at a time and applying optimistic concurrency control.
+ *
+ * If {@link lastKnownUpdatedAt} is provided, the function checks for concurrent modifications and returns a conflict response if the plan has changed since the last fetch.
+ * When activating a phase, all other phases in the same plan are deactivated. The plan's update timestamp is refreshed, and cache revalidation is triggered for the associated client.
+ *
+ * @param phaseId - The unique identifier of the phase to update.
+ * @param isActive - Whether the phase should be set as active.
+ * @param lastKnownUpdatedAt - Optional timestamp for concurrency control; if provided, prevents overwriting concurrent changes.
+ * @returns An object indicating success, conflict status, error details if any, and updated timestamps.
  */
 
 export async function updatePhaseActivation(
@@ -332,11 +346,14 @@ export async function updatePhaseActivation(
     }
 }
 /**
- * Updates the order of sessions within a phase with optimistic concurrency control
- * @param phaseId The ID of the phase containing the sessions
- * @param sessionIds An array of session IDs in the desired order
- * @param lastKnownUpdatedAt Optional parameter for concurrency control
- * @returns Success status and error message if applicable
+ * Updates the order of sessions within a specified phase, ensuring atomicity and concurrency safety.
+ *
+ * Reorders sessions based on the provided array of session IDs. If a last known update timestamp is supplied, the function checks for concurrent modifications to the workout plan and returns a conflict response if the plan has changed since the last fetch.
+ *
+ * @param phaseId - The ID of the phase whose sessions are being reordered.
+ * @param sessionIds - An array of session IDs representing the desired order.
+ * @param lastKnownUpdatedAt - Optional timestamp for optimistic concurrency control.
+ * @returns An object indicating success, conflict status, error details if any, and relevant plan metadata.
  */
 
 export async function updateSessionOrder(

@@ -54,6 +54,13 @@ type PhaseCardProps = {
     onEditSessionValueChange: (value: string) => void;
 };
 
+/**
+ * Renders a card UI for a workout phase, displaying its name, controls for managing the phase, and a list of its sessions.
+ *
+ * The card header provides actions to expand/collapse the phase, edit or delete the phase, duplicate it, add new sessions, and toggle its activation status. When expanded, the card lists all sessions within the phase, each with controls for session management and exercise handling. If no sessions exist, a prompt to add sessions is shown.
+ *
+ * @param phase - The phase object containing its details and sessions.
+ */
 export function PhaseCard({
     phase,
     // Phase props
