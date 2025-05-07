@@ -31,6 +31,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { switchClientCoach } from "@/actions/client_actions";
 import { toast } from "sonner";
+import { deleteClient } from "@/actions/client_actions";
 
 // Define the client type to match what comes from the database
 export type Client = {
@@ -233,8 +234,10 @@ export function TrainerCell({
 
 // Component for the Actions cell
 function ActionsCell({ userId }: { userId: string }) {
-    const handleDeleteUser = () => {
+
+    const handleDeleteUser = async () => {
         // TODO: Implement delete user logic, e.g. API call with confirmation
+        await deleteClient(userId);
         console.log(`Delete user ${userId}`);
     };
 

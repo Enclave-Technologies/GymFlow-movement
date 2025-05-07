@@ -1610,3 +1610,23 @@ export async function updateClient(
     };
   }
 }
+
+export async function deleteClient(clientId: string) {
+    let deletedUser = null;
+    const {roleId} = (await db.select({roleId: Roles.roleId}).from(Roles).where(eq(Roles.roleName, "Client")))[0];
+    // Get all roles of the client
+    const userRoles = (await db.select({roleId: UserRoles.roleId}).from(UserRoles).where(eq(UserRoles.userId, clientId)));
+    if(userRoles.length > 1) {
+        deletedUser = await db.delete(UserRoles).where(and(eq(UserRoles.userId, clientId), eq(UserRoles.roleId, roleId))).returning();
+        await db.delete(TrainerClients).where(eq(TrainerClients.clientId, clientId));
+        // Do not delete from Users and Auth Table
+    } else if (roleId) {
+        deletedUser = await db.delete(UserRoles).where(and(eq(UserRoles.userId, clientId), eq(UserRoles.roleId, roleId))).returning();
+        await db.delete(TrainerClients).where(eq(TrainerClients.clientId, clientId));
+        // Delete from all tables
+    } else {
+        console.log("Not deleting since user has multiple roles");
+        // Do nothing since role is different (eg: Coach)
+    }
+    console.log(deletedUser);
+}

@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal, Eye, UserX, UserCog, Edit } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { deleteClient } from "@/actions/client_actions";
 
 // Define the client type to match what comes from the database
 export type Client = {
@@ -207,10 +208,11 @@ export function TrainerCell({
 
 // Component for the Actions cell
 function ActionsCell({ userId }: { userId: string }) {
-  const handleDeleteUser = () => {
+const handleDeleteUser = () => {
+    deleteClient(userId);
     // TODO: Implement delete user logic, e.g. API call with confirmation
     console.log(`Delete user ${userId}`);
-  };
+};
 
   return (
     <DropdownMenu>
@@ -223,7 +225,7 @@ function ActionsCell({ userId }: { userId: string }) {
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuSeparator />
-
+    
         <Link href={`/clients/${userId}`}>
           <DropdownMenuItem className="cursor-pointer">
             <Eye className="mr-2 h-4 w-4" /> View Profile
