@@ -8,14 +8,13 @@ import { InfiniteDataTable } from "@/components/ui/infinite-data-table";
 import { Exercise, ExerciseResponse, tableOperations } from "./columns";
 import { motion } from "framer-motion";
 import {
-    // keepPreviousData,
     useInfiniteQuery,
     useQueryClient,
     useMutation,
     keepPreviousData,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import {
     ColumnDef,
     useReactTable,
@@ -24,8 +23,10 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import CompactTableOperations from "@/components/ui/compact-table-operations";
-import { bulkApproveExercises } from "@/actions/exercise_actions";
-// import { bulkDeleteExercises } from "@/actions/exercise_actions";
+import {
+    bulkUpdateExerciseStatus,
+    bulkDeleteExercises,
+} from "@/actions/exercise_actions";
 
 interface InfiniteTableProps {
     fetchDataFn: (params: any) => Promise<any>;
@@ -43,18 +44,36 @@ export function InfiniteTable({
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
     const [rowSelection, setRowSelection] = React.useState({});
     const [selectedRows, setSelectedRows] = React.useState<Exercise[]>([]);
-    const [isDeletingExercises, setIsDeletingExercises] = React.useState(false);
+    const [loadingOperation, setLoadingOperation] = React.useState<
+        "approve" | "unapprove" | "delete" | null
+    >(null);
+    const [reloadState, setReloadState] = React.useState(false);
 
     const queryClient = useQueryClient();
 
-    // Mutation for bulk approve
-    const { mutate: bulkApprove } = useMutation({
-        mutationFn: async (exerciseIds: string[]) => {
-            const result = await bulkApproveExercises(exerciseIds);
-            if (!result.success) {
-                throw new Error(result.message);
+    // Mutation for bulk status update (approve/unapprove)
+    const { mutate: bulkUpdateStatus } = useMutation({
+        mutationFn: async ({
+            exerciseIds,
+            approved,
+        }: {
+            exerciseIds: string[];
+            approved: boolean;
+        }) => {
+            setLoadingOperation(approved ? "approve" : "unapprove");
+            try {
+                const result = await bulkUpdateExerciseStatus(
+                    exerciseIds,
+                    approved
+                );
+                if (!result.success) {
+                    throw new Error(result.message);
+                }
+                return result;
+            } finally {
+                setLoadingOperation(null);
+                setReloadState((prevState) => !prevState);
             }
-            return result;
         },
         onSuccess: (data) => {
             toast.success(data.message);
@@ -63,15 +82,82 @@ export function InfiniteTable({
             setSelectedRows([]);
             // Invalidate queries to refresh data
             queryClient.invalidateQueries({
-                queryKey: ["tableData", urlParams, queryId],
+                queryKey: ["tableData", urlParams, queryId, reloadState],
             });
         },
         onError: (error) => {
             toast.error(
-                `Failed to approve exercises: ${
+                `Failed to update exercise status: ${
                     error instanceof Error ? error.message : String(error)
                 }`
             );
+        },
+    });
+
+    // Mutation for bulk delete
+    const { mutate: bulkDelete } = useMutation({
+        mutationFn: async (data: { exerciseIds: string[] }) => {
+            setLoadingOperation("delete");
+            try {
+                const result = await bulkDeleteExercises(data.exerciseIds);
+                if (!result.success) {
+                    throw new Error(result.message);
+                }
+                return result;
+            } finally {
+                setLoadingOperation(null);
+                setReloadState((prevState) => !prevState);
+            }
+        },
+        onSuccess: (data) => {
+            // If we have details about failed deletions, show a more detailed message
+            if (data.details?.failed && data.details.failed.length > 0) {
+                const details = data.details as {
+                    failed: Array<{ id: string; reason: string }>;
+                };
+                toast.custom(
+                    () => (
+                        <div className="bg-background border rounded-lg shadow-lg p-4 max-w-md">
+                            <h3 className="font-semibold mb-2">
+                                Bulk Delete Results
+                            </h3>
+                            <p className="text-sm mb-2">{data.message}</p>
+                            <div className="mt-2">
+                                <p className="text-sm font-medium mb-1">
+                                    Failed to delete:
+                                </p>
+                                <ul className="text-sm space-y-1">
+                                    {details.failed.map((failure) => (
+                                        <li
+                                            key={failure.id}
+                                            className="text-muted-foreground"
+                                        >
+                                            • {failure.reason}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    ),
+                    {
+                        duration: 5000,
+                    }
+                );
+            } else {
+                toast.success(data.message);
+            }
+
+            setRowSelection({});
+            setSelectedRows([]);
+            queryClient.invalidateQueries({
+                queryKey: ["tableData", urlParams, queryId],
+            });
+        },
+        onError: (error) => {
+            // toast.error(`Error deleting exercises: ${error.message}`);
+            const message =
+                error instanceof Error ? error.message : String(error);
+            toast.error(`Error deleting exercises: ${message}`);
         },
     });
 
@@ -85,44 +171,10 @@ export function InfiniteTable({
         urlParams,
     } = useTableActions();
 
-    // Use React Query for data fetching with infinite scroll - removed duplicate declaration
-
-    // Placeholder mutation for bulk delete functionality
-    const { mutate: bulkDelete } = useMutation({
-        mutationFn: async (data: { exerciseIds: string[] }) => {
-            setIsDeletingExercises(true);
-            try {
-                // const result = await bulkDeleteExercises(data.exerciseIds);
-                // if (!result.success) {
-                //   throw new Error(result.message);
-                // }
-                // return result;
-
-                toast.success(
-                    `Successfully deleted ${data.exerciseIds.length} exercises`
-                );
-            } finally {
-                setIsDeletingExercises(false);
-            }
-        },
-        onSuccess: (data) => {
-            //   toast.success(data.message);
-            console.log("Successfully deleted exercises", data);
-            setRowSelection({});
-            setSelectedRows([]);
-            queryClient.invalidateQueries({
-                queryKey: ["tableData", urlParams, queryId],
-            });
-        },
-        onError: (error) => {
-            toast.error(`Error deleting exercises: ${error.message}`);
-        },
-    });
-
     // Use React Query for data fetching with infinite scroll
     const { data, fetchNextPage, isFetchingNextPage, isLoading } =
         useInfiniteQuery<ExerciseResponse>({
-            queryKey: ["tableData", urlParams, queryId],
+            queryKey: ["tableData", urlParams, queryId, reloadState],
             queryFn: async ({ pageParam = 0 }) => {
                 const params = {
                     ...urlParams,
@@ -165,13 +217,19 @@ export function InfiniteTable({
         onRowSelectionChange: setRowSelection,
         manualSorting: true,
         debugTable: true,
+        meta: {
+            setReloadState,
+        },
     });
 
     // Update selected rows when rowSelection changes
     React.useEffect(() => {
-        const selectedRowsData = Object.keys(rowSelection)
-            .map((index) => flatData[parseInt(index)])
-            .filter(Boolean) as Exercise[];
+        // const selectedRowsData = Object.keys(rowSelection)
+        //     .map((index) => flatData[parseInt(index)])
+        //     .filter(Boolean) as Exercise[];
+        const selectedRowsData = table
+            .getSelectedRowModel()
+            .rows.map((r) => r.original as Exercise);
 
         setSelectedRows(selectedRowsData);
     }, [rowSelection, flatData]);
@@ -285,7 +343,12 @@ export function InfiniteTable({
                 }}
                 onApplyClick={() => {
                     queryClient.invalidateQueries({
-                        queryKey: ["tableData", urlParams, queryId],
+                        queryKey: [
+                            "tableData",
+                            urlParams,
+                            queryId,
+                            reloadState,
+                        ],
                     });
                 }}
                 showNewButton={true}
@@ -303,7 +366,27 @@ export function InfiniteTable({
                         });
                     }
                 }}
-                isDeleting={isDeletingExercises}
+                isDeleting={loadingOperation === "delete"}
+                getRowSampleData={(rows) => (
+                    <ul className="text-sm">
+                        {rows.slice(0, 5).map((row) => (
+                            <li
+                                key={row.exerciseId}
+                                className="mb-1 pb-1 border-b border-gray-100 last:border-0"
+                            >
+                                <div className="font-medium">{row.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                    {row.motion} • {row.targetArea}
+                                </div>
+                            </li>
+                        ))}
+                        {rows.length > 5 && (
+                            <li className="text-xs text-muted-foreground mt-2">
+                                ...and {rows.length - 5} more
+                            </li>
+                        )}
+                    </ul>
+                )}
                 customOperations={[
                     {
                         label: "Approve",
@@ -314,7 +397,10 @@ export function InfiniteTable({
                                 const exerciseIds = rows.map(
                                     (row) => row.exerciseId
                                 );
-                                bulkApprove(exerciseIds);
+                                bulkUpdateStatus({
+                                    exerciseIds,
+                                    approved: true,
+                                });
                             }
                         },
                         showConfirmation: true,
@@ -322,6 +408,51 @@ export function InfiniteTable({
                         confirmationDescription:
                             "You are about to approve the selected exercises. This will make them visible to all users.",
                         confirmationButtonText: "Approve",
+                        isLoading: loadingOperation === "approve",
+                        getRowSampleData: (rows) => (
+                            <ul className="text-sm">
+                                {rows.slice(0, 5).map((row) => (
+                                    <li
+                                        key={row.exerciseId}
+                                        className="mb-1 pb-1 border-b border-gray-100 last:border-0"
+                                    >
+                                        <div className="font-medium">
+                                            {row.name}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {row.motion} • {row.targetArea}
+                                        </div>
+                                    </li>
+                                ))}
+                                {rows.length > 5 && (
+                                    <li className="text-xs text-muted-foreground mt-2">
+                                        ...and {rows.length - 5} more
+                                    </li>
+                                )}
+                            </ul>
+                        ),
+                    },
+                    {
+                        label: "Unapprove",
+                        icon: <XCircle size={16} />,
+                        variant: "secondary",
+                        onClick: (rows) => {
+                            if (rows.length > 0) {
+                                const exerciseIds = rows.map(
+                                    (row) => row.exerciseId
+                                );
+                                bulkUpdateStatus({
+                                    exerciseIds,
+                                    approved: false,
+                                });
+                            }
+                        },
+                        showConfirmation: true,
+                        confirmationTitle: "Confirm Bulk Unapproval",
+                        confirmationDescription:
+                            "You are about to unapprove the selected exercises. This will make them hidden from all users.",
+                        confirmationButtonText: "Unapprove",
+                        isLoading: loadingOperation === "unapprove",
                         getRowSampleData: (rows) => (
                             <ul className="text-sm">
                                 {rows.slice(0, 5).map((row) => (

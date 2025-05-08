@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, MoreHorizontal } from "lucide-react";
+import { Edit, MoreHorizontal, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -14,16 +14,29 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import {
-    updateExerciseApprovalStatus
+    updateExerciseApprovalStatus,
+    deleteExercise,
 } from "@/actions/exercise_actions";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import React from "react";
+import {
+    AlertDialog,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Define the Exercise type to match our database schema
 export type Exercise = {
     exerciseId: string;
     name: string;
     description: string | null;
-    motion: string | null; // formerly difficulty
-    targetArea: string | null; // formerly muscleGroup
+    motion: string | null;
+    targetArea: string | null;
     equipmentRequired: string | null;
     videoUrl: string | null;
     createdAt: Date;
@@ -61,25 +74,124 @@ export const tableOperations = {
     ],
 };
 
-async function handleStatusChange(exerciseId: string, status: boolean) {
-    try {
-        const result = await updateExerciseApprovalStatus(exerciseId, status);
-        if (!result.success) {
-            throw new Error(result.error || "Failed to update approval status");
-        }
-        console.log(
-            `Exercise ${exerciseId} status changed to ${
-                status ? "approved" : "unapproved"
-            }`
-        );
-    } catch (error) {
-        console.error("Error changing exercise status:", error);
-        // Optionally, show error toast here
-    }
+// Create a proper React component for the status cell
+function StatusCell({
+    exercise,
+    setRefreshState,
+}: {
+    exercise: Exercise;
+    setRefreshState: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+    const queryClient = useQueryClient();
+    const isApproved = exercise.status;
+
+    const { mutate: updateStatus, isPending } = useMutation({
+        mutationFn: async (approved: boolean) => {
+            const result = await updateExerciseApprovalStatus(
+                exercise.exerciseId,
+                approved
+            );
+            if (!result.success) {
+                throw new Error(
+                    result.error || "Failed to update approval status"
+                );
+            }
+            setRefreshState((prevState) => !prevState);
+            return result;
+        },
+        onSuccess: () => {
+            toast.success(
+                `Exercise ${
+                    isApproved ? "unapproved" : "approved"
+                } successfully`
+            );
+            // Invalidate and refetch the table data
+            queryClient.invalidateQueries({ queryKey: ["tableData"] });
+        },
+        onError: (error) => {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to update status"
+            );
+        },
+    });
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isPending}
+                    className={`py-1 ${
+                        isApproved
+                            ? "bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
+                            : "bg-yellow-50 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-300 dark:hover:bg-yellow-800"
+                    }`}
+                >
+                    {isPending ? (
+                        <p> {isApproved ? "Unapproving..." : "Approving..."}</p>
+                    ) : (
+                        <span className="capitalize">
+                            {isApproved ? "Approved" : "Unapproved"}
+                        </span>
+                    )}
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                    className="text-green-700 dark:text-green-300"
+                    onClick={() => updateStatus(true)}
+                    disabled={isPending || isApproved}
+                >
+                    Approve
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    className="text-yellow-700 dark:text-yellow-300"
+                    onClick={() => updateStatus(false)}
+                    disabled={isPending || !isApproved}
+                >
+                    Unapprove
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
 }
 
 // Create a proper React component for the actions cell
 function ActionsCell({ exerciseId }: { exerciseId: string }) {
+    const queryClient = useQueryClient();
+    const [isDeleting, setIsDeleting] = React.useState(false);
+    const [isOpen, setIsOpen] = React.useState(false);
+
+    const { mutate: handleDelete } = useMutation({
+        mutationFn: async () => {
+            setIsDeleting(true);
+            try {
+                const result = await deleteExercise(exerciseId);
+                if (!result.success) {
+                    throw new Error(result.message);
+                }
+                return result;
+            } finally {
+                setIsDeleting(false);
+            }
+        },
+        onSuccess: (data) => {
+            toast.success(data.message);
+            queryClient.invalidateQueries({ queryKey: ["tableData"] });
+            setIsOpen(false);
+        },
+        onError: (error) => {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to delete exercise"
+            );
+        },
+    });
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -101,7 +213,43 @@ function ActionsCell({ exerciseId }: { exerciseId: string }) {
                         <span>Edit Exercise</span>
                     </Link>
                 </DropdownMenuItem>
+
+                <DropdownMenuItem
+                    className="text-red-600 dark:text-red-400 cursor-pointer"
+                    onClick={() => {
+                        setIsOpen(true);
+                    }}
+                >
+                    <div className="flex items-center gap-2">
+                        <Trash className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        <span>Delete Exercise</span>
+                    </div>
+                </DropdownMenuItem>
             </DropdownMenuContent>
+
+            <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently
+                            delete the exercise and remove it from the database.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <Button
+                            onClick={() => handleDelete()}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600 cursor-pointer"
+                        >
+                            {isDeleting ? "Deleting..." : "Delete"}
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </DropdownMenu>
     );
 }
@@ -184,46 +332,18 @@ export const columns: ColumnDef<Exercise>[] = [
         header: () => (
             <div className="flex items-center gap-2">Approval Status</div>
         ),
-        cell: ({ row }) => {
+        cell: ({ row, table }) => {
             const exercise = row.original;
-            const isApproved = exercise.status;
-
+            const setReloadState = (
+                table.options.meta as {
+                    setReloadState: () => null;
+                }
+            )?.setReloadState;
             return (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className={` py-1 ${
-                                isApproved
-                                    ? "bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
-                                    : "bg-yellow-50 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-300 dark:hover:bg-yellow-800"
-                            }`}
-                        >
-                            <span className="capitalize">
-                                {isApproved ? "Approved" : "Unapproved"}
-                            </span>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                            className="text-green-700 dark:text-green-300"
-                            onClick={() =>
-                                handleStatusChange(exercise.exerciseId, true)
-                            }
-                        >
-                            Approve
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            className="text-yellow-700 dark:text-yellow-300"
-                            onClick={() =>
-                                handleStatusChange(exercise.exerciseId, false)
-                            }
-                        >
-                            Unapprove
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <StatusCell
+                    exercise={exercise}
+                    setRefreshState={setReloadState}
+                />
             );
         },
         size: 150,
@@ -282,5 +402,3 @@ export const columns: ColumnDef<Exercise>[] = [
         size: 60,
     },
 ];
-
-// Export the columns for use in the data table
