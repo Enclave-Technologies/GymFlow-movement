@@ -440,6 +440,24 @@ export const columns: ColumnDef<Client>[] = [
         enableColumnFilter: false,
         size: 60,
     },
+    // {
+    //     accessorKey: "emergencyContactName",
+    //     header: () => <div>Emergency Contact Name</div>,
+    //     cell: ({ row }) => {
+    //         const value = row.getValue("emergencyContactName") as string | null;
+    //         return <div className="text-center">{value || "—"}</div>;
+    //     },
+    //     size: 180,
+    // },
+    // {
+    //     accessorKey: "emergencyContactPhone",
+    //     header: () => <div>Emergency Contact Phone</div>,
+    //     cell: ({ row }) => {
+    //         const value = row.getValue("emergencyContactPhone") as string | null;
+    //         return <div className="text-center">{value || "—"}</div>;
+    //     },
+    //     size: 180,
+    // },
     {
         accessorKey: "trainerName",
         header: () => <div>Trainer</div>,
