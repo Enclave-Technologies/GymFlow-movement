@@ -47,6 +47,7 @@ export function InfiniteTable({
     const [loadingOperation, setLoadingOperation] = React.useState<
         "approve" | "unapprove" | "delete" | null
     >(null);
+    const [reloadState, setReloadState] = React.useState(false);
 
     const queryClient = useQueryClient();
 
@@ -71,6 +72,7 @@ export function InfiniteTable({
                 return result;
             } finally {
                 setLoadingOperation(null);
+                setReloadState((prevState) => !prevState);
             }
         },
         onSuccess: (data) => {
@@ -80,7 +82,7 @@ export function InfiniteTable({
             setSelectedRows([]);
             // Invalidate queries to refresh data
             queryClient.invalidateQueries({
-                queryKey: ["tableData", urlParams, queryId],
+                queryKey: ["tableData", urlParams, queryId, reloadState],
             });
         },
         onError: (error) => {
@@ -104,6 +106,7 @@ export function InfiniteTable({
                 return result;
             } finally {
                 setLoadingOperation(null);
+                setReloadState((prevState) => !prevState);
             }
         },
         onSuccess: (data) => {
@@ -171,7 +174,7 @@ export function InfiniteTable({
     // Use React Query for data fetching with infinite scroll
     const { data, fetchNextPage, isFetchingNextPage, isLoading } =
         useInfiniteQuery<ExerciseResponse>({
-            queryKey: ["tableData", urlParams, queryId],
+            queryKey: ["tableData", urlParams, queryId, reloadState],
             queryFn: async ({ pageParam = 0 }) => {
                 const params = {
                     ...urlParams,
@@ -214,6 +217,9 @@ export function InfiniteTable({
         onRowSelectionChange: setRowSelection,
         manualSorting: true,
         debugTable: true,
+        meta: {
+            setReloadState,
+        },
     });
 
     // Update selected rows when rowSelection changes
@@ -337,7 +343,12 @@ export function InfiniteTable({
                 }}
                 onApplyClick={() => {
                     queryClient.invalidateQueries({
-                        queryKey: ["tableData", urlParams, queryId],
+                        queryKey: [
+                            "tableData",
+                            urlParams,
+                            queryId,
+                            reloadState,
+                        ],
                     });
                 }}
                 showNewButton={true}
