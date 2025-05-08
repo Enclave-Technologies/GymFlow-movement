@@ -81,13 +81,13 @@ export async function updateWorkoutHistoryEntry(
         sets: number;
         reps: number;
         weight: number;
-        coachNote: string;
+        notes: string;
     }>
 ) {
     await requireTrainerOrAdmin();
     await db
         .update(WorkoutSessionDetails)
-        .set(changes)
+        .set({ coachNote: changes.notes })
         .where(eq(WorkoutSessionDetails.workoutDetailId, detailId));
 }
 
