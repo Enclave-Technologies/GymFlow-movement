@@ -83,7 +83,7 @@ export default function AddClientForm() {
             try {
                 const coachesData = await getCoachesPaginated({
                     pageIndex: 0,
-                    pageSize: 100,
+                    pageSize: 1000,
                     search: "",
                 });
 

@@ -6,9 +6,9 @@ import { db } from "@/db/xata";
 import { requireTrainerOrAdmin } from "@/lib/auth-utils";
 import { eq, and, desc, sql, inArray, ilike, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { ID, AppwriteException } from "node-appwrite";
+import { ID, AppwriteException, Query } from "node-appwrite";
 import "server-only";
-import { randomUUID } from "crypto";
+// import { randomUUID } from "crypto";
 
 /**
  * Update a user's idealWeight in the Users table.
@@ -883,8 +883,10 @@ export async function createClient(clientData: {
             }
         }
 
+        console.log("Existing user:", existingUser);
+
         // Generate a unique ID for user if not existing
-        const userId = existingUser ? existingUser.userId : randomUUID();
+        const userId = existingUser ? existingUser.userId : ID.unique();
 
         // If client has email and doesn't exist yet, create Appwrite account
         if (hasEmail && clientData.email && !existingUser) {
@@ -894,6 +896,16 @@ export async function createClient(clientData: {
 
                 // Get Appwrite admin client
                 const { appwrite_user } = await createAdminClient();
+
+                // Check if user already exists in Appwrite
+                const existingAppwriteUser = await appwrite_user.list([
+                    Query.equal("email", [clientData.email]),
+                ]);
+
+                console.log(
+                    `Existing Appwrite user with email ${clientData.email}:`,
+                    existingAppwriteUser
+                );
 
                 // Create Appwrite user
                 await appwrite_user.create(
@@ -909,6 +921,8 @@ export async function createClient(clientData: {
                 // Handle Appwrite account creation errors
                 if (error instanceof AppwriteException) {
                     if (error.code === 409) {
+                        // Auth already exists, just need to add user to our table.
+
                         throw new Error(
                             "Email already exists in Appwrite but not in our database"
                         );
@@ -1064,6 +1078,115 @@ export async function createClient(clientData: {
         };
     }
 }
+
+// async function createNewClient(clientData: {
+//     fullName?: string;
+//     firstName?: string;
+//     lastName?: string;
+//     email?: string;
+//     phoneNumber?: string;
+//     coachNotes?: string;
+//     gender?: string;
+//     dateOfBirth?: Date;
+//     idealWeight?: number;
+//     trainerId: string;
+//     emergencyContactName?: string;
+//     emergencyContactPhone?: string;
+// }) {
+//     // Create new user
+//     // Insert new user or add client role to existing user
+//     const newClient = await db.transaction(async (tx) => {
+//         let user;
+
+//             // Create new user
+//             [user] = await tx
+//                 .insert(Users)
+//                 .values({
+//                     userId,
+//                     // Only set appwrite_id if email is provided
+//                     appwrite_id: hasEmail ? userId : null,
+//                     has_auth: hasEmail,
+//                     fullName,
+//                     email: clientData.email || null,
+//                     phone: clientData.phoneNumber || null,
+//                     notes: clientData.coachNotes || null,
+//                     gender:
+//                         (clientData.gender as
+//                             | "male"
+//                             | "female"
+//                             | "non-binary"
+//                             | "prefer-not-to-say") || null,
+//                     dob: clientData.dateOfBirth
+//                         ? new Date(clientData.dateOfBirth)
+//                         : null,
+//                     idealWeight: clientData.idealWeight || null,
+//                     registrationDate: new Date(),
+//                 })
+//                 .returning();
+//         }
+
+//         if (!user) {
+//             throw new Error("Failed to create or retrieve user");
+//         }
+
+//         // Get Client role ID
+//         const clientRole = await tx
+//             .select({ roleId: Roles.roleId })
+//             .from(Roles)
+//             .where(eq(Roles.roleName, "Client"))
+//             .limit(1);
+
+//         if (!clientRole.length) {
+//             throw new Error("Client role not found");
+//         }
+
+//         // Check if user already has the client role
+//         const existingRole = await tx
+//             .select()
+//             .from(UserRoles)
+//             .where(
+//                 and(
+//                     eq(UserRoles.userId, user.userId),
+//                     eq(UserRoles.roleId, clientRole[0].roleId)
+//                 )
+//             )
+//             .limit(1);
+
+//         // Only assign client role if not already assigned
+//         if (existingRole.length === 0) {
+//             await tx.insert(UserRoles).values({
+//                 userId: user.userId,
+//                 roleId: clientRole[0].roleId,
+//                 approvedByAdmin: true,
+//             });
+//         }
+
+//         // Check if trainer-client relationship already exists
+//         const existingRelationship = await tx
+//             .select()
+//             .from(TrainerClients)
+//             .where(
+//                 and(
+//                     eq(TrainerClients.clientId, user.userId),
+//                     eq(TrainerClients.trainerId, clientData.trainerId),
+//                     eq(TrainerClients.isActive, true)
+//                 )
+//             )
+//             .limit(1);
+
+//         // Only create trainer-client relationship if not already exists
+//         if (existingRelationship.length === 0) {
+//             await tx.insert(TrainerClients).values({
+//                 trainerId: clientData.trainerId,
+//                 clientId: user.userId,
+//                 assignedDate: new Date(),
+//                 isActive: true,
+//             });
+//         }
+
+//         return user;
+//     });
+// }
 
 /**
  * Searches for clients by name (case-insensitive).
