@@ -48,6 +48,8 @@ export type Client = {
     dob?: Date | null;
     age?: number | null;
     trainerName?: string | null;
+    emergencyContactName?: string | null;
+    emergencyContactPhone?: string | null;
 };
 
 export type ClientResponse = {
@@ -281,6 +283,8 @@ export const tableOperations = {
         { id: "email", label: "Email" },
         { id: "phone", label: "Phone" },
         { id: "gender", label: "Gender" },
+        // { id: "emergencyContactName", label: "Emergency Contact Name" },
+        // { id: "emergencyContactPhone", label: "Emergency Contact Phone" },
     ],
     sortableColumns: [
         { id: "fullName", label: "Full Name" },
@@ -290,6 +294,8 @@ export const tableOperations = {
         { id: "age", label: "Age" },
         { id: "registrationDate", label: "Member Since" },
         { id: "trainerName", label: "Trainer" },
+        // { id: "emergencyContactName", label: "Emergency Contact Name" },
+        // { id: "emergencyContactPhone", label: "Emergency Contact Phone" },
     ],
 };
 
@@ -458,6 +464,26 @@ export const columns: ColumnDef<Client>[] = [
         enableColumnFilter: false,
         size: 60,
     },
+    // {
+    //     accessorKey: "emergencyContactName",
+    //     header: () => <div>Emergency Contact Name</div>,
+    //     cell: ({ row }) => {
+    //         const value = row.getValue("emergencyContactName") as string | null;
+    //         return <div className="text-center">{value || "—"}</div>;
+    //     },
+    //     size: 180,
+    // },
+    // {
+    //     accessorKey: "emergencyContactPhone",
+    //     header: () => <div>Emergency Contact Phone</div>,
+    //     cell: ({ row }) => {
+    //         const value = row.getValue("emergencyContactPhone") as
+    //             | string
+    //             | null;
+    //         return <div className="text-center">{value || "—"}</div>;
+    //     },
+    //     size: 180,
+    // },
     {
         accessorKey: "trainerName",
         header: () => <div>Trainer</div>,
