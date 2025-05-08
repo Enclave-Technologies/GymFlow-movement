@@ -392,22 +392,94 @@ export async function bulkDeleteExercises(exerciseIds: string[]) {
   }
 
   try {
-    const result = await db
-      .delete(Exercises)
-      .where(inArray(Exercises.exerciseId, exerciseIds))
-      .returning();
+    const results = {
+      successful: [] as string[],
+      failed: [] as { id: string; reason: string }[],
+    };
 
+    // Try to delete each exercise individually
+    for (const exerciseId of exerciseIds) {
+      try {
+        const result = await db
+          .delete(Exercises)
+          .where(eq(Exercises.exerciseId, exerciseId))
+          .returning();
+
+        if (result.length > 0) {
+          results.successful.push(exerciseId);
+        } else {
+          results.failed.push({
+            id: exerciseId,
+            reason: "Exercise not found",
+          });
+        }
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes(
+            "ExercisePlanExercises_exercise_id_Exercises_exercise_id_fk"
+          )
+        ) {
+          results.failed.push({
+            id: exerciseId,
+            reason: "Exercise is being used in workout plans",
+          });
+        } else {
+          results.failed.push({
+            id: exerciseId,
+            reason: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
+
+    // If all exercises were deleted successfully
+    if (results.successful.length === exerciseIds.length) {
+      return {
+        success: true,
+        message: `Successfully deleted ${results.successful.length} exercise${
+          results.successful.length !== 1 ? "s" : ""
+        }`,
+        count: results.successful.length,
+      };
+    }
+
+    // If some exercises were deleted and some failed
+    if (results.successful.length > 0) {
+      return {
+        success: true,
+        message: `Partially completed: ${results.successful.length} exercise${
+          results.successful.length !== 1 ? "s" : ""
+        } deleted successfully, ${results.failed.length} failed. ${
+          results.failed.some((f) => f.reason.includes("workout plans"))
+            ? "Some exercises could not be deleted because they are being used in workout plans."
+            : ""
+        }`,
+        count: results.successful.length,
+        details: {
+          successful: results.successful,
+          failed: results.failed,
+        },
+      };
+    }
+
+    // If all exercises failed to delete
     return {
-      success: true,
-      message: `Successfully deleted ${result.length} exercise${
-        result.length !== 1 ? "s" : ""
+      success: false,
+      message: `Failed to delete any exercises. ${
+        results.failed.some((f) => f.reason.includes("workout plans"))
+          ? "Some exercises could not be deleted because they are being used in workout plans."
+          : "Error deleting exercises"
       }`,
-      count: result.length,
+      count: 0,
+      details: {
+        failed: results.failed,
+      },
     };
   } catch (error) {
     return {
       success: false,
-      message: `Error deleting exercises: ${
+      message: `Error during bulk deletion: ${
         error instanceof Error ? error.message : String(error)
       }`,
       count: 0,
@@ -415,7 +487,10 @@ export async function bulkDeleteExercises(exerciseIds: string[]) {
   }
 }
 
-export async function bulkApproveExercises(exerciseIds: string[]) {
+export async function bulkUpdateExerciseStatus(
+  exerciseIds: string[],
+  approved: boolean
+) {
   await requireTrainerOrAdmin();
 
   if (!exerciseIds.length) {
@@ -429,24 +504,78 @@ export async function bulkApproveExercises(exerciseIds: string[]) {
   try {
     const result = await db
       .update(Exercises)
-      .set({ approvedByAdmin: true })
+      .set({ approvedByAdmin: approved })
       .where(inArray(Exercises.exerciseId, exerciseIds))
       .returning();
 
+    const action = approved ? "approved" : "unapproved";
     return {
       success: true,
-      message: `Successfully approved ${result.length} exercise${
+      message: `Successfully ${action} ${result.length} exercise${
         result.length !== 1 ? "s" : ""
       }`,
       count: result.length,
     };
   } catch (error) {
+    const action = approved ? "approving" : "unapproving";
     return {
       success: false,
-      message: `Error approving exercises: ${
+      message: `Error ${action} exercises: ${
         error instanceof Error ? error.message : String(error)
       }`,
       count: 0,
+    };
+  }
+}
+
+export async function deleteExercise(exerciseId: string) {
+  await requireTrainerOrAdmin();
+
+  if (!exerciseId) {
+    return {
+      success: false,
+      message: "No exercise ID provided",
+    };
+  }
+
+  try {
+    const result = await db
+      .delete(Exercises)
+      .where(eq(Exercises.exerciseId, exerciseId))
+      .returning();
+
+    if (!result.length) {
+      return {
+        success: false,
+        message: "Exercise not found",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Exercise deleted successfully",
+      data: result[0],
+    };
+  } catch (error) {
+    // Check if the error is a foreign key constraint violation
+    if (
+      error instanceof Error &&
+      error.message.includes(
+        "ExercisePlanExercises_exercise_id_Exercises_exercise_id_fk"
+      )
+    ) {
+      return {
+        success: false,
+        message:
+          "Cannot delete this exercise because it is currently being used in one or more workout plans. Please remove it from all plans before deleting.",
+      };
+    }
+
+    return {
+      success: false,
+      message: `Error deleting exercise: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
     };
   }
 }
