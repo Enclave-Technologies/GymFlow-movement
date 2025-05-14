@@ -30,7 +30,7 @@ import {
 } from "./workout-utils/phase-utils";
 import { saveAll } from "./workout-utils/workout-plan-functions";
 import {
-    addSession,
+    addSessionAndPersist,
     deleteSession,
     duplicateSession,
     toggleSessionExpansion,
@@ -218,9 +218,19 @@ export default function WorkoutPlanner({
     };
 
     // ===== Session CRUD =====
-    const addSessionHandler = (phaseId: string) => {
-        setPhases(addSession(phases, phaseId));
-        setHasUnsavedChanges(true);
+    const addSessionHandler = async (phaseId: string) => {
+        // setPhases(addSession(phases, phaseId));
+        // setHasUnsavedChanges(true);
+        await addSessionAndPersist(
+            phases,
+            phaseId,
+            setPhases,
+            setHasUnsavedChanges,
+            setLastKnownUpdatedAt,
+            setSaving,
+            setConflictError,
+            lastKnownUpdatedAt
+        );
     };
 
     const toggleSessionExpansionHandler = (

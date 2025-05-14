@@ -6,15 +6,15 @@ export type WorkoutPlanResponse = {
         name: string;
         isActive: boolean;
         isExpanded: boolean;
-        orderNumber?: number;  // Added orderNumber
-        planId?: string;       // Added planId
+        orderNumber?: number; // Added orderNumber
+        planId?: string; // Added planId
         sessions: Array<{
             id: string;
             name: string;
             duration: number | null;
             isExpanded: boolean;
-            orderNumber?: number;  // Added orderNumber
-            phaseId?: string;      // Added phaseId
+            orderNumber?: number; // Added orderNumber
+            phaseId?: string; // Added phaseId
             exercises: Array<{
                 id: string;
                 order: string;
@@ -22,7 +22,7 @@ export type WorkoutPlanResponse = {
                 targetArea: string | null;
                 exerciseId: string | null;
                 description: string | null;
-                sessionId?: string;  // Added sessionId
+                sessionId?: string; // Added sessionId
                 duration?: number;
                 sets?: string;
                 reps?: string;
@@ -44,19 +44,19 @@ export type WorkoutPlanResponse = {
 };
 
 export interface Exercise {
-    id: string;                  // planExerciseId in the database
-    sessionId?: string;          // Parent session reference
-    exerciseId: string;          // Reference to the exercise in the Exercises table
-    order: string;               // String representation of order (e.g., 'A0', 'B1')
+    id: string; // planExerciseId in the database
+    sessionId?: string; // Parent session reference
+    exerciseId: string; // Reference to the exercise in the Exercises table
+    order: string; // String representation of order (e.g., 'A0', 'B1')
     motion?: string;
     targetArea?: string;
     description?: string;
-    duration?: number;           // For UI calculations, not stored in DB
-    
+    duration?: number; // For UI calculations, not stored in DB
+
     // String values in UI that will be converted to numbers for DB
-    sets?: string;               // Legacy field, use setsMin/setsMax instead
-    reps?: string;               // Legacy field, use repsMin/repsMax instead
-    rest?: string;               // Legacy field, use restMin/restMax instead
+    sets?: string; // Legacy field, use setsMin/setsMax instead
+    reps?: string; // Legacy field, use repsMin/repsMax instead
+    rest?: string; // Legacy field, use restMin/restMax instead
     setsMin?: string;
     setsMax?: string;
     repsMin?: string;
@@ -64,32 +64,32 @@ export interface Exercise {
     restMin?: string;
     restMax?: string;
     tut?: string;
-    
+
     // Other fields
     tempo?: string;
-    additionalInfo?: string;     // Will be mapped to customizations in DB
+    additionalInfo?: string; // Will be mapped to customizations in DB
     customizations?: string;
     notes?: string;
 }
 
 export interface Session {
-    id: string;                  // sessionId in the database
-    phaseId?: string;            // Parent phase reference
-    name: string;                // sessionName in the database
-    duration: number;            // sessionTime in the database
-    orderNumber?: number;        // Numeric order in the database
-    isExpanded: boolean;         // UI state, not stored in DB
-    exercises: Exercise[];       // Child exercises
+    id: string; // sessionId in the database
+    phaseId?: string; // Parent phase reference
+    name: string; // sessionName in the database
+    duration: number; // sessionTime in the database
+    orderNumber?: number; // Numeric order in the database
+    isExpanded: boolean; // UI state, not stored in DB
+    exercises: Exercise[]; // Child exercises
 }
 
 export interface Phase {
-    id: string;                  // phaseId in the database
-    planId?: string;             // Parent plan reference
-    name: string;                // phaseName in the database
-    orderNumber?: number;        // Numeric order in the database
-    isActive: boolean;           // isActive in the database
-    isExpanded: boolean;         // UI state, not stored in DB
-    sessions: Session[];         // Child sessions
+    id: string; // phaseId in the database
+    planId?: string; // Parent plan reference
+    name: string; // phaseName in the database
+    orderNumber?: number; // Numeric order in the database
+    isActive: boolean; // isActive in the database
+    isExpanded: boolean; // UI state, not stored in DB
+    sessions: Session[]; // Child sessions
 }
 
 /**

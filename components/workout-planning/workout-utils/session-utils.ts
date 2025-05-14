@@ -1,13 +1,99 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Phase, Session } from "../types";
+import { toast } from "sonner";
+import { persistNewSession } from "@/actions/session_actions";
 
-export function addSession(phases: Phase[], phaseId: string): Phase[] {
+export async function addSessionAndPersist(
+    phases: Phase[],
+    phaseId: string,
+    setPhases: (phases: Phase[]) => void,
+    setHasUnsavedChanges: (value: boolean) => void,
+    setLastKnownUpdatedAt: (value: Date | null) => void,
+    setSaving: (value: boolean) => void,
+    setConflictError: (
+        value: { message: string; serverTime: Date } | null
+    ) => void,
+    lastKnownUpdatedAt: Date | null
+): Promise<void> {
+    // First update the UI optimistically
+    const updatedPhases = addSession(phases, phaseId);
+    setPhases(updatedPhases);
+    setSaving(true);
+
+    try {
+        // Find the newly added session
+        const phase = updatedPhases.find((p) => p.id === phaseId);
+        if (!phase) {
+            console.error("Phase not found after adding session");
+            setHasUnsavedChanges(true);
+            setSaving(false);
+            return;
+        }
+
+        // Get the last session (the one we just added)
+        const newSession = phase.sessions[phase.sessions.length - 1];
+
+        // Persist to the database
+        const result = await persistNewSession(
+            {
+                id: newSession.id,
+                name: newSession.name,
+                phaseId: phaseId,
+                orderNumber: newSession.orderNumber || 0,
+                duration: newSession.duration || 0,
+            },
+            lastKnownUpdatedAt || undefined
+        );
+
+        if (result.success) {
+            toast.success("Session added successfully");
+            setHasUnsavedChanges(false);
+            // Clear any previous conflict errors
+            setConflictError(null);
+
+            // If we have a serverUpdatedAt, update the lastKnownUpdatedAt
+            if (result.serverUpdatedAt) {
+                setLastKnownUpdatedAt(new Date(result.serverUpdatedAt));
+            }
+        } else {
+            // Handle errors
+            if (result.conflict) {
+                // Handle conflict - another user has modified the plan
+                setConflictError({
+                    message:
+                        result.error ||
+                        "Plan has been modified by another user",
+                    serverTime: new Date(result.serverUpdatedAt!),
+                });
+                toast.error(
+                    "Conflict detected: Plan has been modified by another user"
+                );
+            } else {
+                // Handle other errors
+                toast.error(
+                    result.error
+                        ? String(result.error)
+                        : "Failed to add session"
+                );
+            }
+            setHasUnsavedChanges(true);
+        }
+    } catch (error) {
+        console.error("Error adding session:", error);
+        toast.error("An error occurred while adding the session");
+        setHasUnsavedChanges(true);
+    } finally {
+        setSaving(false);
+    }
+}
+
+function addSession(phases: Phase[], phaseId: string): Phase[] {
     return phases.map((phase) => {
         if (phase.id !== phaseId) return phase;
         const count = phase.sessions.length + 1;
         // Calculate the order number based on existing sessions
         const orderNumber = phase.sessions.length;
-        
+
         const newSession: Session = {
             id: uuidv4(),
             name: `Untitled Session ${count}`,

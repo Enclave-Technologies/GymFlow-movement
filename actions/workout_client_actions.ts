@@ -44,7 +44,7 @@ export async function getWorkoutPlanByClientId(
             phaseId: Phases.phaseId,
             phaseName: Phases.phaseName,
             phaseIsActive: Phases.isActive,
-            phaseOrder: Phases.orderNumber,
+            orderNumber: Phases.orderNumber,
             sessionId: Sessions.sessionId,
             sessionName: Sessions.sessionName,
             sessionTime: Sessions.sessionTime,
@@ -82,7 +82,7 @@ export async function getWorkoutPlanByClientId(
         .orderBy(
             Phases.orderNumber,
             Sessions.orderNumber,
-            ExercisePlanExercises.exerciseOrder
+            ExercisePlanExercises.setOrderMarker
         );
 
     // If rows is empty after the join, it means the plan exists but has no phases.
@@ -104,6 +104,7 @@ export async function getWorkoutPlanByClientId(
             name: string;
             isActive: boolean;
             isExpanded: boolean;
+            orderNumber: number;
             sessions: Array<{
                 id: string;
                 name: string;
@@ -132,7 +133,7 @@ export async function getWorkoutPlanByClientId(
         }
     >();
 
-    for (const row of rows) {
+    for (const [idx, row] of rows.entries()) {
         // If phaseId is null, skip (shouldn't happen with the check above, but safe)
         if (!row.phaseId || !row.phaseName) continue;
 
@@ -145,6 +146,7 @@ export async function getWorkoutPlanByClientId(
                 isActive: row.phaseIsActive ?? false,
                 isExpanded: true, // Default to expanded
                 sessions: [],
+                orderNumber: row.orderNumber ?? idx,
             };
             phasesMap.set(row.phaseId, phase);
         }
