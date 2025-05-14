@@ -12,6 +12,7 @@ import { Loader2, Plus, SaveAllIcon } from "lucide-react";
 type WorkoutToolbarProps = {
     onAddPhase: () => void;
     onSaveAll: () => void;
+    addingPhase: boolean;
     hasUnsavedChanges: boolean;
     isSaving: boolean;
     conflictError: { message: string } | null;
@@ -25,6 +26,7 @@ type WorkoutToolbarProps = {
 export function WorkoutToolbar({
     onAddPhase,
     onSaveAll,
+    addingPhase,
     hasUnsavedChanges,
     isSaving,
     conflictError,
@@ -42,8 +44,17 @@ export function WorkoutToolbar({
                     <Button
                         onClick={onAddPhase}
                         className="cursor-pointer h-10"
+                        disabled={addingPhase}
                     >
-                        <Plus className="h-4 w-4 mr-2" /> Add Phase
+                        {addingPhase ? (
+                            <>
+                                <Loader2 className="animate-spin" /> Adding...
+                            </>
+                        ) : (
+                            <>
+                                <Plus className="h-4 w-4 mr-2" /> Add Phase
+                            </>
+                        )}
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent>Add a new phase</TooltipContent>

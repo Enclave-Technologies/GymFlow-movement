@@ -40,15 +40,21 @@ type DraggableSessionProps = {
     startSession: (sessionId: string, phaseId: string) => void;
     startingSessionId: string | null;
     startEditSession: (sessionId: string, sessionName: string) => void;
-    moveSession: (
+    // moveSession: (
+    //     phaseId: string,
+    //     dragIndex: number,
+    //     hoverIndex: number
+    // ) => void;
+    // handleDragVisual?: (
+    //     phaseId: string,
+    //     dragIndex: number,
+    //     hoverIndex: number
+    // ) => void;
+    handleSessionReorder: (
         phaseId: string,
         dragIndex: number,
-        hoverIndex: number
-    ) => void;
-    handleDragVisual?: (
-        phaseId: string,
-        dragIndex: number,
-        hoverIndex: number
+        hoverIndex: number,
+        isDrop?: boolean
     ) => void;
     renderExercisesTable: (phase: Phase, session: Session) => React.ReactNode;
     editingSession: string | null;
@@ -68,13 +74,13 @@ const DraggableSession = ({
     startSession,
     startingSessionId,
     startEditSession,
-    moveSession,
+    // moveSession,
     renderExercisesTable,
     editingSession,
     editSessionValue,
     saveSessionEdit,
     setEditSessionValue,
-    handleDragVisual,
+    handleSessionReorder,
 }: DraggableSessionProps) => {
     const ref = useRef<HTMLDivElement>(null);
 
@@ -109,9 +115,7 @@ const DraggableSession = ({
             }
 
             // Call handleDragVisual for visual feedback during hover if it exists
-            if (handleDragVisual) {
-                handleDragVisual(item.phaseId, dragIndex, hoverIndex);
-            }
+            handleSessionReorder(item.phaseId, dragIndex, hoverIndex, false);
 
             // Update the item's index for the next hover
             item.index = hoverIndex;
@@ -119,7 +123,7 @@ const DraggableSession = ({
         drop(item: DragItem) {
             // Always call moveSession when the drop is completed
             // This ensures the unsaved changes UI is triggered and the order is saved
-            moveSession(item.phaseId, item.index, index);
+            handleSessionReorder(item.phaseId, item.index, index, true);
         },
     });
 

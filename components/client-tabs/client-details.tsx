@@ -11,12 +11,22 @@ type ClientDetailsProps = {
     client_id: string;
     userdata: ClientType;
     exercises: SelectExercise[];
+    loggedInUser: {
+        id: string;
+        appwrite_id: string | null;
+        name: string;
+        email: string;
+        avatar: string;
+        roles: string[];
+        approvedByAdmin: boolean | (boolean | null)[] | null;
+    } | null;
 };
 
 const ClientDetails = ({
     client_id,
     userdata,
     exercises,
+    loggedInUser,
 }: ClientDetailsProps) => {
     return (
         <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 h-full">
@@ -57,7 +67,11 @@ const ClientDetails = ({
                     <WorkoutHistoryList client_id={client_id} />
                 </TabsContent>
                 <TabsContent value="workout-plan">
-                    <WorkoutPlan client_id={client_id} exercises={exercises} />
+                    <WorkoutPlan
+                        client_id={client_id}
+                        exercises={exercises}
+                        loggedInUser={loggedInUser}
+                    />
                 </TabsContent>
                 <TabsContent value="goal-list">
                     <GoalList client_id={client_id} userdata={userdata} />

@@ -21,7 +21,16 @@ import {
     InsertWorkoutSessionLog,
     InsertWorkoutSessionDetail,
 } from "@/db/schemas";
-import { desc, eq, and, gte, lte, isNotNull, inArray, isNull } from "drizzle-orm";
+import {
+    desc,
+    eq,
+    and,
+    gte,
+    lte,
+    isNotNull,
+    inArray,
+    isNull,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { unstable_noStore as noStore } from "next/cache";
 
@@ -386,7 +395,7 @@ export async function updateWorkoutSet(
         // Calculate workout volume if all required fields are present
         const updateData: Partial<InsertWorkoutSessionDetail> = { ...updates };
 
-        // If all three values are provided, recalculate the workout volume
+        // If any of the three values are provided, recalculate the workout volume
         if (
             updates.sets !== undefined ||
             updates.reps !== undefined ||

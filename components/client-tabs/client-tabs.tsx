@@ -1,5 +1,6 @@
 import { SelectExercise } from "@/db/schemas";
 import ClientDetails from "./client-details";
+import { get_logged_in_user } from "@/actions/logged_in_user_actions";
 
 export type ClientType = {
     userId: string;
@@ -19,8 +20,10 @@ type ClientTabsProps = {
     exercises: Array<SelectExercise>;
 };
 
-const ClientTabs = ({ params, exercises }: ClientTabsProps) => {
+const ClientTabs = async ({ params, exercises }: ClientTabsProps) => {
     const { userdata } = params;
+
+    const loggedInUser = await get_logged_in_user();
 
     return (
         <div className="flex flex-col items-center justify-between w-full h-full">
@@ -29,6 +32,7 @@ const ClientTabs = ({ params, exercises }: ClientTabsProps) => {
                     client_id={userdata.userId}
                     userdata={userdata}
                     exercises={exercises}
+                    loggedInUser={loggedInUser}
                 />
             </div>
         </div>

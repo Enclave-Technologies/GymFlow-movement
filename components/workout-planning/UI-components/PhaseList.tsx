@@ -30,15 +30,21 @@ interface PhaseListProps {
     onStartSession: (sessionId: string, phaseId: string) => void;
     startingSessionId: string | null;
     onStartEditSession: (id: string, name: string) => void;
-    onMoveSession: (
+    // onMoveSession: (
+    //     phaseId: string,
+    //     dragIndex: number,
+    //     hoverIndex: number
+    // ) => void;
+    // onDragVisual: (
+    //     phaseId: string,
+    //     dragIndex: number,
+    //     hoverIndex: number
+    // ) => void;
+    handleSessionReorder: (
         phaseId: string,
         dragIndex: number,
-        hoverIndex: number
-    ) => void;
-    onDragVisual: (
-        phaseId: string,
-        dragIndex: number,
-        hoverIndex: number
+        hoverIndex: number,
+        isDrop?: boolean
     ) => void;
     onRenderExercises: (phase: Phase, session: Session) => React.ReactNode;
     editingSession: string | null;
@@ -99,8 +105,7 @@ export function PhaseList({
     onStartSession,
     startingSessionId,
     onStartEditSession,
-    onMoveSession,
-    onDragVisual,
+    handleSessionReorder,
     onRenderExercises,
     editingSession,
     editSessionValue,
@@ -140,8 +145,7 @@ export function PhaseList({
                     onStartSession={onStartSession}
                     startingSessionId={startingSessionId}
                     onStartEditSession={onStartEditSession}
-                    onMoveSession={onMoveSession}
-                    onDragVisual={onDragVisual}
+                    handleSessionReorder={handleSessionReorder}
                     onRenderExercises={onRenderExercises}
                     editingSession={editingSession}
                     editSessionValue={editSessionValue}

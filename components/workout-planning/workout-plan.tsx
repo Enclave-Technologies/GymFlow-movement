@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 // Table components and Dialog components are now used in other components
 // Select components are now used in ExerciseTableInline component
 import { updateSessionOrder } from "@/actions/workout_client_actions";
-import { WorkoutPlanChangeTracker } from "./workout-utils/change-tracker";
+// import { WorkoutPlanChangeTracker } from "./workout-utils/change-tracker";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Exercise, Session, Phase } from "./types";
@@ -14,7 +14,7 @@ import { Exercise, Session, Phase } from "./types";
 import ExerciseTableInline from "./UI-components/ExerciseTableInline";
 import type { SelectExercise } from "@/db/schemas";
 import {
-    createUpdatePhasesFunction,
+    // createUpdatePhasesFunction,
     fetchWorkoutPlan,
     refetchWorkoutPlan,
 } from "./workout-utils/workout-utils";
@@ -39,15 +39,26 @@ import { addExercise, deleteExercise } from "./workout-utils/exercise-utils";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
 import { PhaseList } from "./UI-components/PhaseList";
 import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
+import { Loader2 } from "lucide-react";
 
 type WorkoutPlannerProps = {
     client_id: string;
     exercises: SelectExercise[];
+    loggedInUser: {
+        id: string;
+        appwrite_id: string | null;
+        name: string;
+        email: string;
+        avatar: string;
+        roles: string[];
+        approvedByAdmin: boolean | (boolean | null)[] | null;
+    } | null;
 };
 
 export default function WorkoutPlanner({
     client_id,
     exercises,
+    loggedInUser,
 }: WorkoutPlannerProps) {
     // ===== Data State =====
     const [phases, setPhases] = useState<Phase[]>([]);
@@ -65,6 +76,8 @@ export default function WorkoutPlanner({
         message: string;
         serverTime: Date;
     } | null>(null);
+    const [addingPhase, setAddingPhase] = useState(false);
+    const [isDuplicating, setIsDuplicating] = useState(false);
 
     // ===== Editing State =====
     const [editingPhase, setEditingPhase] = useState<string | null>(null);
@@ -89,9 +102,9 @@ export default function WorkoutPlanner({
         null
     );
 
-    // ===== Change Tracking =====
-    const [changeTracker, setChangeTracker] =
-        useState<WorkoutPlanChangeTracker | null>(null);
+    // // ===== Change Tracking =====
+    // const [changeTracker, setChangeTracker] =
+    //     useState<WorkoutPlanChangeTracker | null>(null);
 
     // ===== Router =====
     const router = useRouter();
@@ -103,8 +116,7 @@ export default function WorkoutPlanner({
             setIsLoading,
             setPlanId,
             setLastKnownUpdatedAt,
-            updatePhases,
-            setChangeTracker
+            setPhases
         );
     }, [client_id]);
 
@@ -115,15 +127,13 @@ export default function WorkoutPlanner({
                 client_id,
                 setPlanId,
                 setLastKnownUpdatedAt,
-                updatePhases,
-                changeTracker,
-                setChangeTracker
+                setPhases
             );
         }
     }, [savePerformed, client_id]);
 
     // Custom setPhases function that also updates the change tracker
-    const updatePhases = createUpdatePhasesFunction(setPhases, changeTracker);
+    // const updatePhases = createUpdatePhasesFunction(setPhases, changeTracker);
 
     // ===== Global Save =====
     const handleSaveAll = async () => {
@@ -132,27 +142,37 @@ export default function WorkoutPlanner({
             planId,
             lastKnownUpdatedAt,
             client_id,
-            changeTracker,
             setSaving,
             setPlanId,
             setLastKnownUpdatedAt,
             setHasUnsavedChanges,
             setConflictError,
-            setSavePerformed,
-            updatePhases
+            setSavePerformed
+            // updatePhases
         );
+        setSavePerformed((prevSave) => prevSave + 1);
     };
 
     // ===== Phase CRUD =====
     const handleAddPhase = () => {
-        addPhase(phases, updatePhases, setHasUnsavedChanges, planId);
+        addPhase(
+            phases,
+            setPhases,
+            setHasUnsavedChanges,
+            setLastKnownUpdatedAt,
+            setPlanId,
+            setAddingPhase,
+            planId,
+            client_id,
+            loggedInUser?.id
+        );
     };
 
     const handleTogglePhaseExpansion = (phaseId: string) => {
         togglePhaseExpansion(
             phaseId,
             phases,
-            updatePhases
+            setPhases
             // setHasUnsavedChanges
         );
     };
@@ -161,7 +181,7 @@ export default function WorkoutPlanner({
         await togglePhaseActivation(
             phaseId,
             phases,
-            updatePhases,
+            setPhases,
             lastKnownUpdatedAt,
             setLastKnownUpdatedAt,
             setSaving,
@@ -179,19 +199,27 @@ export default function WorkoutPlanner({
         confirmDeletePhase(
             phaseId,
             phases,
-            updatePhases,
+            setPhases,
             setShowConfirm,
             setHasUnsavedChanges
         );
     };
 
     const handleDuplicatePhase = (phaseId: string) => {
-        duplicatePhase(phaseId, phases, updatePhases, setHasUnsavedChanges);
+        duplicatePhase(
+            phaseId,
+            phases,
+            setPhases,
+            setIsDuplicating,
+            setHasUnsavedChanges,
+            setLastKnownUpdatedAt,
+            planId
+        );
     };
 
     // ===== Session CRUD =====
     const addSessionHandler = (phaseId: string) => {
-        updatePhases(addSession(phases, phaseId));
+        setPhases(addSession(phases, phaseId));
         setHasUnsavedChanges(true);
     };
 
@@ -199,12 +227,12 @@ export default function WorkoutPlanner({
         phaseId: string,
         sessionId: string
     ) => {
-        updatePhases(toggleSessionExpansion(phases, phaseId, sessionId));
-        setHasUnsavedChanges(true);
+        setPhases(toggleSessionExpansion(phases, phaseId, sessionId));
+        // setHasUnsavedChanges(true);
     };
 
     const duplicateSessionHandler = (phaseId: string, sessionId: string) => {
-        updatePhases(duplicateSession(phases, phaseId, sessionId));
+        setPhases(duplicateSession(phases, phaseId, sessionId));
         setHasUnsavedChanges(true);
     };
 
@@ -215,7 +243,7 @@ export default function WorkoutPlanner({
         phaseId: string,
         sessionId: string
     ) => {
-        updatePhases(deleteSession(phases, phaseId, sessionId));
+        setPhases(deleteSession(phases, phaseId, sessionId));
         setShowConfirm({ type: null });
         setHasUnsavedChanges(true);
     };
@@ -228,7 +256,7 @@ export default function WorkoutPlanner({
             phaseId,
             sessionId
         );
-        updatePhases(updatedPhases);
+        setPhases(updatedPhases);
         setEditingExercise({ sessionId, exerciseId: newExerciseId });
         setHasUnsavedChanges(true);
     };
@@ -244,7 +272,7 @@ export default function WorkoutPlanner({
         sessionId: string,
         exerciseId: string
     ) => {
-        updatePhases(deleteExercise(phases, phaseId, sessionId, exerciseId));
+        setPhases(deleteExercise(phases, phaseId, sessionId, exerciseId));
         setShowConfirm({ type: null });
         setHasUnsavedChanges(true);
     };
@@ -264,7 +292,7 @@ export default function WorkoutPlanner({
             editingPhase,
             editPhaseValue,
             phases,
-            updatePhases,
+            setPhases,
             setEditingPhase,
             setHasUnsavedChanges
         );
@@ -276,7 +304,7 @@ export default function WorkoutPlanner({
     };
     const saveSessionEdit = () => {
         if (!editingSession) return;
-        updatePhases(
+        setPhases(
             phases.map((phase) => ({
                 ...phase,
                 sessions: phase.sessions.map((s) =>
@@ -323,41 +351,14 @@ export default function WorkoutPlanner({
         }
     };
 
-    // Save a single session (removed)
-
-    // Function to handle visual updates during drag operations
-    const handleDragVisual = (
+    // Replace both handleDragVisual and moveSession with a simpler implementation
+    const handleSessionReorder = async (
         phaseId: string,
         dragIndex: number,
-        hoverIndex: number
+        hoverIndex: number,
+        isDrop: boolean = false
     ) => {
-        // This function only updates the UI for visual feedback during dragging
-        updatePhases(
-            phases.map((phase) => {
-                if (phase.id !== phaseId) return phase;
-
-                const newSessions = [...phase.sessions];
-                const draggedSession = newSessions[dragIndex];
-                newSessions.splice(dragIndex, 1);
-                newSessions.splice(hoverIndex, 0, draggedSession);
-
-                return {
-                    ...phase,
-                    sessions: newSessions,
-                };
-            })
-        );
-    };
-
-    // Function to move a session within a phase and update the order in DB
-    // This is called when the drag operation is completed (on drop)
-    const moveSession = async (
-        phaseId: string,
-        dragIndex: number,
-        hoverIndex: number
-    ) => {
-        // First update the UI (this might be redundant if handleDragVisual was called during drag)
-        // but we include it for safety to ensure the final state is correct
+        // Update the UI for both visual feedback during drag and final position
         const updatedPhases = phases.map((phase) => {
             if (phase.id !== phaseId) return phase;
 
@@ -372,90 +373,83 @@ export default function WorkoutPlanner({
             };
         });
 
-        // Update the state with the new phases
-        updatePhases(updatedPhases);
+        // Always update the UI
+        setPhases(updatedPhases);
 
-        // Mark as having unsaved changes
-        setHasUnsavedChanges(true);
-
-        // Log the operation for debugging
-        console.log(
-            `Moving session from index ${dragIndex} to ${hoverIndex} in phase ${phaseId}`
-        );
-
-        // --- BEGIN: Call server action to update order ---
-        // Find the updated phase from our new state to get the correct session order
-        const updatedPhase = updatedPhases.find((p) => p.id === phaseId);
-        if (!updatedPhase) {
-            console.error("Could not find updated phase after move.");
-            toast.error(
-                "An internal error occurred while reordering sessions."
+        // Only mark as unsaved and log when the drop is completed
+        if (isDrop) {
+            console.log(
+                `Moved session from index ${dragIndex} to ${hoverIndex} in phase ${phaseId}`
             );
-            return; // Should not happen if setPhases worked
-        }
+            setHasUnsavedChanges(true);
 
-        // Get the ordered session IDs from the updated phase
-        const orderedSessionIds = updatedPhase.sessions.map((s) => s.id);
+            // Find the updated phase to get the ordered session IDs
+            const updatedPhase = updatedPhases.find((p) => p.id === phaseId);
+            if (updatedPhase) {
+                const orderedSessionIds = updatedPhase.sessions.map(
+                    (s) => s.id
+                );
 
-        // Set saving state visually (optional, maybe too quick for DnD)
-        // setSaving(true); // Consider adding a specific 'isReordering' state if needed
+                // Save the new order to the server
+                setSaving(true);
+                setHasUnsavedChanges(true);
 
-        try {
-            const result = await updateSessionOrder(
-                phaseId,
-                orderedSessionIds,
-                lastKnownUpdatedAt || undefined
-            );
-
-            if (result.success) {
-                // Update the last known timestamp to prevent conflicts on subsequent saves
-                setLastKnownUpdatedAt(new Date(result.updatedAt ?? Date.now()));
-                setConflictError(null); // Clear any previous conflict
-
-                // If the server save was successful, we can clear the unsaved changes flag
-                // but only for this specific change - if there were other unsaved changes,
-                // we should keep the flag set
-                if (!hasUnsavedChanges) {
-                    setHasUnsavedChanges(false);
-                }
-
-                // Trigger a refetch by incrementing the savePerformed counter
-                setSavePerformed((prev) => prev + 1);
-
-                // toast.success("Session order updated"); // Optional: Might be too noisy
-            } else {
-                // Handle errors (conflict or other)
-                if (result.conflict) {
-                    setConflictError({
-                        message:
-                            result.error ||
-                            "Plan modified by another user during reorder",
-                        // Ensure serverUpdatedAt exists before creating Date
-                        serverTime: result.serverUpdatedAt
-                            ? new Date(result.serverUpdatedAt)
-                            : new Date(),
-                    });
-                    toast.error(
-                        "Conflict: Plan modified elsewhere. Please save all changes to resolve."
+                try {
+                    const result = await updateSessionOrder(
+                        phaseId,
+                        orderedSessionIds,
+                        lastKnownUpdatedAt || undefined
                     );
-                    // We already set hasUnsavedChanges to true above
-                } else {
+
+                    if (result.success) {
+                        // Update the last known timestamp
+                        if (result.updatedAt) {
+                            setLastKnownUpdatedAt(new Date(result.updatedAt));
+                        }
+
+                        // Clear unsaved changes flag since we've saved this specific change
+                        setHasUnsavedChanges(false);
+
+                        // Clear any previous conflict errors
+                        setConflictError(null);
+
+                        // Optionally show success message
+                        toast.success("Session order updated successfully");
+
+                        // Trigger a refetch to ensure data consistency
+                        // setSavePerformed((prev) => prev + 1);
+                    } else {
+                        // Handle errors
+                        if (result.conflict) {
+                            setConflictError({
+                                message:
+                                    result.error ||
+                                    "Plan modified by another user during reorder",
+                                serverTime: result.serverUpdatedAt
+                                    ? new Date(result.serverUpdatedAt)
+                                    : new Date(),
+                            });
+                            toast.error(
+                                "Conflict: Plan modified elsewhere. Please save all changes to resolve."
+                            );
+                        } else {
+                            toast.error(
+                                result.error || "Failed to update session order"
+                            );
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error saving session order:", error);
                     toast.error(
-                        result.error || "Failed to update session order"
+                        "An error occurred while updating session order"
                     );
-                    // We already set hasUnsavedChanges to true above
+                } finally {
+                    setSaving(false);
                 }
             }
-        } catch (error) {
-            console.error("Error calling updateSessionOrder:", error);
-            toast.error("An error occurred while updating session order.");
-            setHasUnsavedChanges(true); // Re-set unsaved changes flag on error
-        } finally {
-            // setSaving(false); // Clear saving state if used
+            // Optional: Auto-save after reordering
+            // handleSaveAll();
         }
-        // --- END: Call server action ---
-
-        // We've already set hasUnsavedChanges at the beginning of this function
     };
 
     // Inline editing state and functions are now handled by the ExerciseTableInline component
@@ -478,7 +472,7 @@ export default function WorkoutPlanner({
             <ExerciseTableInline
                 phase={phase}
                 session={session}
-                updatePhases={updatePhases}
+                updatePhases={setPhases}
                 phases={phases}
                 deleteExercise={deleteExerciseHandler}
                 calculateSessionDuration={calculateSessionDuration}
@@ -493,9 +487,21 @@ export default function WorkoutPlanner({
 
     return (
         <div className="w-full max-w-6xl mx-auto rounded-lg text-accent-foreground bg-card">
+            {/* Loading overlay */}
+            {isDuplicating && (
+                <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-md z-10">
+                    <div className="flex items-center space-x-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        <span className="text-sm font-medium">
+                            Please Wait...
+                        </span>
+                    </div>
+                </div>
+            )}
             <div className="w-full p-2">
                 <WorkoutToolbar
                     onAddPhase={handleAddPhase}
+                    addingPhase={addingPhase}
                     onSaveAll={handleSaveAll}
                     hasUnsavedChanges={hasUnsavedChanges}
                     isSaving={isSaving}
@@ -503,7 +509,7 @@ export default function WorkoutPlanner({
                     client_id={client_id}
                     phases={phases}
                     exercises={exercises}
-                    updatePhases={updatePhases}
+                    updatePhases={setPhases}
                     setHasUnsavedChanges={setHasUnsavedChanges}
                 />
 
@@ -529,8 +535,7 @@ export default function WorkoutPlanner({
                     onStartSession={startSession}
                     startingSessionId={startingSessionId}
                     onStartEditSession={startEditSession}
-                    onMoveSession={moveSession}
-                    onDragVisual={handleDragVisual}
+                    handleSessionReorder={handleSessionReorder}
                     onRenderExercises={renderExercisesTable}
                     editingSession={editingSession}
                     editSessionValue={editSessionValue}

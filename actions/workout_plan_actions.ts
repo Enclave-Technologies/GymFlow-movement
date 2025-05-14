@@ -52,6 +52,27 @@ export async function updateWorkoutPlan(
 ): Promise<WorkoutPlanActionResponse> {
     const currentTrainer = await requireTrainerOrAdmin();
 
+    console.log("RECEIVED PLAN FROM FRONTEND: ");
+    for (const phase of planData.phases) {
+        console.log(
+            "Phase info:",
+            phase.name,
+            phase.orderNumber,
+            phase.isActive
+        );
+        for (const [idx, session] of phase.sessions.entries()) {
+            console.log("\tSession info:", idx, session.name, session.duration);
+            for (const exercise of session.exercises) {
+                console.log(
+                    `\t\t${exercise.order}: ${exercise.description} ${exercise.tut} ${exercise.setsMin} ${exercise.repsMin} ${exercise.restMin} ${exercise.customizations}`
+                );
+            }
+        }
+        console.log(
+            "============================================================"
+        );
+    }
+
     try {
         // Case 1: This is a new plan being created (planId and lastKnownUpdatedAt are empty)
         if (!planId || !lastKnownUpdatedAt) {
@@ -247,12 +268,6 @@ export async function updateWorkoutPlan(
             )
         );
 
-        console.log(
-            "FLATTENED SESSIONS\n",
-            JSON.stringify(feSessions),
-            "\n===================="
-        );
-
         // Use diff utilities
         const {
             added: phasesToAdd,
@@ -272,32 +287,32 @@ export async function updateWorkoutPlan(
             deleted: exercisesToDelete,
         } = diffExercises(dbExercises, feExercises);
 
-        console.log("PHASE UPDATES: =================\n");
-        console.log(JSON.stringify(phasesToUpdate));
+        // console.log("PHASE UPDATES: =================\n");
+        // console.log(JSON.stringify(phasesToUpdate));
 
-        console.log("SESSIONS UPDATES: =================\n");
-        console.log(JSON.stringify(sessionsToUpdate));
+        // console.log("SESSIONS UPDATES: =================\n");
+        // console.log(JSON.stringify(sessionsToUpdate));
 
-        console.log("EXERCISE UPDATES: =================\n");
-        console.log(JSON.stringify(exercisesToUpdate));
+        // console.log("EXERCISE UPDATES: =================\n");
+        // console.log(JSON.stringify(exercisesToUpdate));
 
-        console.log("PHASE ADDED: =================\n");
-        console.log(JSON.stringify(phasesToAdd));
+        // console.log("PHASE ADDED: =================\n");
+        // console.log(JSON.stringify(phasesToAdd));
 
-        console.log("SESSIONS ADDED: =================\n");
-        console.log(JSON.stringify(sessionsToAdd));
+        // console.log("SESSIONS ADDED: =================\n");
+        // console.log(JSON.stringify(sessionsToAdd));
 
-        console.log("EXERCISE ADDED: =================\n");
-        console.log(JSON.stringify(exercisesToAdd));
+        // console.log("EXERCISE ADDED: =================\n");
+        // console.log(JSON.stringify(exercisesToAdd));
 
-        console.log("PHASE DELETED: =================\n");
-        console.log(JSON.stringify(phasesToDelete));
+        // console.log("PHASE DELETED: =================\n");
+        // console.log(JSON.stringify(phasesToDelete));
 
-        console.log("SESSIONS DELETED: =================\n");
-        console.log(JSON.stringify(sessionsToDelete));
+        // console.log("SESSIONS DELETED: =================\n");
+        // console.log(JSON.stringify(sessionsToDelete));
 
-        console.log("EXERCISE DELETED: =================\n");
-        console.log(JSON.stringify(exercisesToDelete));
+        // console.log("EXERCISE DELETED: =================\n");
+        // console.log(JSON.stringify(exercisesToDelete));
 
         // No conflict, proceed with update using a transaction
         return await db.transaction(async (tx) => {
@@ -491,7 +506,7 @@ export async function updateWorkoutPlan(
                         };
                     })
                     .filter((e) => e !== null);
-                console.log("Exercises:\n", exercisesToInsert);
+                // console.log("Exercises:\n", exercisesToInsert);
                 if (exercisesToInsert.length > 0) {
                     const chunkSize = 100;
                     for (

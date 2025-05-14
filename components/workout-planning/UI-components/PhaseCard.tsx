@@ -37,15 +37,11 @@ type PhaseCardProps = {
     onStartSession: (sessionId: string, phaseId: string) => void;
     startingSessionId: string | null;
     onStartEditSession: (id: string, name: string) => void;
-    onMoveSession: (
+    handleSessionReorder: (
         phaseId: string,
         dragIndex: number,
-        hoverIndex: number
-    ) => void;
-    onDragVisual: (
-        phaseId: string,
-        dragIndex: number,
-        hoverIndex: number
+        hoverIndex: number,
+        isDrop?: boolean
     ) => void;
     onRenderExercises: (phase: Phase, session: Session) => React.ReactNode;
     editingSession: string | null;
@@ -76,8 +72,7 @@ export function PhaseCard({
     onStartSession,
     startingSessionId,
     onStartEditSession,
-    onMoveSession,
-    onDragVisual,
+    handleSessionReorder,
     onRenderExercises,
     editingSession,
     editSessionValue,
@@ -236,8 +231,7 @@ export function PhaseCard({
                                 startSession={onStartSession}
                                 startingSessionId={startingSessionId}
                                 startEditSession={onStartEditSession}
-                                moveSession={onMoveSession}
-                                handleDragVisual={onDragVisual}
+                                handleSessionReorder={handleSessionReorder}
                                 renderExercisesTable={onRenderExercises}
                                 editingSession={editingSession}
                                 editSessionValue={editSessionValue}

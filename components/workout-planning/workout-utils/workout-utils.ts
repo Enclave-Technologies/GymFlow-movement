@@ -96,8 +96,7 @@ export async function fetchWorkoutPlan(
     setIsLoading: (value: boolean) => void,
     setPlanId: (value: string | null) => void,
     setLastKnownUpdatedAt: (value: Date | null) => void,
-    updatePhases: (newPhases: Phase[]) => void,
-    setChangeTracker: (tracker: WorkoutPlanChangeTracker) => void
+    setPhases: (newPhases: Phase[]) => void
 ) {
     setIsLoading(true);
     try {
@@ -109,9 +108,7 @@ export async function fetchWorkoutPlan(
 
         // If no plan exists yet or empty array is returned
         if (!response || (Array.isArray(response) && response.length === 0)) {
-            updatePhases([]);
-            // Initialize change tracker with empty phases
-            setChangeTracker(new WorkoutPlanChangeTracker([]));
+            setPhases([]);
             return;
         }
 
@@ -119,27 +116,15 @@ export async function fetchWorkoutPlan(
         if ("planId" in response && "updatedAt" in response) {
             setPlanId(response.planId);
             setLastKnownUpdatedAt(new Date(response.updatedAt));
+            // Map the phases from the response
+            const mapped = mapWorkoutPlanResponseToPhase(
+                response as WorkoutPlanResponse
+            );
+
+            setPhases(mapped);
         }
-
-        // Map the phases from the response
-        const mapped = mapWorkoutPlanResponseToPhase(
-            response as WorkoutPlanResponse
-        );
-
-        console.log(
-            "Mapped workout plan (frontend structure):",
-            JSON.stringify(mapped, null, 2)
-        );
-        updatePhases(mapped);
-
-        // Initialize change tracker with the fetched phases
-        setChangeTracker(new WorkoutPlanChangeTracker(mapped));
     } catch (error) {
         console.error("Error fetching workout plan:", error);
-        // Fallback to empty data
-        updatePhases([]);
-        // Initialize change tracker with empty phases
-        setChangeTracker(new WorkoutPlanChangeTracker([]));
     } finally {
         setIsLoading(false);
     }
@@ -152,9 +137,7 @@ export async function refetchWorkoutPlan(
     client_id: string,
     setPlanId: (value: string | null) => void,
     setLastKnownUpdatedAt: (value: Date | null) => void,
-    updatePhases: (newPhases: Phase[]) => void,
-    changeTracker: WorkoutPlanChangeTracker | null,
-    setChangeTracker: (tracker: WorkoutPlanChangeTracker) => void
+    setPhases: (newPhases: Phase[]) => void
 ) {
     try {
         const response = await getWorkoutPlanByClientId(client_id);
@@ -167,14 +150,7 @@ export async function refetchWorkoutPlan(
                 response as WorkoutPlanResponse
             );
 
-            updatePhases(mapped);
-
-            // Reset the change tracker with the fetched phases
-            if (changeTracker) {
-                changeTracker.reset(mapped);
-            } else {
-                setChangeTracker(new WorkoutPlanChangeTracker(mapped));
-            }
+            setPhases(mapped);
         }
     } catch (error) {
         console.error("Error refetching workout plan:", error);

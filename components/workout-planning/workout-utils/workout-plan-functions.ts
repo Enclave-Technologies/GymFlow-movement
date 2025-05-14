@@ -1,12 +1,16 @@
 import { toast } from "sonner";
-import { Phase, WorkoutPlanResponse } from "../types";
-import { WorkoutPlanChangeTracker } from "./change-tracker";
+import {
+    Phase,
+    // WorkoutPlanActionResponse,
+    // WorkoutPlanResponse,
+} from "../types";
+// import { WorkoutPlanChangeTracker } from "./change-tracker";
 import {
     createWorkoutPlan,
     updateWorkoutPlan,
 } from "@/actions/workout_plan_actions";
-import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
-import { mapWorkoutPlanResponseToPhase } from "./workout-utils";
+// import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
+// import { mapWorkoutPlanResponseToPhase } from "./workout-utils";
 
 /**
  * Saves all changes to the workout plan
@@ -16,7 +20,6 @@ export async function saveAll(
     planId: string | null,
     lastKnownUpdatedAt: Date | null,
     client_id: string,
-    changeTracker: WorkoutPlanChangeTracker | null,
     setSaving: (value: boolean) => void,
     setPlanId: (value: string | null) => void,
     setLastKnownUpdatedAt: (value: Date | null) => void,
@@ -24,19 +27,17 @@ export async function saveAll(
     setConflictError: (
         value: { message: string; serverTime: Date } | null
     ) => void,
-    setSavePerformed: (value: number | ((prev: number) => number)) => void,
-    updatePhases: (phases: Phase[]) => void
+    setSavePerformed: (value: number | ((prev: number) => number)) => void
+    // updatePhases: (phases: Phase[]) => void
 ) {
     // Log the current state to the console
-    // Do not block the save flow because of a logging issue
-    console.log("Saving workout plan (current changes):", changeTracker);
+    console.log("Saving workout plan", JSON.stringify(phases, null, 2));
 
     // Set saving state
     setSaving(true);
+    let result;
 
     try {
-        let result;
-
         if (!planId || !lastKnownUpdatedAt) {
             // Create a new plan if no planId exists
             result = await createWorkoutPlan(client_id, {
@@ -48,19 +49,14 @@ export async function saveAll(
                 setPlanId(result.planId);
                 setLastKnownUpdatedAt(new Date(result.updatedAt));
 
-                // Reset the change tracker with the current phases
-                if (changeTracker) {
-                    changeTracker.reset(phases);
-                }
+                // // Reset the change tracker with the current phases
+                // if (changeTracker) {
+                //     changeTracker.reset(phases);
+                // }
             }
         } else {
-            // Get changes from the change tracker
-            // const changes = changeTracker ? changeTracker.getChanges() : null;
-
-            // Fallback to full update if no changes detected or change tracker not available
-            console.log(
-                "No changes detected or change tracker not available, using full update"
-            );
+            // Always use full update
+            console.log("Performing full update");
             result = await updateWorkoutPlan(planId, lastKnownUpdatedAt, {
                 phases,
             });
@@ -77,10 +73,10 @@ export async function saveAll(
                 setLastKnownUpdatedAt(new Date(result.updatedAt));
             }
 
-            // Reset the change tracker with the current phases
-            if (changeTracker) {
-                changeTracker.reset(phases);
-            }
+            // // Reset the change tracker with the current phases
+            // if (changeTracker) {
+            //     changeTracker.reset(phases);
+            // }
 
             // Trigger a refetch by incrementing the savePerformed counter
             setSavePerformed((prev) => prev + 1);
@@ -99,40 +95,40 @@ export async function saveAll(
                 );
 
                 // Force a refetch to get the latest data
-                const refetchWorkout = async () => {
-                    try {
-                        const response = await getWorkoutPlanByClientId(
-                            client_id
-                        );
-                        if (
-                            response &&
-                            "planId" in response &&
-                            "updatedAt" in response
-                        ) {
-                            setPlanId(response.planId);
-                            setLastKnownUpdatedAt(new Date(response.updatedAt));
+                // const refetchWorkout = async () => {
+                //     try {
+                //         const response = await getWorkoutPlanByClientId(
+                //             client_id
+                //         );
+                //         if (
+                //             response &&
+                //             "planId" in response &&
+                //             "updatedAt" in response
+                //         ) {
+                //             setPlanId(response.planId);
+                //             setLastKnownUpdatedAt(new Date(response.updatedAt));
 
-                            // Map the phases from the response
-                            const mapped = mapWorkoutPlanResponseToPhase(
-                                response as WorkoutPlanResponse
-                            );
+                //             // Map the phases from the response
+                //             const mapped = mapWorkoutPlanResponseToPhase(
+                //                 response as WorkoutPlanResponse
+                //             );
 
-                            // Update phases with the fetched data
-                            if (typeof updatePhases === "function") {
-                                updatePhases(mapped);
-                            }
+                //             // Update phases with the fetched data
+                //             if (typeof updatePhases === "function") {
+                //                 updatePhases(mapped);
+                //             }
 
-                            // Reset the change tracker with the fetched phases
-                            if (changeTracker) {
-                                changeTracker.reset(mapped);
-                            }
-                        }
-                    } catch (error) {
-                        console.error("Error refetching workout plan:", error);
-                    }
-                };
+                //             // Reset the change tracker with the fetched phases
+                //             if (changeTracker) {
+                //                 changeTracker.reset(mapped);
+                //             }
+                //         }
+                //     } catch (error) {
+                //         console.error("Error refetching workout plan:", error);
+                //     }
+                // };
 
-                refetchWorkout();
+                // refetchWorkout();
             } else {
                 // Handle other errors
                 toast.error(result.error || "Failed to save changes");
