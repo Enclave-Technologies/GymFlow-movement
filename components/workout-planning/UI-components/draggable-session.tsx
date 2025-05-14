@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +77,17 @@ const DraggableSession = ({
     handleDragVisual,
 }: DraggableSessionProps) => {
     const ref = useRef<HTMLDivElement>(null);
+
+    // Add a ref for the session name input
+    const sessionInputRef = useRef<HTMLInputElement>(null);
+
+    // Add useEffect to focus and select text when editing starts
+    useEffect(() => {
+        if (editingSession === session.id && sessionInputRef.current) {
+            sessionInputRef.current.focus();
+            sessionInputRef.current.select();
+        }
+    }, [editingSession, session.id]);
 
     // Set up drag
     const [{ isDragging }, drag] = useDrag({
@@ -156,11 +167,17 @@ const DraggableSession = ({
                     {editingSession === session.id ? (
                         <div className="flex items-center">
                             <Input
+                                ref={sessionInputRef}
                                 value={editSessionValue}
                                 onChange={(e) =>
                                     setEditSessionValue(e.target.value)
                                 }
                                 className="h-8 w-48"
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        saveSessionEdit();
+                                    }
+                                }}
                             />
                             <Button
                                 variant="ghost"

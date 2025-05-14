@@ -13,6 +13,7 @@ import { ChevronDown, ChevronUp, Copy, Edit, Plus, Trash2 } from "lucide-react";
 import type { Phase, Session } from "../types";
 import { Input } from "@/components/ui/input";
 import DraggableSession from "./draggable-session";
+import { useEffect, useRef } from "react";
 // import SessionList from "../session/SessionList";
 
 type PhaseCardProps = {
@@ -84,6 +85,16 @@ export function PhaseCard({
     onSaveSessionEdit,
     onEditSessionValueChange,
 }: PhaseCardProps) {
+    // Add a ref for the phase name input
+    const phaseInputRef = useRef<HTMLInputElement>(null);
+
+    // Add useEffect to focus and select text when editing starts
+    useEffect(() => {
+        if (editingPhase === phase.id && phaseInputRef.current) {
+            phaseInputRef.current.focus();
+            phaseInputRef.current.select();
+        }
+    }, [editingPhase, phase.id]);
     return (
         <Card key={phase.id} className="mb-4 shadow-none bg-background py-2">
             <CardContent className="p-0">
@@ -106,11 +117,17 @@ export function PhaseCard({
                         {editingPhase === phase.id ? (
                             <div className="flex items-center">
                                 <Input
+                                    ref={phaseInputRef}
                                     value={editPhaseValue}
                                     onChange={(e) =>
                                         onEditPhaseValueChange(e.target.value)
                                     }
                                     className="h-8 w-48"
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            onSavePhaseEdit();
+                                        }
+                                    }}
                                 />
                                 <Button
                                     variant="ghost"
