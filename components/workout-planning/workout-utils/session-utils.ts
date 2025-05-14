@@ -6,8 +6,12 @@ export function addSession(phases: Phase[], phaseId: string): Phase[] {
         if (phase.id !== phaseId) return phase;
         const count = phase.sessions.length + 1;
         // Calculate the order number based on existing sessions
-        const orderNumber = phase.sessions.length;
-        
+        // Calculate the highest order number in existing sessions
+        const maxOrderNumber =
+            phase.sessions.length > 0
+                ? Math.max(...phase.sessions.map((s) => s.orderNumber || 0))
+                : -1;
+
         const newSession: Session = {
             id: uuidv4(),
             name: `Untitled Session ${count}`,
@@ -17,7 +21,7 @@ export function addSession(phases: Phase[], phaseId: string): Phase[] {
             // Add phaseId to ensure parent-child relationship
             phaseId: phaseId,
             // Set orderNumber for proper ordering
-            orderNumber: orderNumber,
+            orderNumber: maxOrderNumber + 1, // Use max + 1 to ensure unique ordering,
         };
         return { ...phase, sessions: [...phase.sessions, newSession] };
     });
@@ -53,6 +57,12 @@ export function duplicateSession(
 
         const newSessionId = uuidv4();
 
+        // Calculate the highest order number in existing sessions
+        const maxOrderNumber =
+            phase.sessions.length > 0
+                ? Math.max(...phase.sessions.map((s) => s.orderNumber || 0))
+                : -1;
+
         // Copy exercises and update their sessionId to point to the new session
         const copiedExercises = target.exercises.map((exercise) => ({
             ...exercise,
@@ -66,6 +76,7 @@ export function duplicateSession(
             name: `${target.name} (Copy)`,
             exercises: copiedExercises,
             phaseId: phaseId, // Ensure phaseId is set
+            orderNumber: maxOrderNumber + 1, // Use max + 1 to ensure unique ordering
         };
 
         return { ...phase, sessions: [...phase.sessions, copy] };

@@ -39,7 +39,8 @@ import { addExercise, deleteExercise } from "./workout-utils/exercise-utils";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
 import { PhaseList } from "./UI-components/PhaseList";
 import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
-import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
+// import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
+import { LoadingOverlay } from "./UI-components/LoadingOverlay";
 
 type WorkoutPlannerProps = {
     client_id: string;
@@ -66,6 +67,7 @@ export default function WorkoutPlanner({
         message: string;
         serverTime: Date;
     } | null>(null);
+    const [isReorderingSessions, setIsReorderingSessions] = useState(false);
 
     // ===== Editing State =====
     const [editingPhase, setEditingPhase] = useState<string | null>(null);
@@ -201,7 +203,7 @@ export default function WorkoutPlanner({
         sessionId: string
     ) => {
         updatePhases(toggleSessionExpansion(phases, phaseId, sessionId));
-        setHasUnsavedChanges(true);
+        // setHasUnsavedChanges(true);
     };
 
     const duplicateSessionHandler = (phaseId: string, sessionId: string) => {
@@ -227,13 +229,44 @@ export default function WorkoutPlanner({
     const handleSaveExercise = async (
         phaseId: string,
         sessionId: string,
-        exerciseId: string
+        exerciseId: string,
+        exerciseData?: Partial<Exercise> // Add optional parameter for final data
     ) => {
         // Set saving state
         // setSaving(true);
 
+        if (exerciseData) {
+            console.log(exerciseData);
+            return;
+        }
+
+        // Find the specific phase, session, and exercise
         const phase = phases.find((p) => p.id === phaseId);
-        console.log("Handling Save Exercise: ", JSON.stringify(phase, null, 2));
+        if (!phase) {
+            console.error(`Phase with ID ${phaseId} not found`);
+            return;
+        }
+
+        const session = phase.sessions.find((s) => s.id === sessionId);
+        if (!session) {
+            console.error(
+                `Session with ID ${sessionId} not found in phase ${phaseId}`
+            );
+            return;
+        }
+
+        const exercise = session.exercises.find((e) => e.id === exerciseId);
+        if (!exercise) {
+            console.error(
+                `Exercise with ID ${exerciseId} not found in session ${sessionId}`
+            );
+            return;
+        }
+
+        console.log("Handling Save Exercise:");
+        console.log("Phase:", phase.name, "(", phaseId, ")");
+        console.log("Session:", session.name, "(", sessionId, ")");
+        console.log("Exercise:", JSON.stringify(exercise, null, 2));
 
         // try {
         //     if (!planId || !lastKnownUpdatedAt) {
@@ -313,6 +346,41 @@ export default function WorkoutPlanner({
         setEditingExercise({ sessionId, exerciseId: newExerciseId });
         setHasUnsavedChanges(true);
     };
+
+    // // Add a function to update exercise data from the editor
+    // const updateExerciseData = (
+    //     phaseId: string,
+    //     sessionId: string,
+    //     exerciseId: string,
+    //     exerciseData: Partial<Exercise>
+    // ) => {
+    //     const updatedPhases = phases.map((phase) => {
+    //         if (phase.id !== phaseId) return phase;
+
+    //         return {
+    //             ...phase,
+    //             sessions: phase.sessions.map((session) => {
+    //                 if (session.id !== sessionId) return session;
+
+    //                 return {
+    //                     ...session,
+    //                     exercises: session.exercises.map((exercise) => {
+    //                         if (exercise.id !== exerciseId) return exercise;
+
+    //                         // Update the exercise with the new data
+    //                         return {
+    //                             ...exercise,
+    //                             ...exerciseData,
+    //                         };
+    //                     }),
+    //                 };
+    //             }),
+    //         };
+    //     });
+
+    //     updatePhases(updatedPhases);
+    //     setHasUnsavedChanges(true);
+    // };
 
     const deleteExerciseHandler = (
         phaseId: string,
@@ -459,6 +527,9 @@ export default function WorkoutPlanner({
         // Mark as having unsaved changes
         setHasUnsavedChanges(true);
 
+        // Show loading overlay
+        setIsReorderingSessions(true);
+
         // Log the operation for debugging
         console.log(
             `Moving session from index ${dragIndex} to ${hoverIndex} in phase ${phaseId}`
@@ -533,6 +604,7 @@ export default function WorkoutPlanner({
             setHasUnsavedChanges(true); // Re-set unsaved changes flag on error
         } finally {
             // setSaving(false); // Clear saving state if used
+            setIsReorderingSessions(false);
         }
         // --- END: Call server action ---
 
@@ -575,6 +647,10 @@ export default function WorkoutPlanner({
 
     return (
         <div className="w-full max-w-6xl mx-auto rounded-lg text-accent-foreground bg-card">
+            <LoadingOverlay
+                isVisible={isReorderingSessions}
+                message="Updating session order..."
+            />
             <div className="w-full p-2">
                 <WorkoutToolbar
                     onAddPhase={handleAddPhase}

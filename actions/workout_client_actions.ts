@@ -110,6 +110,7 @@ export async function getWorkoutPlanByClientId(
                 name: string;
                 duration: number | null;
                 isExpanded: boolean;
+                orderNumber: number;
                 exercises: Array<{
                     id: string;
                     order: string;
@@ -164,6 +165,7 @@ export async function getWorkoutPlanByClientId(
                 name: row.sessionName,
                 duration: row.sessionTime, // Use sessionTime directly
                 isExpanded: true, // Default to expanded
+                orderNumber: row.sessionOrder || 0,
                 exercises: [],
             };
             phase.sessions.push(session);

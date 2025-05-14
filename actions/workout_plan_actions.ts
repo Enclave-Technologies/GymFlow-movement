@@ -1274,7 +1274,7 @@ export async function applyWorkoutPlanChanges(
                 sessionId: sessionData.session.id,
                 phaseId: sessionData.phaseId,
                 sessionName: sessionData.session.name,
-                orderNumber: index, // Use the index as order number
+                orderNumber: sessionData.session.orderNumber || index, // Use the index as order number
                 sessionTime: sessionData.session.duration,
             })
         );

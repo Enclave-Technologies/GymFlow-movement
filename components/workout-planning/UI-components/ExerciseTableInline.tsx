@@ -65,8 +65,15 @@ interface ExerciseTableInlineProps {
     onSaveExercise?: (
         phaseId: string,
         sessionId: string,
-        exerciseId: string
+        exerciseId: string,
+        exerciseData?: Partial<Exercise>
     ) => void;
+    // updateExerciseData: (
+    //     phaseId: string,
+    //     sessionId: string,
+    //     exerciseId: string,
+    //     exerciseData: Partial<Exercise>
+    // ) => void;
 }
 
 // Derive motion and target area options from the exercises list
@@ -264,14 +271,19 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
             )
         );
 
-        // // Mark that there are unsaved changes
+        // Mark that there are unsaved changes
         if (setHasUnsavedChanges) {
             setHasUnsavedChanges(true);
         }
 
-        // // Trigger a save of the workout plan
+        // Trigger a save of the workout plan
         if (onSaveExercise) {
-            onSaveExercise(phase.id, session.id, editingExerciseRow.id);
+            onSaveExercise(
+                phase.id,
+                session.id,
+                editingExerciseRow.id,
+                editingExerciseRow
+            );
         }
 
         setEditingExerciseRow(null);
