@@ -9,7 +9,15 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ChevronDown, ChevronUp, Copy, Edit, Plus, Trash2 } from "lucide-react";
+import {
+    ChevronDown,
+    ChevronUp,
+    Copy,
+    Edit,
+    Loader2,
+    Plus,
+    Trash2,
+} from "lucide-react";
 import type { Phase, Session } from "../types";
 import { Input } from "@/components/ui/input";
 import DraggableSession from "./draggable-session";
@@ -29,6 +37,7 @@ type PhaseCardProps = {
     editPhaseValue: string;
     onSavePhaseEdit: () => void;
     onEditPhaseValueChange: (value: string) => void;
+    isSaving: boolean; // Add this prop
 
     // Session handlers
     onToggleSession: (phaseId: string, sessionId: string) => void;
@@ -64,6 +73,7 @@ export function PhaseCard({
     editPhaseValue,
     onSavePhaseEdit,
     onEditPhaseValueChange,
+    isSaving, // Add this prop
 
     // Session props
     onToggleSession,
@@ -188,8 +198,13 @@ export function PhaseCard({
                                     size="icon"
                                     onClick={() => onAddSession(phase.id)}
                                     className="h-8 w-8 cursor-pointer"
+                                    disabled={isSaving}
                                 >
-                                    <Plus className="h-4 w-4" />
+                                    {isSaving ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Plus className="h-4 w-4" />
+                                    )}
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>Add Session</TooltipContent>
@@ -249,6 +264,7 @@ export function PhaseCard({
                                 editSessionValue={editSessionValue}
                                 saveSessionEdit={onSaveSessionEdit}
                                 setEditSessionValue={onEditSessionValueChange}
+                                isSaving={isSaving}
                             />
                         ))}
                         {phase.sessions.length === 0 && (

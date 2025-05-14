@@ -3,7 +3,35 @@ import type { Phase, Session } from "../types";
 import { toast } from "sonner";
 import { persistNewSession } from "@/actions/session_actions";
 
-export async function addSessionAndPersist(
+let isAddingSession = false;
+const pendingSessionAdds: { phaseId: string; callback: () => Promise<void> }[] =
+    [];
+
+/**
+ * Processes the queue of pending session additions
+ */
+async function processPendingSessionAdds() {
+    if (pendingSessionAdds.length === 0 || isAddingSession) return;
+
+    isAddingSession = true;
+    const nextAdd = pendingSessionAdds.shift();
+
+    if (nextAdd) {
+        try {
+            await nextAdd.callback();
+        } catch (error) {
+            console.error("Error processing queued session add:", error);
+        } finally {
+            isAddingSession = false;
+            // Process next item in queue
+            processPendingSessionAdds();
+        }
+    } else {
+        isAddingSession = false;
+    }
+}
+
+async function addSessionAndPersistImpl(
     phases: Phase[],
     phaseId: string,
     setPhases: (phases: Phase[]) => void,
@@ -84,6 +112,55 @@ export async function addSessionAndPersist(
         setHasUnsavedChanges(true);
     } finally {
         setSaving(false);
+    }
+}
+
+export async function addSessionAndPersist(
+    phases: Phase[],
+    phaseId: string,
+    setPhases: (phases: Phase[]) => void,
+    setHasUnsavedChanges: (value: boolean) => void,
+    setLastKnownUpdatedAt: (value: Date | null) => void,
+    setSaving: (value: boolean) => void,
+    setConflictError: (
+        value: { message: string; serverTime: Date } | null
+    ) => void,
+    lastKnownUpdatedAt: Date | null
+): Promise<void> {
+    // If already adding a session, queue this request
+    if (isAddingSession) {
+        const addCallback = () =>
+            addSessionAndPersistImpl(
+                phases,
+                phaseId,
+                setPhases,
+                setHasUnsavedChanges,
+                setLastKnownUpdatedAt,
+                setSaving,
+                setConflictError,
+                lastKnownUpdatedAt
+            );
+        pendingSessionAdds.push({ phaseId, callback: addCallback });
+        return;
+    }
+
+    // Otherwise, perform the add immediately
+    isAddingSession = true;
+    try {
+        await addSessionAndPersistImpl(
+            phases,
+            phaseId,
+            setPhases,
+            setHasUnsavedChanges,
+            setLastKnownUpdatedAt,
+            setSaving,
+            setConflictError,
+            lastKnownUpdatedAt
+        );
+    } finally {
+        isAddingSession = false;
+        // Process any pending adds
+        processPendingSessionAdds();
     }
 }
 

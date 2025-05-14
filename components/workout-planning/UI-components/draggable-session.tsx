@@ -61,6 +61,7 @@ type DraggableSessionProps = {
     editSessionValue: string;
     saveSessionEdit: () => void;
     setEditSessionValue: (value: string) => void;
+    isSaving?: boolean; // Add this prop
 };
 
 const DraggableSession = ({
@@ -81,6 +82,7 @@ const DraggableSession = ({
     saveSessionEdit,
     setEditSessionValue,
     handleSessionReorder,
+    isSaving = false, // Default to false
 }: DraggableSessionProps) => {
     const ref = useRef<HTMLDivElement>(null);
 
@@ -96,6 +98,7 @@ const DraggableSession = ({
         collect: (monitor) => ({
             isDragging: monitor.isDragging(),
         }),
+        canDrag: !isSaving, // Disable dragging when saving
     });
 
     // Set up drop
@@ -136,11 +139,15 @@ const DraggableSession = ({
             ref={ref}
             className={`mb-4 ${index > 0 ? "mt-6" : ""} ${
                 isDragging ? "opacity-50" : ""
-            }`}
+            } ${isSaving ? "cursor-not-allowed opacity-70" : ""}`}
         >
             <div className="flex items-center justify-between p-2 bg-muted rounded-md">
                 <div className="flex items-center">
-                    <span className="mr-2 cursor-move">
+                    <span
+                        className={`mr-2 ${
+                            isSaving ? "cursor-not-allowed" : "cursor-move"
+                        }`}
+                    >
                         <GripVertical className="h-4 w-4 text-muted-foreground" />
                     </span>
                     <Button

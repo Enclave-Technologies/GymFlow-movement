@@ -65,8 +65,9 @@ export function WorkoutToolbar({
                     <Button
                         onClick={onSaveAll}
                         className="cursor-pointer h-10"
-                        disabled={!hasUnsavedChanges || isSaving}
-                        variant={hasUnsavedChanges ? "default" : "outline"}
+                        // disabled={!hasUnsavedChanges || isSaving}
+                        // variant={hasUnsavedChanges ? "default" : "outline"}
+                        variant={"default"}
                     >
                         {isSaving ? (
                             <>

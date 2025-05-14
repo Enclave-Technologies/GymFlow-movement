@@ -530,6 +530,7 @@ export default function WorkoutPlanner({
                 <PhaseList
                     phases={phases}
                     isLoading={isLoading}
+                    isSaving={isSaving}
                     // Phase handlers
                     onToggleExpand={handleTogglePhaseExpansion}
                     onAddSession={addSessionHandler}
