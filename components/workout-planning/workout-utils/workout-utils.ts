@@ -102,10 +102,6 @@ export async function fetchWorkoutPlan(
     setIsLoading(true);
     try {
         const response = await getWorkoutPlanByClientId(client_id);
-        console.log(
-            "Fetched workout plan (raw):",
-            JSON.stringify(response, null, 2)
-        );
 
         // If no plan exists yet or empty array is returned
         if (!response || (Array.isArray(response) && response.length === 0)) {
@@ -126,10 +122,6 @@ export async function fetchWorkoutPlan(
             response as WorkoutPlanResponse
         );
 
-        console.log(
-            "Mapped workout plan (frontend structure):",
-            JSON.stringify(mapped, null, 2)
-        );
         updatePhases(mapped);
 
         // Initialize change tracker with the fetched phases
@@ -186,12 +178,6 @@ export const createUpdatePhasesFunction = (
     changeTracker: WorkoutPlanChangeTracker | null
 ) => {
     return (newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])) => {
-        console.log(
-            "Updating phases:",
-            typeof newPhases === "function"
-                ? "function"
-                : JSON.stringify(newPhases, null, 2)
-        );
         setPhases((prevPhases) => {
             // Handle both direct value and function updates
             const updatedPhases =
@@ -202,10 +188,6 @@ export const createUpdatePhasesFunction = (
             // Update the change tracker if it exists
             if (changeTracker) {
                 changeTracker.updateCurrentState(updatedPhases);
-                console.log(
-                    "[CREATE UPDATE PHASE] Change Tracker:\n",
-                    JSON.stringify(changeTracker, null, 2)
-                );
             }
 
             return updatedPhases;

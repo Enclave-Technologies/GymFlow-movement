@@ -62,6 +62,11 @@ interface ExerciseTableInlineProps {
     onEditExercise: (exerciseId: string) => void;
     exercises: SelectExercise[];
     setHasUnsavedChanges?: (hasChanges: boolean) => void;
+    onSaveExercise?: (
+        phaseId: string,
+        sessionId: string,
+        exerciseId: string
+    ) => void;
 }
 
 // Derive motion and target area options from the exercises list
@@ -100,6 +105,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
     onEditExercise,
     exercises,
     setHasUnsavedChanges,
+    onSaveExercise,
 }) => {
     // Memoize motion and target area options to prevent recalculation on every render
     const exerciseMotionOptions = useMemo(
@@ -164,32 +170,64 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
             return;
         }
 
+        // // Normalize description for matching
+        const normalizedDescription = editingExerciseRow.description
+            .trim()
+            .toLowerCase();
+
         // Make sure exerciseId is set - this is critical for backend updates
         if (!editingExerciseRow.exerciseId) {
-            // Find the exercise in the exercises list by description
+            // Find the exercise in the exercises list by normalized description
             const matchingExercise = exercises.find(
-                (ex) => ex.exerciseName === editingExerciseRow.description
+                (ex) =>
+                    ex.exerciseName.trim().toLowerCase() ===
+                    normalizedDescription
             );
 
             if (matchingExercise) {
                 // If found, use its exerciseId
                 editingExerciseRow.exerciseId = matchingExercise.exerciseId;
-                console.log(
-                    "Set exerciseId from matching exercise:",
-                    matchingExercise.exerciseId
-                );
             } else {
+                // If not found, show error and remove the row
                 toast.error(
-                    "Could not find matching exercise ID. Changes may not be saved properly."
+                    "Please select a valid exercise from the dropdown list"
                 );
-                console.error(
-                    "No matching exercise found for:",
-                    editingExerciseRow.description
+
+                // Remove the invalid exercise
+                updatePhases(
+                    phases.map((phaseItem) =>
+                        phaseItem.id !== phase.id
+                            ? phaseItem
+                            : {
+                                  ...phaseItem,
+                                  sessions: phaseItem.sessions.map(
+                                      (sessionItem) => {
+                                          if (sessionItem.id !== session.id)
+                                              return sessionItem;
+                                          const updatedExercises =
+                                              sessionItem.exercises.filter(
+                                                  (e) =>
+                                                      e.id !==
+                                                      editingExerciseRow.id
+                                              );
+                                          return {
+                                              ...sessionItem,
+                                              exercises: updatedExercises,
+                                              duration:
+                                                  calculateSessionDuration(
+                                                      updatedExercises as ExerciseRow[]
+                                                  ),
+                                          };
+                                      }
+                                  ),
+                              }
+                    )
                 );
+
+                onEditEnd();
+                return;
             }
         }
-
-        console.log("Saving exercise with data:", editingExerciseRow);
 
         updatePhases(
             phases.map((phaseItem) =>
@@ -213,6 +251,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                             }
                                           : e
                                   );
+
                               return {
                                   ...sessionItem,
                                   exercises: updatedExercises,
@@ -224,10 +263,17 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                       }
             )
         );
-        // Mark that there are unsaved changes
+
+        // // Mark that there are unsaved changes
         if (setHasUnsavedChanges) {
             setHasUnsavedChanges(true);
         }
+
+        // // Trigger a save of the workout plan
+        if (onSaveExercise) {
+            onSaveExercise(phase.id, session.id, editingExerciseRow.id);
+        }
+
         setEditingExerciseRow(null);
         onEditEnd();
     }, [
@@ -240,16 +286,15 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
         setHasUnsavedChanges,
         onEditEnd,
         exercises,
+        onSaveExercise,
     ]);
 
     const cancelInlineExercise = useCallback(() => {
         // If the exercise is blank (new), remove it from the array
         if (editingExerciseRow) {
             const isBlank =
-                !editingExerciseRow.order &&
-                !editingExerciseRow.motion &&
-                !editingExerciseRow.targetArea &&
-                !editingExerciseRow.description;
+                !editingExerciseRow.exerciseId ||
+                editingExerciseRow.description === "New Exercise";
             if (isBlank) {
                 updatePhases(
                     phases.map((phaseItem) =>

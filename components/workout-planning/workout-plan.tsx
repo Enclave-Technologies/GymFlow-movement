@@ -39,6 +39,7 @@ import { addExercise, deleteExercise } from "./workout-utils/exercise-utils";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
 import { PhaseList } from "./UI-components/PhaseList";
 import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
+import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
 
 type WorkoutPlannerProps = {
     client_id: string;
@@ -166,8 +167,8 @@ export default function WorkoutPlanner({
             setLastKnownUpdatedAt,
             setSaving,
             setHasUnsavedChanges,
-            setConflictError,
-            setSavePerformed
+            setConflictError
+            // setSavePerformed
         );
     };
 
@@ -221,6 +222,86 @@ export default function WorkoutPlanner({
     };
 
     // ===== Exercise CRUD =====
+
+    // Add a new function to handle saving after exercise is added/edited
+    const handleSaveExercise = async (
+        phaseId: string,
+        sessionId: string,
+        exerciseId: string
+    ) => {
+        // Set saving state
+        // setSaving(true);
+
+        const phase = phases.find((p) => p.id === phaseId);
+        console.log("Handling Save Exercise: ", JSON.stringify(phase, null, 2));
+
+        // try {
+        //     if (!planId || !lastKnownUpdatedAt) {
+        //         // If no plan exists yet, save the entire workout plan
+        //         await saveAll(
+        //             phases,
+        //             planId,
+        //             lastKnownUpdatedAt,
+        //             client_id,
+        //             changeTracker,
+        //             setSaving,
+        //             setPlanId,
+        //             setLastKnownUpdatedAt,
+        //             setHasUnsavedChanges,
+        //             setConflictError,
+        //             setSavePerformed,
+        //             updatePhases
+        //         );
+        //     } else {
+        //         // If plan exists, update it with the current phases
+        //         const result = await updateWorkoutPlan(
+        //             planId,
+        //             lastKnownUpdatedAt,
+        //             {
+        //                 phases,
+        //             }
+        //         );
+
+        //         if (result.success) {
+        //             toast.success("Exercise saved successfully");
+        //             setHasUnsavedChanges(false);
+        //             setConflictError(null);
+
+        //             // Update the last known timestamp
+        //             if (result.updatedAt) {
+        //                 setLastKnownUpdatedAt(new Date(result.updatedAt));
+        //             }
+
+        //             // Reset the change tracker with the current phases
+        //             if (changeTracker) {
+        //                 changeTracker.reset(phases);
+        //             }
+
+        //             // No need to trigger a refetch here
+        //         } else {
+        //             // Handle errors
+        //             if (result.conflict) {
+        //                 setConflictError({
+        //                     message:
+        //                         result.error ||
+        //                         "Plan has been modified by another user",
+        //                     serverTime: new Date(result.serverUpdatedAt!),
+        //                 });
+        //                 toast.error(
+        //                     "Conflict detected: Plan has been modified by another user"
+        //                 );
+        //             } else {
+        //                 toast.error(result.error || "Failed to save exercise");
+        //             }
+        //         }
+        //     }
+        // } catch (error) {
+        //     console.error("Error saving exercise:", error);
+        //     toast.error("An error occurred while saving the exercise");
+        // } finally {
+        //     setSaving(false);
+        // }
+    };
 
     const addExerciseHandler = (phaseId: string, sessionId: string) => {
         const { updatedPhases, newExerciseId } = addExercise(
@@ -420,7 +501,7 @@ export default function WorkoutPlanner({
                 }
 
                 // Trigger a refetch by incrementing the savePerformed counter
-                setSavePerformed((prev) => prev + 1);
+                // setSavePerformed((prev) => prev + 1);
 
                 // toast.success("Session order updated"); // Optional: Might be too noisy
             } else {
@@ -487,6 +568,7 @@ export default function WorkoutPlanner({
                 onEditExercise={handleEditExercise}
                 exercises={exercises}
                 setHasUnsavedChanges={setHasUnsavedChanges}
+                onSaveExercise={handleSaveExercise}
             />
         );
     };

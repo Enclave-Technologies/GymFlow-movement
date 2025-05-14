@@ -247,12 +247,6 @@ export async function updateWorkoutPlan(
             )
         );
 
-        console.log(
-            "FLATTENED SESSIONS\n",
-            JSON.stringify(feSessions),
-            "\n===================="
-        );
-
         // Use diff utilities
         const {
             added: phasesToAdd,
@@ -272,32 +266,130 @@ export async function updateWorkoutPlan(
             deleted: exercisesToDelete,
         } = diffExercises(dbExercises, feExercises);
 
-        console.log("PHASE UPDATES: =================\n");
-        console.log(JSON.stringify(phasesToUpdate));
+        // Log changes in a structured, readable format
+        console.log("\n===== WORKOUT PLAN CHANGES =====");
 
-        console.log("SESSIONS UPDATES: =================\n");
-        console.log(JSON.stringify(sessionsToUpdate));
+        // Phase changes
+        console.log("\n📋 PHASE UPDATES:");
+        if (phasesToUpdate.length > 0) {
+            phasesToUpdate.forEach((phase, index) => {
+                console.log(`  ${index + 1}. Phase "${phase.id}" :`);
+                Object.entries(phase.changes).forEach(([key, value]) => {
+                    console.log(`     - ${key}: ${JSON.stringify(value)}`);
+                });
+            });
+        } else {
+            console.log("  None");
+        }
 
-        console.log("EXERCISE UPDATES: =================\n");
-        console.log(JSON.stringify(exercisesToUpdate));
+        // Session changes
+        console.log("\n🗓️ SESSION UPDATES:");
+        if (sessionsToUpdate.length > 0) {
+            sessionsToUpdate.forEach((session, index) => {
+                console.log(`  ${index + 1}. Session "${session.id}" :`);
+                Object.entries(session.changes).forEach(([key, value]) => {
+                    console.log(`     - ${key}: ${JSON.stringify(value)}`);
+                });
+            });
+        } else {
+            console.log("  None");
+        }
 
-        console.log("PHASE ADDED: =================\n");
-        console.log(JSON.stringify(phasesToAdd));
+        // Exercise changes
+        console.log("\n💪 EXERCISE UPDATES:");
+        if (exercisesToUpdate.length > 0) {
+            exercisesToUpdate.forEach((exercise, index) => {
+                console.log(`  ${index + 1}. Exercise ID: ${exercise.id}`);
+                Object.entries(exercise.changes).forEach(([key, value]) => {
+                    console.log(`     - ${key}: ${JSON.stringify(value)}`);
+                });
+            });
+        } else {
+            console.log("  None");
+        }
 
-        console.log("SESSIONS ADDED: =================\n");
-        console.log(JSON.stringify(sessionsToAdd));
+        // Additions
+        console.log("\n➕ ADDITIONS:");
+        console.log(
+            `  • Phases: ${
+                phasesToAdd.length > 0 ? phasesToAdd.length : "None"
+            }`
+        );
+        if (phasesToAdd.length > 0) {
+            phasesToAdd.forEach((phase, index) => {
+                console.log(`    ${index + 1}. "${phase.name}" (${phase.id})`);
+            });
+        }
 
-        console.log("EXERCISE ADDED: =================\n");
-        console.log(JSON.stringify(exercisesToAdd));
+        console.log(
+            `  • Sessions: ${
+                sessionsToAdd.length > 0 ? sessionsToAdd.length : "None"
+            }`
+        );
+        if (sessionsToAdd.length > 0) {
+            sessionsToAdd.forEach((session, index) => {
+                console.log(
+                    `    ${index + 1}. "${session.name}" (${
+                        session.id
+                    }) in Phase: ${session.phaseId}`
+                );
+            });
+        }
 
-        console.log("PHASE DELETED: =================\n");
-        console.log(JSON.stringify(phasesToDelete));
+        console.log(
+            `  • Exercises: ${
+                exercisesToAdd.length > 0 ? exercisesToAdd.length : "None"
+            }`
+        );
+        if (exercisesToAdd.length > 0 && exercisesToAdd.length <= 5) {
+            // Show details if there are only a few exercises
+            exercisesToAdd.forEach((exercise, index) => {
+                console.log(
+                    `    ${index + 1}. "${
+                        exercise.description || exercise.exerciseId
+                    }" in Session: ${exercise.sessionId}`
+                );
+            });
+        } else if (exercisesToAdd.length > 5) {
+            console.log(
+                `    (${exercisesToAdd.length} exercises - too many to display individually)`
+            );
+        }
 
-        console.log("SESSIONS DELETED: =================\n");
-        console.log(JSON.stringify(sessionsToDelete));
+        // Deletions
+        console.log("\n❌ DELETIONS:");
+        console.log(
+            `  • Phases: ${
+                phasesToDelete.length > 0 ? phasesToDelete.length : "None"
+            }`
+        );
+        if (phasesToDelete.length > 0) {
+            console.log(`    IDs: ${phasesToDelete.join(", ")}`);
+        }
 
-        console.log("EXERCISE DELETED: =================\n");
-        console.log(JSON.stringify(exercisesToDelete));
+        console.log(
+            `  • Sessions: ${
+                sessionsToDelete.length > 0 ? sessionsToDelete.length : "None"
+            }`
+        );
+        if (sessionsToDelete.length > 0) {
+            console.log(`    IDs: ${sessionsToDelete.join(", ")}`);
+        }
+
+        console.log(
+            `  • Exercises: ${
+                exercisesToDelete.length > 0 ? exercisesToDelete.length : "None"
+            }`
+        );
+        if (exercisesToDelete.length > 0 && exercisesToDelete.length <= 10) {
+            console.log(`    IDs: ${exercisesToDelete.join(", ")}`);
+        } else if (exercisesToDelete.length > 10) {
+            console.log(
+                `    (${exercisesToDelete.length} exercises deleted - IDs not shown)`
+            );
+        }
+
+        console.log("\n===== END OF CHANGES =====\n");
 
         // No conflict, proceed with update using a transaction
         return await db.transaction(async (tx) => {

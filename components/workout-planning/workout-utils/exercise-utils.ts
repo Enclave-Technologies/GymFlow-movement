@@ -12,7 +12,7 @@ export function addExercise(
         order: "",
         motion: "Unspecified",
         targetArea: "Unspecified",
-        exerciseId: uuidv4(), // This will be replaced with actual exercise ID when saved
+        exerciseId: "", // This will be replaced with actual exercise ID when saved
         description: "New Exercise",
         duration: 8,
         // Legacy fields for backward compatibility
