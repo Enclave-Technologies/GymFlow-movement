@@ -1,5 +1,9 @@
 "use server";
-import { Phase, Session } from "@/components/workout-planning/types";
+import {
+    Phase,
+    Session,
+    WorkoutPlanActionResponse,
+} from "@/components/workout-planning/types";
 import {
     SelectPhase,
     Phases,
@@ -8,6 +12,7 @@ import {
     ExercisePlanExercises,
 } from "@/db/schemas";
 import { db } from "@/db/xata";
+import { requireTrainerOrAdmin } from "@/lib/auth-utils";
 import { eq } from "drizzle-orm";
 import { unstable_noStore as noStore } from "next/cache";
 
@@ -33,6 +38,7 @@ export async function persistNewPhase(phaseData: {
     serverUpdatedAt?: string;
 }> {
     noStore();
+    await requireTrainerOrAdmin();
 
     try {
         let planId = phaseData.planId;
@@ -125,6 +131,7 @@ export async function createEmptyWorkoutPlan(
     error?: string;
 }> {
     noStore();
+    await requireTrainerOrAdmin();
 
     try {
         const planId = crypto.randomUUID();
@@ -181,6 +188,7 @@ export async function persistDuplicatedPhase(data: {
     serverUpdatedAt?: string;
 }> {
     noStore();
+    await requireTrainerOrAdmin();
 
     try {
         // Validate required data
@@ -278,6 +286,91 @@ export async function persistDuplicatedPhase(data: {
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error",
+        };
+    }
+}
+
+export async function updatePhaseName(
+    phaseId: string,
+    newName: string,
+    lastKnownUpdatedAt?: Date
+): Promise<WorkoutPlanActionResponse> {
+    noStore();
+    await requireTrainerOrAdmin();
+    try {
+        const PhasePlan = await db
+            .select({
+                planId: Phases.planId,
+                updatedAt: ExercisePlans.updatedAt,
+            })
+            .from(Phases)
+            .where(eq(Phases.phaseId, phaseId))
+            .leftJoin(ExercisePlans, eq(Phases.planId, ExercisePlans.planId))
+            .limit(1);
+
+        if (!PhasePlan.length) {
+            return {
+                success: false,
+                error: "Phase not found",
+                conflict: false,
+                planId: "",
+                updatedAt: new Date(),
+                serverUpdatedAt: new Date(),
+            };
+        }
+
+        const planId = PhasePlan[0].planId;
+        const currentUpdatedAt = PhasePlan[0].updatedAt;
+
+        // If lastKnownUpdatedAt is provided, check for conflicts
+        if (lastKnownUpdatedAt && currentUpdatedAt) {
+            if (
+                currentUpdatedAt.toISOString() !==
+                lastKnownUpdatedAt.toISOString()
+            ) {
+                return {
+                    success: false,
+                    error: "Plan has been modified since last fetch",
+                    conflict: true,
+                    serverUpdatedAt: currentUpdatedAt,
+                    planId: planId,
+                    updatedAt: currentUpdatedAt,
+                };
+            }
+        }
+
+        // Use a transaction for atomicity
+        return await db.transaction(async (tx) => {
+            const now = new Date();
+
+            // Update the phase name in the database
+            await tx
+                .update(Phases)
+                .set({ phaseName: newName })
+                .where(eq(Phases.phaseId, phaseId));
+
+            // Update the plan's updatedAt timestamp to reflect the change
+            await tx
+                .update(ExercisePlans)
+                .set({ updatedAt: now })
+                .where(eq(ExercisePlans.planId, planId));
+
+            return {
+                success: true,
+                planId: planId,
+                updatedAt: now,
+                serverUpdatedAt: now,
+            };
+        });
+    } catch (error) {
+        console.error("Error updating phase name:", error);
+        return {
+            success: false,
+            error: "Failed to update phase name",
+            conflict: false,
+            planId: "",
+            updatedAt: new Date(),
+            serverUpdatedAt: new Date(),
         };
     }
 }

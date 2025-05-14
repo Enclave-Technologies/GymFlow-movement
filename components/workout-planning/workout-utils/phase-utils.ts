@@ -6,6 +6,7 @@ import {
     createEmptyWorkoutPlan,
     persistDuplicatedPhase,
     persistNewPhase,
+    updatePhaseName,
 } from "@/actions/phase_actions";
 
 /**
@@ -368,7 +369,7 @@ export const startEditPhase = (
 /**
  * Saves the edited phase name
  */
-export const savePhaseEdit = (
+export const saveAndPersistPhaseEdit = async (
     editingPhase: string | null,
     editPhaseValue: string,
     phases: Phase[],
@@ -376,14 +377,84 @@ export const savePhaseEdit = (
         newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
     ) => void,
     setEditingPhase: (value: string | null) => void,
-    setHasUnsavedChanges: (value: boolean) => void
-): void => {
+    setHasUnsavedChanges: (value: boolean) => void,
+    setLastKnownUpdatedAt: (value: Date | null) => void,
+    setSaving: (value: boolean) => void,
+    setConflictError: (
+        value: { message: string; serverTime: Date } | null
+    ) => void,
+    lastKnownUpdatedAt: Date | null
+): Promise<void> => {
     if (!editingPhase) return;
+
+    // Optimistically update the UI
     updatePhases(
         phases.map((p) =>
             p.id === editingPhase ? { ...p, name: editPhaseValue } : p
         )
     );
+
+    // Clear editing state
     setEditingPhase(null);
-    setHasUnsavedChanges(true);
+
+    // Set saving state
+    setSaving(true);
+
+    try {
+        // Find the phase to get its planId
+        const phase = phases.find((p) => p.id === editingPhase);
+        if (!phase || !phase.planId) {
+            console.error("Cannot update phase: Missing planId");
+            setHasUnsavedChanges(true);
+            setSaving(false);
+            return;
+        }
+
+        // Call the backend to update the phase name
+        const result = await updatePhaseName(
+            editingPhase,
+            editPhaseValue,
+            lastKnownUpdatedAt || undefined
+        );
+
+        if (result.success) {
+            toast.success("Phase name updated successfully");
+            setHasUnsavedChanges(false);
+            // Clear any previous conflict errors
+            setConflictError(null);
+
+            // If we have a serverUpdatedAt, update the lastKnownUpdatedAt
+            if (result.serverUpdatedAt) {
+                setLastKnownUpdatedAt(new Date(result.serverUpdatedAt));
+            }
+        } else {
+            // Handle errors
+            if (result.conflict) {
+                // Handle conflict - another user has modified the plan
+                setConflictError({
+                    message:
+                        result.error ||
+                        "Plan has been modified by another user",
+                    serverTime: new Date(result.serverUpdatedAt!),
+                });
+                toast.error(
+                    "Conflict detected: Plan has been modified by another user"
+                );
+            } else {
+                // Handle other errors
+                toast.error(
+                    result.error
+                        ? String(result.error)
+                        : "Failed to update phase name"
+                );
+            }
+            setHasUnsavedChanges(true);
+        }
+    } catch (error) {
+        console.error("Error updating phase name:", error);
+        toast.error("An error occurred while updating phase name");
+        setHasUnsavedChanges(true);
+    } finally {
+        setSaving(false);
+    }
 };

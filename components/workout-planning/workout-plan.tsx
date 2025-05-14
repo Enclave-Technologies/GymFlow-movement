@@ -23,7 +23,7 @@ import {
     confirmDeletePhase,
     deletePhase,
     duplicatePhase,
-    savePhaseEdit,
+    saveAndPersistPhaseEdit,
     startEditPhase,
     togglePhaseActivation,
     togglePhaseExpansion,
@@ -287,14 +287,18 @@ export default function WorkoutPlanner({
         startEditPhase(id, name, setEditingPhase, setEditPhaseValue);
     };
 
-    const handleSavePhaseEdit = () => {
-        savePhaseEdit(
+    const handleSavePhaseEdit = async () => {
+        await saveAndPersistPhaseEdit(
             editingPhase,
             editPhaseValue,
             phases,
             setPhases,
             setEditingPhase,
-            setHasUnsavedChanges
+            setHasUnsavedChanges,
+            setLastKnownUpdatedAt,
+            setSaving,
+            setConflictError,
+            lastKnownUpdatedAt
         );
     };
 
