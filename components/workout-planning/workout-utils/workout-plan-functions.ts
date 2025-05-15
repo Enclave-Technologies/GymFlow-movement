@@ -1,6 +1,5 @@
 import { toast } from "sonner";
 import { Phase, WorkoutPlanResponse } from "../types";
-import { WorkoutPlanChangeTracker } from "./change-tracker";
 import {
     createWorkoutPlan,
     updateWorkoutPlan,
@@ -16,7 +15,6 @@ export async function saveAll(
     planId: string | null,
     lastKnownUpdatedAt: Date | null,
     client_id: string,
-    changeTracker: WorkoutPlanChangeTracker | null,
     setSaving: (value: boolean) => void,
     setPlanId: (value: string | null) => void,
     setLastKnownUpdatedAt: (value: Date | null) => void,
@@ -25,21 +23,21 @@ export async function saveAll(
         value: { message: string; serverTime: Date } | null
     ) => void,
     setSavePerformed: (value: number | ((prev: number) => number)) => void,
-    updatePhases: (phases: Phase[]) => void
+    updatePhases: (phases: Phase[]) => void,
+    trainer_id: string
 ) {
-    // Log the current state to the console
-    // Do not block the save flow because of a logging issue
-    console.log("Saving workout plan (current changes):", changeTracker);
-
     // Set saving state
     setSaving(true);
+
+    // Add logging to help debug state issues
+    console.log("Saving phases count:", JSON.stringify(phases, null, 2));
 
     try {
         let result;
 
         if (!planId || !lastKnownUpdatedAt) {
             // Create a new plan if no planId exists
-            result = await createWorkoutPlan(client_id, {
+            result = await createWorkoutPlan(client_id, trainer_id, {
                 phases,
             });
 
@@ -47,20 +45,10 @@ export async function saveAll(
             if (result.success && result.planId && result.updatedAt) {
                 setPlanId(result.planId);
                 setLastKnownUpdatedAt(new Date(result.updatedAt));
-
-                // Reset the change tracker with the current phases
-                if (changeTracker) {
-                    changeTracker.reset(phases);
-                }
             }
         } else {
-            // Get changes from the change tracker
-            // const changes = changeTracker ? changeTracker.getChanges() : null;
-
-            // Fallback to full update if no changes detected or change tracker not available
-            console.log(
-                "No changes detected or change tracker not available, using full update"
-            );
+            // Use full update
+            console.log("Using full update");
             result = await updateWorkoutPlan(planId, lastKnownUpdatedAt, {
                 phases,
             });
@@ -75,11 +63,6 @@ export async function saveAll(
             // Update the last known timestamp
             if (result.updatedAt) {
                 setLastKnownUpdatedAt(new Date(result.updatedAt));
-            }
-
-            // Reset the change tracker with the current phases
-            if (changeTracker) {
-                changeTracker.reset(phases);
             }
 
             // Trigger a refetch by incrementing the savePerformed counter
@@ -120,11 +103,6 @@ export async function saveAll(
                             // Update phases with the fetched data
                             if (typeof updatePhases === "function") {
                                 updatePhases(mapped);
-                            }
-
-                            // Reset the change tracker with the fetched phases
-                            if (changeTracker) {
-                                changeTracker.reset(mapped);
                             }
                         }
                     } catch (error) {

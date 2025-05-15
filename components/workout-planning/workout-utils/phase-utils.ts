@@ -68,8 +68,8 @@ export const togglePhaseActivation = async (
     setHasUnsavedChanges: (value: boolean) => void,
     setConflictError: (
         value: { message: string; serverTime: Date } | null
-    ) => void,
-    setSavePerformed: (value: number | ((prev: number) => number)) => void
+    ) => void
+    // setSavePerformed: (value: number | ((prev: number) => number)) => void
 ) => {
     // Get the new active state (opposite of current)
     const isActive = !phases.find((p) => p.id === phaseId)?.isActive;
@@ -108,7 +108,7 @@ export const togglePhaseActivation = async (
             }
 
             // Trigger a refetch by incrementing the savePerformed counter
-            setSavePerformed((prev) => prev + 1);
+            // setSavePerformed((prev) => prev + 1);
         } else {
             // Handle errors
             if (result.conflict) {
@@ -268,25 +268,25 @@ export const startEditPhase = (
     setEditPhaseValue(name);
 };
 
-/**
- * Saves the edited phase name
- */
-export const savePhaseEdit = (
-    editingPhase: string | null,
-    editPhaseValue: string,
-    phases: Phase[],
-    updatePhases: (
-        newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
-    ) => void,
-    setEditingPhase: (value: string | null) => void,
-    setHasUnsavedChanges: (value: boolean) => void
-) => {
-    if (!editingPhase) return;
-    updatePhases(
-        phases.map((p) =>
-            p.id === editingPhase ? { ...p, name: editPhaseValue } : p
-        )
-    );
-    setEditingPhase(null);
-    setHasUnsavedChanges(true);
-};
+// /**
+//  * Saves the edited phase name
+//  */
+// export const savePhaseEdit = (
+//     editingPhase: string | null,
+//     editPhaseValue: string,
+//     phases: Phase[],
+//     updatePhases: (
+//         newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
+//     ) => void,
+//     setEditingPhase: (value: string | null) => void,
+//     setHasUnsavedChanges: (value: boolean) => void
+// ) => {
+//     if (!editingPhase) return;
+//     updatePhases(
+//         phases.map((p) =>
+//             p.id === editingPhase ? { ...p, name: editPhaseValue } : p
+//         )
+//     );
+//     setEditingPhase(null);
+//     setHasUnsavedChanges(true);
+// };

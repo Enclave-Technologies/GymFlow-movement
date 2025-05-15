@@ -48,6 +48,7 @@ export async function updateWorkoutPlan(
     planData: {
         phases: Phase[];
         clientId?: string;
+        trainerId?: string;
     }
 ): Promise<WorkoutPlanActionResponse> {
     const currentTrainer = await requireTrainerOrAdmin();
@@ -67,7 +68,11 @@ export async function updateWorkoutPlan(
             }
 
             // Create a new plan
-            return await createWorkoutPlan(planData.clientId, planData);
+            return await createWorkoutPlan(
+                planData.clientId,
+                planData.trainerId ?? currentTrainer.id,
+                planData
+            );
         }
 
         // Case 2: This is an update to an existing plan
@@ -247,12 +252,6 @@ export async function updateWorkoutPlan(
             )
         );
 
-        console.log(
-            "FLATTENED SESSIONS\n",
-            JSON.stringify(feSessions),
-            "\n===================="
-        );
-
         // Use diff utilities
         const {
             added: phasesToAdd,
@@ -272,32 +271,130 @@ export async function updateWorkoutPlan(
             deleted: exercisesToDelete,
         } = diffExercises(dbExercises, feExercises);
 
-        console.log("PHASE UPDATES: =================\n");
-        console.log(JSON.stringify(phasesToUpdate));
+        // Log changes in a structured, readable format
+        // console.log("\n===== WORKOUT PLAN CHANGES =====");
 
-        console.log("SESSIONS UPDATES: =================\n");
-        console.log(JSON.stringify(sessionsToUpdate));
+        // // Phase changes
+        // console.log("\n📋 PHASE UPDATES:");
+        // if (phasesToUpdate.length > 0) {
+        //     phasesToUpdate.forEach((phase, index) => {
+        //         console.log(`  ${index + 1}. Phase "${phase.id}" :`);
+        //         Object.entries(phase.changes).forEach(([key, value]) => {
+        //             console.log(`     - ${key}: ${JSON.stringify(value)}`);
+        //         });
+        //     });
+        // } else {
+        //     console.log("  None");
+        // }
 
-        console.log("EXERCISE UPDATES: =================\n");
-        console.log(JSON.stringify(exercisesToUpdate));
+        // // Session changes
+        // console.log("\n🗓️ SESSION UPDATES:");
+        // if (sessionsToUpdate.length > 0) {
+        //     sessionsToUpdate.forEach((session, index) => {
+        //         console.log(`  ${index + 1}. Session "${session.id}" :`);
+        //         Object.entries(session.changes).forEach(([key, value]) => {
+        //             console.log(`     - ${key}: ${JSON.stringify(value)}`);
+        //         });
+        //     });
+        // } else {
+        //     console.log("  None");
+        // }
 
-        console.log("PHASE ADDED: =================\n");
-        console.log(JSON.stringify(phasesToAdd));
+        // // Exercise changes
+        // console.log("\n💪 EXERCISE UPDATES:");
+        // if (exercisesToUpdate.length > 0) {
+        //     exercisesToUpdate.forEach((exercise, index) => {
+        //         console.log(`  ${index + 1}. Exercise ID: ${exercise.id}`);
+        //         Object.entries(exercise.changes).forEach(([key, value]) => {
+        //             console.log(`     - ${key}: ${JSON.stringify(value)}`);
+        //         });
+        //     });
+        // } else {
+        //     console.log("  None");
+        // }
 
-        console.log("SESSIONS ADDED: =================\n");
-        console.log(JSON.stringify(sessionsToAdd));
+        // // Additions
+        // console.log("\n➕ ADDITIONS:");
+        // console.log(
+        //     `  • Phases: ${
+        //         phasesToAdd.length > 0 ? phasesToAdd.length : "None"
+        //     }`
+        // );
+        // if (phasesToAdd.length > 0) {
+        //     phasesToAdd.forEach((phase, index) => {
+        //         console.log(`    ${index + 1}. "${phase.name}" (${phase.id})`);
+        //     });
+        // }
 
-        console.log("EXERCISE ADDED: =================\n");
-        console.log(JSON.stringify(exercisesToAdd));
+        // console.log(
+        //     `  • Sessions: ${
+        //         sessionsToAdd.length > 0 ? sessionsToAdd.length : "None"
+        //     }`
+        // );
+        // if (sessionsToAdd.length > 0) {
+        //     sessionsToAdd.forEach((session, index) => {
+        //         console.log(
+        //             `    ${index + 1}. "${session.name}" (${
+        //                 session.id
+        //             }) in Phase: ${session.phaseId}`
+        //         );
+        //     });
+        // }
 
-        console.log("PHASE DELETED: =================\n");
-        console.log(JSON.stringify(phasesToDelete));
+        // console.log(
+        //     `  • Exercises: ${
+        //         exercisesToAdd.length > 0 ? exercisesToAdd.length : "None"
+        //     }`
+        // );
+        // if (exercisesToAdd.length > 0 && exercisesToAdd.length <= 5) {
+        //     // Show details if there are only a few exercises
+        //     exercisesToAdd.forEach((exercise, index) => {
+        //         console.log(
+        //             `    ${index + 1}. "${
+        //                 exercise.description || exercise.exerciseId
+        //             }" in Session: ${exercise.sessionId}`
+        //         );
+        //     });
+        // } else if (exercisesToAdd.length > 5) {
+        //     console.log(
+        //         `    (${exercisesToAdd.length} exercises - too many to display individually)`
+        //     );
+        // }
 
-        console.log("SESSIONS DELETED: =================\n");
-        console.log(JSON.stringify(sessionsToDelete));
+        // // Deletions
+        // console.log("\n❌ DELETIONS:");
+        // console.log(
+        //     `  • Phases: ${
+        //         phasesToDelete.length > 0 ? phasesToDelete.length : "None"
+        //     }`
+        // );
+        // if (phasesToDelete.length > 0) {
+        //     console.log(`    IDs: ${phasesToDelete.join(", ")}`);
+        // }
 
-        console.log("EXERCISE DELETED: =================\n");
-        console.log(JSON.stringify(exercisesToDelete));
+        // console.log(
+        //     `  • Sessions: ${
+        //         sessionsToDelete.length > 0 ? sessionsToDelete.length : "None"
+        //     }`
+        // );
+        // if (sessionsToDelete.length > 0) {
+        //     console.log(`    IDs: ${sessionsToDelete.join(", ")}`);
+        // }
+
+        // console.log(
+        //     `  • Exercises: ${
+        //         exercisesToDelete.length > 0 ? exercisesToDelete.length : "None"
+        //     }`
+        // );
+        // if (exercisesToDelete.length > 0 && exercisesToDelete.length <= 10) {
+        //     console.log(`    IDs: ${exercisesToDelete.join(", ")}`);
+        // } else if (exercisesToDelete.length > 10) {
+        //     console.log(
+        //         `    (${exercisesToDelete.length} exercises deleted - IDs not shown)`
+        //     );
+        // }
+
+        // console.log("\n===== END OF CHANGES =====\n");
 
         // No conflict, proceed with update using a transaction
         return await db.transaction(async (tx) => {
@@ -335,7 +432,7 @@ export async function updateWorkoutPlan(
                     orderNumber: phase.orderNumber ?? 0,
                     isActive: phase.isActive ?? true,
                 }));
-                console.log("Phases:\n", phasesToInsert);
+
                 await tx.insert(Phases).values(phasesToInsert);
             }
             // Insert new sessions
@@ -347,7 +444,7 @@ export async function updateWorkoutPlan(
                     orderNumber: session.orderNumber ?? 0,
                     sessionTime: session.duration ?? 0,
                 }));
-                console.log("Sessions:\n", sessionsToInsert);
+
                 await tx.insert(Sessions).values(sessionsToInsert);
             }
             // Insert new exercises
@@ -491,7 +588,7 @@ export async function updateWorkoutPlan(
                         };
                     })
                     .filter((e) => e !== null);
-                console.log("Exercises:\n", exercisesToInsert);
+
                 if (exercisesToInsert.length > 0) {
                     const chunkSize = 100;
                     for (
@@ -683,6 +780,7 @@ export async function updateWorkoutPlan(
  */
 export async function createWorkoutPlan(
     clientId: string,
+    trainerId: string,
     planData: {
         phases: Phase[];
     }
@@ -860,7 +958,7 @@ export async function createWorkoutPlan(
             await tx.insert(ExercisePlans).values({
                 planId: planId,
                 planName: "Workout Plan", // Default name
-                createdByUserId: clientId,
+                createdByUserId: trainerId,
                 assignedToUserId: clientId,
                 createdDate: now,
                 updatedAt: now,
@@ -970,8 +1068,6 @@ export async function applyWorkoutPlanChanges(
     lastKnownUpdatedAt: Date,
     changes: WorkoutPlanChanges
 ): Promise<WorkoutPlanActionResponse> {
-    console.log("Starting applyWorkoutPlanChanges with planId:", planId);
-
     // Skip processing if there are no actual changes - fast path return
     const hasNoChanges =
         changes.created.phases.length === 0 &&
@@ -985,7 +1081,6 @@ export async function applyWorkoutPlanChanges(
         changes.deleted.exercises.length === 0;
 
     if (hasNoChanges) {
-        console.log("No changes detected, returning early");
         return {
             success: true,
             planId: planId,
@@ -1182,7 +1277,7 @@ export async function applyWorkoutPlanChanges(
                 sessionId: sessionData.session.id,
                 phaseId: sessionData.phaseId,
                 sessionName: sessionData.session.name,
-                orderNumber: index, // Use the index as order number
+                orderNumber: sessionData.session.orderNumber || index, // Use the index as order number
                 sessionTime: sessionData.session.duration,
             })
         );
@@ -1568,7 +1663,7 @@ export async function saveSession(
         if (!phase.length) {
             return {
                 success: false,
-                error: "Phase not found",
+                error: "Phase not found, save the plan first",
                 conflict: false,
                 planId: "",
                 updatedAt: new Date(),

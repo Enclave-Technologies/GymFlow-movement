@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ import { TooltipContent, Tooltip, TooltipTrigger } from "../../ui/tooltip";
 type DraggableSessionProps = {
     phase: Phase;
     session: Session;
+    isSaving: boolean;
     index: number;
     toggleSessionExpansion: (phaseId: string, sessionId: string) => void;
     deleteSession: (phaseId: string, sessionId: string) => void;
@@ -60,6 +61,7 @@ type DraggableSessionProps = {
 const DraggableSession = ({
     phase,
     session,
+    isSaving,
     index,
     toggleSessionExpansion,
     deleteSession,
@@ -78,6 +80,17 @@ const DraggableSession = ({
 }: DraggableSessionProps) => {
     const ref = useRef<HTMLDivElement>(null);
 
+    // Add a ref for the session name input
+    const sessionInputRef = useRef<HTMLInputElement>(null);
+
+    // Add useEffect to focus and select text when editing starts
+    useEffect(() => {
+        if (editingSession === session.id && sessionInputRef.current) {
+            sessionInputRef.current.focus();
+            sessionInputRef.current.select();
+        }
+    }, [editingSession, session.id]);
+
     // Set up drag
     const [{ isDragging }, drag] = useDrag({
         type: ItemTypes.SESSION,
@@ -90,6 +103,7 @@ const DraggableSession = ({
         collect: (monitor) => ({
             isDragging: monitor.isDragging(),
         }),
+        canDrag: !isSaving, // Make sure this is added to disable dragging
     });
 
     // Set up drop
@@ -136,7 +150,11 @@ const DraggableSession = ({
         >
             <div className="flex items-center justify-between p-2 bg-muted rounded-md">
                 <div className="flex items-center">
-                    <span className="mr-2 cursor-move">
+                    <span
+                        className={`mr-2 ${
+                            isSaving ? "cursor-not-allowed" : "cursor-move"
+                        }`}
+                    >
                         <GripVertical className="h-4 w-4 text-muted-foreground" />
                     </span>
                     <Button
@@ -156,11 +174,17 @@ const DraggableSession = ({
                     {editingSession === session.id ? (
                         <div className="flex items-center">
                             <Input
+                                ref={sessionInputRef}
                                 value={editSessionValue}
                                 onChange={(e) =>
                                     setEditSessionValue(e.target.value)
                                 }
                                 className="h-8 w-48"
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        saveSessionEdit();
+                                    }
+                                }}
                             />
                             <Button
                                 variant="ghost"
@@ -185,7 +209,12 @@ const DraggableSession = ({
                                 onClick={() =>
                                     startEditSession(session.id, session.name)
                                 }
-                                className="h-8 w-8 cursor-pointer"
+                                disabled={isSaving}
+                                className={`h-8 w-8 ${
+                                    isSaving
+                                        ? "cursor-not-allowed"
+                                        : "cursor-pointer"
+                                }`}
                             >
                                 <Edit className="h-4 w-4" />
                             </Button>
@@ -201,7 +230,12 @@ const DraggableSession = ({
                                 onClick={() =>
                                     deleteSession(phase.id, session.id)
                                 }
-                                className="h-8 w-8 cursor-pointer"
+                                disabled={isSaving}
+                                className={`h-8 w-8 ${
+                                    isSaving
+                                        ? "cursor-not-allowed"
+                                        : "cursor-pointer"
+                                }`}
                             >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -217,7 +251,12 @@ const DraggableSession = ({
                                 onClick={() =>
                                     duplicateSession(phase.id, session.id)
                                 }
-                                className="h-8 w-8 cursor-pointer"
+                                disabled={isSaving}
+                                className={`h-8 w-8 ${
+                                    isSaving
+                                        ? "cursor-not-allowed"
+                                        : "cursor-pointer"
+                                }`}
                             >
                                 <Copy className="h-4 w-4" />
                             </Button>
@@ -233,7 +272,12 @@ const DraggableSession = ({
                                 onClick={() =>
                                     addExercise(phase.id, session.id)
                                 }
-                                className="h-8 w-8 cursor-pointer"
+                                disabled={isSaving}
+                                className={`h-8 w-8 ${
+                                    isSaving
+                                        ? "cursor-not-allowed"
+                                        : "cursor-pointer"
+                                }`}
                             >
                                 <Plus className="h-4 w-4" />
                             </Button>
@@ -247,7 +291,8 @@ const DraggableSession = ({
                         disabled={
                             !phase.isActive ||
                             session.exercises.length === 0 ||
-                            startingSessionId === session.id
+                            startingSessionId === session.id ||
+                            isSaving
                         }
                         onClick={() => startSession(session.id, phase.id)}
                     >

@@ -44,7 +44,7 @@ export async function getWorkoutPlanByClientId(
             phaseId: Phases.phaseId,
             phaseName: Phases.phaseName,
             phaseIsActive: Phases.isActive,
-            phaseOrder: Phases.orderNumber,
+            orderNumber: Phases.orderNumber,
             sessionId: Sessions.sessionId,
             sessionName: Sessions.sessionName,
             sessionTime: Sessions.sessionTime,
@@ -104,11 +104,13 @@ export async function getWorkoutPlanByClientId(
             name: string;
             isActive: boolean;
             isExpanded: boolean;
+            orderNumber: number;
             sessions: Array<{
                 id: string;
                 name: string;
                 duration: number | null;
                 isExpanded: boolean;
+                orderNumber: number;
                 exercises: Array<{
                     id: string;
                     order: string;
@@ -144,6 +146,7 @@ export async function getWorkoutPlanByClientId(
                 name: row.phaseName,
                 isActive: row.phaseIsActive ?? false,
                 isExpanded: true, // Default to expanded
+                orderNumber: row.orderNumber ?? 0,
                 sessions: [],
             };
             phasesMap.set(row.phaseId, phase);
@@ -162,6 +165,7 @@ export async function getWorkoutPlanByClientId(
                 name: row.sessionName,
                 duration: row.sessionTime, // Use sessionTime directly
                 isExpanded: true, // Default to expanded
+                orderNumber: row.sessionOrder || 0,
                 exercises: [],
             };
             phase.sessions.push(session);
@@ -232,7 +236,7 @@ export async function updatePhaseActivation(
         if (!phase.length) {
             return {
                 success: false,
-                error: "Phase not found",
+                error: "Phase not found, save the plan first",
                 conflict: false,
                 planId: "",
                 updatedAt: new Date(),
@@ -359,7 +363,7 @@ export async function updateSessionOrder(
         if (!phase.length) {
             return {
                 success: false,
-                error: "Phase not found",
+                error: "Phase not found, save the plan first",
                 conflict: false,
                 planId: "",
                 updatedAt: new Date(),

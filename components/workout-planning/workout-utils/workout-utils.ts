@@ -1,7 +1,6 @@
 import { Exercise, Phase, WorkoutPlanResponse } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
-import { WorkoutPlanChangeTracker } from "./change-tracker";
 
 export function mapWorkoutPlanResponseToPhase(
     response: WorkoutPlanResponse
@@ -22,8 +21,13 @@ export function mapWorkoutPlanResponseToPhase(
             sessions: phase.sessions.map((session) => {
                 const sessionId = session.id || uuidv4();
 
+                // Sort exercises by their order field before mapping
+                const sortedExercises = [...(session.exercises || [])].sort(
+                    (a, b) => (a.order || "").localeCompare(b.order || "")
+                );
+
                 const exercises: Exercise[] =
-                    session.exercises?.map((e) => {
+                    sortedExercises?.map((e) => {
                         if (
                             !e.id ||
                             !e.order ||
@@ -96,22 +100,15 @@ export async function fetchWorkoutPlan(
     setIsLoading: (value: boolean) => void,
     setPlanId: (value: string | null) => void,
     setLastKnownUpdatedAt: (value: Date | null) => void,
-    updatePhases: (newPhases: Phase[]) => void,
-    setChangeTracker: (tracker: WorkoutPlanChangeTracker) => void
+    updatePhases: (newPhases: Phase[]) => void
 ) {
     setIsLoading(true);
     try {
         const response = await getWorkoutPlanByClientId(client_id);
-        console.log(
-            "Fetched workout plan (raw):",
-            JSON.stringify(response, null, 2)
-        );
 
         // If no plan exists yet or empty array is returned
         if (!response || (Array.isArray(response) && response.length === 0)) {
             updatePhases([]);
-            // Initialize change tracker with empty phases
-            setChangeTracker(new WorkoutPlanChangeTracker([]));
             return;
         }
 
@@ -126,20 +123,24 @@ export async function fetchWorkoutPlan(
             response as WorkoutPlanResponse
         );
 
-        console.log(
-            "Mapped workout plan (frontend structure):",
-            JSON.stringify(mapped, null, 2)
+        // Ensure phases are sorted by orderNumber
+        const sortedPhases = [...mapped].sort(
+            (a, b) => (a.orderNumber || 0) - (b.orderNumber || 0)
         );
-        updatePhases(mapped);
 
-        // Initialize change tracker with the fetched phases
-        setChangeTracker(new WorkoutPlanChangeTracker(mapped));
+        // For each phase, ensure sessions are sorted by orderNumber
+        const phasesWithSortedSessions = sortedPhases.map((phase) => ({
+            ...phase,
+            sessions: [...phase.sessions].sort(
+                (a, b) => (a.orderNumber || 0) - (b.orderNumber || 0)
+            ),
+        }));
+
+        updatePhases(phasesWithSortedSessions);
     } catch (error) {
         console.error("Error fetching workout plan:", error);
         // Fallback to empty data
         updatePhases([]);
-        // Initialize change tracker with empty phases
-        setChangeTracker(new WorkoutPlanChangeTracker([]));
     } finally {
         setIsLoading(false);
     }
@@ -152,9 +153,7 @@ export async function refetchWorkoutPlan(
     client_id: string,
     setPlanId: (value: string | null) => void,
     setLastKnownUpdatedAt: (value: Date | null) => void,
-    updatePhases: (newPhases: Phase[]) => void,
-    changeTracker: WorkoutPlanChangeTracker | null,
-    setChangeTracker: (tracker: WorkoutPlanChangeTracker) => void
+    updatePhases: (newPhases: Phase[]) => void
 ) {
     try {
         const response = await getWorkoutPlanByClientId(client_id);
@@ -167,13 +166,22 @@ export async function refetchWorkoutPlan(
                 response as WorkoutPlanResponse
             );
 
-            updatePhases(mapped);
+            // Ensure phases are sorted by orderNumber
+            const sortedPhases = [...mapped].sort(
+                (a, b) => (a.orderNumber || 0) - (b.orderNumber || 0)
+            );
 
-            // Reset the change tracker with the fetched phases
-            if (changeTracker) {
-                changeTracker.reset(mapped);
-            } else {
-                setChangeTracker(new WorkoutPlanChangeTracker(mapped));
+            // For each phase, ensure sessions are sorted by orderNumber
+            const phasesWithSortedSessions = sortedPhases.map((phase) => ({
+                ...phase,
+                sessions: [...phase.sessions].sort(
+                    (a, b) => (a.orderNumber || 0) - (b.orderNumber || 0)
+                ),
+            }));
+
+            // Update phases with the fetched data
+            if (typeof updatePhases === "function") {
+                updatePhases(phasesWithSortedSessions);
             }
         }
     } catch (error) {
@@ -183,15 +191,9 @@ export async function refetchWorkoutPlan(
 
 export const createUpdatePhasesFunction = (
     setPhases: React.Dispatch<React.SetStateAction<Phase[]>>,
-    changeTracker: WorkoutPlanChangeTracker | null
+    latestPhasesRef: React.RefObject<Phase[]>
 ) => {
     return (newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])) => {
-        console.log(
-            "Updating phases:",
-            typeof newPhases === "function"
-                ? "function"
-                : JSON.stringify(newPhases, null, 2)
-        );
         setPhases((prevPhases) => {
             // Handle both direct value and function updates
             const updatedPhases =
@@ -199,14 +201,8 @@ export const createUpdatePhasesFunction = (
                     ? newPhases(prevPhases)
                     : newPhases;
 
-            // Update the change tracker if it exists
-            if (changeTracker) {
-                changeTracker.updateCurrentState(updatedPhases);
-                console.log(
-                    "[CREATE UPDATE PHASE] Change Tracker:\n",
-                    JSON.stringify(changeTracker, null, 2)
-                );
-            }
+            // Immediately update the ref with the new phases
+            latestPhasesRef.current = updatedPhases;
 
             return updatedPhases;
         });

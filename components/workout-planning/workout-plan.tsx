@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 // Table components and Dialog components are now used in other components
 // Select components are now used in ExerciseTableInline component
 import { updateSessionOrder } from "@/actions/workout_client_actions";
-import { WorkoutPlanChangeTracker } from "./workout-utils/change-tracker";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Exercise, Session, Phase } from "./types";
@@ -23,7 +22,7 @@ import {
     confirmDeletePhase,
     deletePhase,
     duplicatePhase,
-    savePhaseEdit,
+    // savePhaseEdit,
     startEditPhase,
     togglePhaseActivation,
     togglePhaseExpansion,
@@ -39,22 +38,36 @@ import { addExercise, deleteExercise } from "./workout-utils/exercise-utils";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
 import { PhaseList } from "./UI-components/PhaseList";
 import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
+// import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
+import { LoadingOverlay } from "./UI-components/LoadingOverlay";
+// import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
+// import { updatePhaseName } from "@/actions/phase_actions";
+// import { updateSessionName } from "@/actions/session_actions";
 
 type WorkoutPlannerProps = {
     client_id: string;
     exercises: SelectExercise[];
+    trainer_id: string;
 };
 
 export default function WorkoutPlanner({
     client_id,
     exercises,
+    trainer_id,
 }: WorkoutPlannerProps) {
     // ===== Data State =====
     const [phases, setPhases] = useState<Phase[]>([]);
+    // Use a ref to track the latest phases state
+    const latestPhasesRef = useRef<Phase[]>([]);
     const [planId, setPlanId] = useState<string | null>(null);
     const [lastKnownUpdatedAt, setLastKnownUpdatedAt] = useState<Date | null>(
         null
     );
+
+    // Update the ref whenever phases changes
+    useEffect(() => {
+        latestPhasesRef.current = phases;
+    }, [phases]);
 
     // ===== UI State =====
     const [isLoading, setIsLoading] = useState(true);
@@ -65,6 +78,7 @@ export default function WorkoutPlanner({
         message: string;
         serverTime: Date;
     } | null>(null);
+    const [isReorderingSessions, setIsReorderingSessions] = useState(false);
 
     // ===== Editing State =====
     const [editingPhase, setEditingPhase] = useState<string | null>(null);
@@ -89,10 +103,6 @@ export default function WorkoutPlanner({
         null
     );
 
-    // ===== Change Tracking =====
-    const [changeTracker, setChangeTracker] =
-        useState<WorkoutPlanChangeTracker | null>(null);
-
     // ===== Router =====
     const router = useRouter();
 
@@ -103,8 +113,7 @@ export default function WorkoutPlanner({
             setIsLoading,
             setPlanId,
             setLastKnownUpdatedAt,
-            updatePhases,
-            setChangeTracker
+            updatePhases
         );
     }, [client_id]);
 
@@ -115,59 +124,104 @@ export default function WorkoutPlanner({
                 client_id,
                 setPlanId,
                 setLastKnownUpdatedAt,
-                updatePhases,
-                changeTracker,
-                setChangeTracker
+                updatePhases
             );
         }
     }, [savePerformed, client_id]);
 
-    // Custom setPhases function that also updates the change tracker
-    const updatePhases = createUpdatePhasesFunction(setPhases, changeTracker);
+    // Custom setPhases function
+    const updatePhasesOriginal = createUpdatePhasesFunction(
+        setPhases,
+        latestPhasesRef
+    );
+
+    // Helper function to format and log phases
+    const formatPhasesForLogging = (phases: Phase[]) => {
+        if (!phases || phases.length === 0) {
+            console.log("No phases available");
+            return;
+        }
+        phases.forEach((phase) => {
+            const phaseOrder = phase.orderNumber ?? "?";
+            console.log(`${phase.name} (${phaseOrder})`);
+            phase.sessions.forEach((session) => {
+                const sessionOrder = session.orderNumber ?? "?";
+                const sessionDuration = session.duration ?? 0;
+                console.log(
+                    `\t${session.name} (${sessionOrder}) - ${sessionDuration} min`
+                );
+                session.exercises.forEach((exercise) => {
+                    const description =
+                        exercise.description ?? "(No description)";
+                    console.log(`\t\t${description}`);
+                });
+            });
+        });
+    };
+
+    // Wrapped updatePhases to add logging
+    const updatePhases = (
+        newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
+    ) => {
+        updatePhasesOriginal(newPhases);
+        if (Array.isArray(newPhases)) {
+            formatPhasesForLogging(newPhases);
+        }
+    };
 
     // ===== Global Save =====
     const handleSaveAll = async () => {
+        // Use the latest phases from the ref to ensure we're using the most up-to-date state
+        const currentPhases = latestPhasesRef.current;
+        console.log("Saving phases:", currentPhases.length);
+
         await saveAll(
-            phases,
+            currentPhases, // Use ref value instead of state value
             planId,
             lastKnownUpdatedAt,
             client_id,
-            changeTracker,
             setSaving,
             setPlanId,
             setLastKnownUpdatedAt,
             setHasUnsavedChanges,
             setConflictError,
             setSavePerformed,
-            updatePhases
+            updatePhases,
+            trainer_id
         );
     };
 
     // ===== Phase CRUD =====
     const handleAddPhase = () => {
-        addPhase(phases, updatePhases, setHasUnsavedChanges, planId);
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        addPhase(currentPhases, updatePhases, setHasUnsavedChanges, planId);
     };
 
     const handleTogglePhaseExpansion = (phaseId: string) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
         togglePhaseExpansion(
             phaseId,
-            phases,
+            currentPhases,
             updatePhases
             // setHasUnsavedChanges
         );
     };
 
     const handleTogglePhaseActivation = async (phaseId: string) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
         await togglePhaseActivation(
             phaseId,
-            phases,
+            currentPhases,
             updatePhases,
             lastKnownUpdatedAt,
             setLastKnownUpdatedAt,
             setSaving,
             setHasUnsavedChanges,
-            setConflictError,
-            setSavePerformed
+            setConflictError
+            // setSavePerformed
         );
     };
 
@@ -175,23 +229,40 @@ export default function WorkoutPlanner({
         deletePhase(phaseId, setShowConfirm);
     };
 
-    const handleConfirmDeletePhase = (phaseId: string) => {
+    const handleConfirmDeletePhase = async (phaseId: string) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
         confirmDeletePhase(
             phaseId,
-            phases,
+            currentPhases,
             updatePhases,
             setShowConfirm,
             setHasUnsavedChanges
         );
+
+        // Save changes to the database
+        await handleSaveAll();
     };
 
-    const handleDuplicatePhase = (phaseId: string) => {
-        duplicatePhase(phaseId, phases, updatePhases, setHasUnsavedChanges);
+    const handleDuplicatePhase = async (phaseId: string) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        duplicatePhase(
+            phaseId,
+            currentPhases,
+            updatePhases,
+            setHasUnsavedChanges
+        );
+
+        // Save changes to the database
+        await handleSaveAll();
     };
 
     // ===== Session CRUD =====
     const addSessionHandler = (phaseId: string) => {
-        updatePhases(addSession(phases, phaseId));
+        // Use the latest phases from the ref to ensure we're using the most up-to-date state
+        const currentPhases = latestPhasesRef.current;
+        updatePhases(addSession(currentPhases, phaseId));
         setHasUnsavedChanges(true);
     };
 
@@ -199,32 +270,98 @@ export default function WorkoutPlanner({
         phaseId: string,
         sessionId: string
     ) => {
-        updatePhases(toggleSessionExpansion(phases, phaseId, sessionId));
-        setHasUnsavedChanges(true);
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        updatePhases(toggleSessionExpansion(currentPhases, phaseId, sessionId));
+        // setHasUnsavedChanges(true);
     };
 
-    const duplicateSessionHandler = (phaseId: string, sessionId: string) => {
-        updatePhases(duplicateSession(phases, phaseId, sessionId));
+    const duplicateSessionHandler = async (
+        phaseId: string,
+        sessionId: string
+    ) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        updatePhases(duplicateSession(currentPhases, phaseId, sessionId));
         setHasUnsavedChanges(true);
+
+        // Save changes to the database
+        await handleSaveAll();
     };
 
     const deleteSessionHandler = (phaseId: string, sessionId: string) =>
         setShowConfirm({ type: "session", phaseId, sessionId });
 
-    const confirmDeleteSessionHandler = (
+    const confirmDeleteSessionHandler = async (
         phaseId: string,
         sessionId: string
     ) => {
-        updatePhases(deleteSession(phases, phaseId, sessionId));
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        updatePhases(deleteSession(currentPhases, phaseId, sessionId));
         setShowConfirm({ type: null });
         setHasUnsavedChanges(true);
+
+        // Save changes to the database
+        await handleSaveAll();
     };
 
     // ===== Exercise CRUD =====
 
+    // Add a new function to handle saving after exercise is added/edited
+    const handleSaveExercise = async (
+        phaseId: string,
+        sessionId: string,
+        exerciseId: string,
+        exerciseData?: Partial<Exercise> // Add optional parameter for final data
+    ) => {
+        // Set saving state
+        // setSaving(true);
+
+        if (exerciseData) {
+            console.log(exerciseData);
+            // return;
+        }
+
+        // Use the latest phases from the ref to ensure we're using the most up-to-date state
+        const currentPhases = latestPhasesRef.current;
+
+        // Find the specific phase, session, and exercise
+        const phase = currentPhases.find((p) => p.id === phaseId);
+        if (!phase) {
+            console.error(`Phase with ID ${phaseId} not found`);
+            return;
+        }
+
+        const session = phase.sessions.find((s) => s.id === sessionId);
+        if (!session) {
+            console.error(
+                `Session with ID ${sessionId} not found in phase ${phaseId}`
+            );
+            return;
+        }
+
+        const exercise = session.exercises.find((e) => e.id === exerciseId);
+        if (!exercise) {
+            console.error(
+                `Exercise with ID ${exerciseId} not found in session ${sessionId}`
+            );
+            return;
+        }
+
+        console.log("Handling Save Exercise:");
+        console.log("Phase:", phase.name, "(", phaseId, ")");
+        console.log("Session:", session.name, "(", sessionId, ")");
+        console.log("Exercise:", JSON.stringify(exercise, null, 2));
+
+        await handleSaveAll();
+    };
+
     const addExerciseHandler = (phaseId: string, sessionId: string) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
         const { updatedPhases, newExerciseId } = addExercise(
-            phases,
+            currentPhases,
             phaseId,
             sessionId
         );
@@ -239,14 +376,21 @@ export default function WorkoutPlanner({
         exerciseId: string
     ) => setShowConfirm({ type: "exercise", phaseId, sessionId, exerciseId });
 
-    const confirmDeleteExerciseHandler = (
+    const confirmDeleteExerciseHandler = async (
         phaseId: string,
         sessionId: string,
         exerciseId: string
     ) => {
-        updatePhases(deleteExercise(phases, phaseId, sessionId, exerciseId));
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        updatePhases(
+            deleteExercise(currentPhases, phaseId, sessionId, exerciseId)
+        );
         setShowConfirm({ type: null });
         setHasUnsavedChanges(true);
+
+        // Save changes to the database
+        await handleSaveAll();
     };
 
     // Reset the editingExercise state after the exercise has been saved or cancelled
@@ -259,25 +403,50 @@ export default function WorkoutPlanner({
         startEditPhase(id, name, setEditingPhase, setEditPhaseValue);
     };
 
-    const handleSavePhaseEdit = () => {
-        savePhaseEdit(
-            editingPhase,
-            editPhaseValue,
-            phases,
-            updatePhases,
-            setEditingPhase,
-            setHasUnsavedChanges
+    const handleSavePhaseEdit = async () => {
+        if (!editingPhase) return;
+
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+
+        // Update the local state first for immediate UI feedback
+        updatePhases(
+            currentPhases.map((p) =>
+                p.id === editingPhase ? { ...p, name: editPhaseValue } : p
+            )
         );
+
+        // Clear editing state
+        setEditingPhase(null);
+
+        await handleSaveAll();
     };
 
     const startEditSession = (id: string, name: string) => {
         setEditingSession(id);
         setEditSessionValue(name);
     };
-    const saveSessionEdit = () => {
+    const saveSessionEdit = async () => {
         if (!editingSession) return;
+
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+
+        // Find the phase that contains this session
+        const phaseWithSession = currentPhases.find((phase) =>
+            phase.sessions.some((session) => session.id === editingSession)
+        );
+
+        if (!phaseWithSession) {
+            console.error(
+                "Could not find phase containing session:",
+                editingSession
+            );
+            return;
+        }
+
         updatePhases(
-            phases.map((phase) => ({
+            currentPhases.map((phase) => ({
                 ...phase,
                 sessions: phase.sessions.map((s) =>
                     s.id === editingSession
@@ -287,7 +456,8 @@ export default function WorkoutPlanner({
             }))
         );
         setEditingSession(null);
-        setHasUnsavedChanges(true);
+
+        await handleSaveAll();
     };
 
     // Exercise editing is now handled by the ExerciseTableInline component
@@ -331,9 +501,12 @@ export default function WorkoutPlanner({
         dragIndex: number,
         hoverIndex: number
     ) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+
         // This function only updates the UI for visual feedback during dragging
         updatePhases(
-            phases.map((phase) => {
+            currentPhases.map((phase) => {
                 if (phase.id !== phaseId) return phase;
 
                 const newSessions = [...phase.sessions];
@@ -356,9 +529,12 @@ export default function WorkoutPlanner({
         dragIndex: number,
         hoverIndex: number
     ) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+
         // First update the UI (this might be redundant if handleDragVisual was called during drag)
         // but we include it for safety to ensure the final state is correct
-        const updatedPhases = phases.map((phase) => {
+        const updatedPhases = currentPhases.map((phase) => {
             if (phase.id !== phaseId) return phase;
 
             const newSessions = [...phase.sessions];
@@ -366,9 +542,17 @@ export default function WorkoutPlanner({
             newSessions.splice(dragIndex, 1);
             newSessions.splice(hoverIndex, 0, draggedSession);
 
+            // Update orderNumber for each session based on its new position
+            // This ensures the UI state matches what will be saved in the database
+            // Create new session objects with updated orderNumber to maintain immutability
+            const updatedSessions = newSessions.map((session, idx) => ({
+                ...session,
+                orderNumber: idx,
+            }));
+
             return {
                 ...phase,
-                sessions: newSessions,
+                sessions: updatedSessions,
             };
         });
 
@@ -377,6 +561,9 @@ export default function WorkoutPlanner({
 
         // Mark as having unsaved changes
         setHasUnsavedChanges(true);
+
+        // Show loading overlay
+        setIsReorderingSessions(true);
 
         // Log the operation for debugging
         console.log(
@@ -420,7 +607,7 @@ export default function WorkoutPlanner({
                 }
 
                 // Trigger a refetch by incrementing the savePerformed counter
-                setSavePerformed((prev) => prev + 1);
+                // setSavePerformed((prev) => prev + 1);
 
                 // toast.success("Session order updated"); // Optional: Might be too noisy
             } else {
@@ -452,6 +639,7 @@ export default function WorkoutPlanner({
             setHasUnsavedChanges(true); // Re-set unsaved changes flag on error
         } finally {
             // setSaving(false); // Clear saving state if used
+            setIsReorderingSessions(false);
         }
         // --- END: Call server action ---
 
@@ -463,6 +651,9 @@ export default function WorkoutPlanner({
     // ===== Render Helpers =====
     // Function to render the exercises table
     const renderExercisesTable = (phase: Phase, session: Session) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+
         // Determine if this session has an exercise being edited
         const editingExerciseId =
             editingExercise && editingExercise.sessionId === session.id
@@ -479,7 +670,7 @@ export default function WorkoutPlanner({
                 phase={phase}
                 session={session}
                 updatePhases={updatePhases}
-                phases={phases}
+                phases={currentPhases}
                 deleteExercise={deleteExerciseHandler}
                 calculateSessionDuration={calculateSessionDuration}
                 editingExerciseId={editingExerciseId}
@@ -487,12 +678,18 @@ export default function WorkoutPlanner({
                 onEditExercise={handleEditExercise}
                 exercises={exercises}
                 setHasUnsavedChanges={setHasUnsavedChanges}
+                onSaveExercise={handleSaveExercise}
+                isSaving={isSaving}
             />
         );
     };
 
     return (
         <div className="w-full max-w-6xl mx-auto rounded-lg text-accent-foreground bg-card">
+            <LoadingOverlay
+                isVisible={isReorderingSessions}
+                message="Updating session order..."
+            />
             <div className="w-full p-2">
                 <WorkoutToolbar
                     onAddPhase={handleAddPhase}
@@ -510,6 +707,7 @@ export default function WorkoutPlanner({
                 <PhaseList
                     phases={phases}
                     isLoading={isLoading}
+                    isSaving={isSaving}
                     // Phase handlers
                     onToggleExpand={handleTogglePhaseExpansion}
                     onAddSession={addSessionHandler}

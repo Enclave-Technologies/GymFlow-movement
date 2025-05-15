@@ -13,10 +13,12 @@ import { ChevronDown, ChevronUp, Copy, Edit, Plus, Trash2 } from "lucide-react";
 import type { Phase, Session } from "../types";
 import { Input } from "@/components/ui/input";
 import DraggableSession from "./draggable-session";
+import { useEffect, useRef } from "react";
 // import SessionList from "../session/SessionList";
 
 type PhaseCardProps = {
     phase: Phase;
+    isSaving: boolean;
     // Phase handlers
     onToggleExpand: (phaseId: string) => void;
     onAddSession: (phaseId: string) => void;
@@ -56,6 +58,7 @@ type PhaseCardProps = {
 
 export function PhaseCard({
     phase,
+    isSaving,
     // Phase props
     onToggleExpand,
     onAddSession,
@@ -84,6 +87,16 @@ export function PhaseCard({
     onSaveSessionEdit,
     onEditSessionValueChange,
 }: PhaseCardProps) {
+    // Add a ref for the phase name input
+    const phaseInputRef = useRef<HTMLInputElement>(null);
+
+    // Add useEffect to focus and select text when editing starts
+    useEffect(() => {
+        if (editingPhase === phase.id && phaseInputRef.current) {
+            phaseInputRef.current.focus();
+            phaseInputRef.current.select();
+        }
+    }, [editingPhase, phase.id]);
     return (
         <Card key={phase.id} className="mb-4 shadow-none bg-background py-2">
             <CardContent className="p-0">
@@ -106,11 +119,17 @@ export function PhaseCard({
                         {editingPhase === phase.id ? (
                             <div className="flex items-center">
                                 <Input
+                                    ref={phaseInputRef}
                                     value={editPhaseValue}
                                     onChange={(e) =>
                                         onEditPhaseValueChange(e.target.value)
                                     }
                                     className="h-8 w-48"
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            onSavePhaseEdit();
+                                        }
+                                    }}
                                 />
                                 <Button
                                     variant="ghost"
@@ -138,7 +157,12 @@ export function PhaseCard({
                                     onClick={() =>
                                         onEditPhase(phase.id, phase.name)
                                     }
-                                    className="h-8 w-8 cursor-pointer"
+                                    disabled={isSaving}
+                                    className={`${
+                                        isSaving
+                                            ? "cursor-not-allowed"
+                                            : "cursor-pointer"
+                                    }`}
                                 >
                                     <Edit className="h-4 w-4" />
                                 </Button>
@@ -152,7 +176,12 @@ export function PhaseCard({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => onDeletePhase(phase.id)}
-                                    className="h-8 w-8 cursor-pointer"
+                                    disabled={isSaving}
+                                    className={`h-8 w-8 ${
+                                        isSaving
+                                            ? "cursor-not-allowed"
+                                            : "cursor-pointer"
+                                    }`}
                                 >
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
@@ -166,7 +195,12 @@ export function PhaseCard({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => onDuplicatePhase(phase.id)}
-                                    className="h-8 w-8 cursor-pointer"
+                                    disabled={isSaving}
+                                    className={`h-8 w-8 ${
+                                        isSaving
+                                            ? "cursor-not-allowed"
+                                            : "cursor-pointer"
+                                    }`}
                                 >
                                     <Copy className="h-4 w-4" />
                                 </Button>
@@ -180,7 +214,12 @@ export function PhaseCard({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => onAddSession(phase.id)}
-                                    className="h-8 w-8 cursor-pointer"
+                                    disabled={isSaving}
+                                    className={`h-8 w-8 ${
+                                        isSaving
+                                            ? "cursor-not-allowed"
+                                            : "cursor-pointer"
+                                    }`}
                                 >
                                     <Plus className="h-4 w-4" />
                                 </Button>
@@ -199,6 +238,12 @@ export function PhaseCard({
                                                     onToggleActivation(phase.id)
                                                 }
                                                 id={`activate-${phase.id}`}
+                                                disabled={isSaving}
+                                                className={`${
+                                                    isSaving
+                                                        ? "cursor-not-allowed"
+                                                        : "cursor-pointer"
+                                                }`}
                                             />
                                             <Label
                                                 htmlFor={`activate-${phase.id}`}
@@ -227,6 +272,7 @@ export function PhaseCard({
                             <DraggableSession
                                 key={session.id}
                                 phase={phase}
+                                isSaving={isSaving}
                                 session={session}
                                 index={index}
                                 toggleSessionExpansion={onToggleSession}

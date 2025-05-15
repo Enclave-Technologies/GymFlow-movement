@@ -9,6 +9,7 @@ import { PhaseCard } from "./PhaseCard";
 interface PhaseListProps {
     phases: Phase[];
     isLoading: boolean;
+    isSaving: boolean;
 
     // Phase handlers
     onToggleExpand: (phaseId: string) => void;
@@ -78,7 +79,7 @@ function EmptyState() {
 export function PhaseList({
     phases,
     isLoading,
-
+    isSaving,
     // Phase handlers
     onToggleExpand,
     onAddSession,
@@ -121,6 +122,7 @@ export function PhaseList({
                 <PhaseCard
                     key={phase.id}
                     phase={phase}
+                    isSaving={isSaving}
                     // Phase handlers
                     onToggleExpand={onToggleExpand}
                     onAddSession={onAddSession}
