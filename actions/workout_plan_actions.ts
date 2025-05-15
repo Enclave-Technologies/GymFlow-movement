@@ -396,6 +396,13 @@ export async function updateWorkoutPlan(
 
         // console.log("\n===== END OF CHANGES =====\n");
 
+        planData.phases.forEach((phase) => {
+            console.log(phase.name, phase.orderNumber);
+            phase.sessions.forEach((session) => {
+                console.log("\t", session.name, session.orderNumber);
+            });
+        });
+
         // No conflict, proceed with update using a transaction
         return await db.transaction(async (tx) => {
             const now = new Date();
@@ -420,6 +427,148 @@ export async function updateWorkoutPlan(
                 await tx
                     .delete(Phases)
                     .where(inArray(Phases.phaseId, phasesToDelete));
+            }
+
+            // --- Bulk update operations ---
+            // Update phases
+            if (phasesToUpdate.length > 0) {
+                for (const phase of phasesToUpdate) {
+                    await tx
+                        .update(Phases)
+                        .set({
+                            ...(phase.changes.name !== undefined && {
+                                phaseName: phase.changes.name,
+                            }),
+                            ...(phase.changes.isActive !== undefined && {
+                                isActive: phase.changes.isActive,
+                            }),
+                            ...(phase.changes.orderNumber !== undefined && {
+                                orderNumber: phase.changes.orderNumber,
+                            }),
+                            ...(phase.changes.planId !== undefined && {
+                                planId: phase.changes.planId,
+                            }),
+                        })
+                        .where(eq(Phases.phaseId, phase.id));
+                }
+            }
+            // Update sessions
+            if (sessionsToUpdate.length > 0) {
+                for (const session of sessionsToUpdate) {
+                    await tx
+                        .update(Sessions)
+                        .set({
+                            ...(session.changes.name !== undefined && {
+                                sessionName: session.changes.name,
+                            }),
+                            ...(session.changes.duration !== undefined && {
+                                sessionTime: session.changes.duration,
+                            }),
+                            ...(session.changes.orderNumber !== undefined && {
+                                orderNumber: session.changes.orderNumber,
+                            }),
+                            ...(session.changes.phaseId !== undefined && {
+                                phaseId: session.changes.phaseId,
+                            }),
+                        })
+                        .where(eq(Sessions.sessionId, session.id));
+                }
+            }
+            // Update exercises
+            if (exercisesToUpdate.length > 0) {
+                for (const exercise of exercisesToUpdate) {
+                    // Build the update object
+                    const updateObj: Record<string, unknown> = {
+                        ...(exercise.changes.motion !== undefined && {
+                            motion: exercise.changes.motion,
+                        }),
+                        ...(exercise.changes.sessionId !== undefined && {
+                            sessionId: exercise.changes.sessionId,
+                        }),
+                        ...(exercise.changes.targetArea !== undefined && {
+                            targetArea: exercise.changes.targetArea,
+                        }),
+                        ...(exercise.changes.exerciseId !== undefined && {
+                            exerciseId: exercise.changes.exerciseId,
+                        }),
+                        ...(exercise.changes.order !== undefined && {
+                            setOrderMarker: exercise.changes.order,
+                            exerciseOrder: convertOrderToNumber(
+                                exercise.changes.order ?? ""
+                            ),
+                        }),
+                        ...(exercise.changes.setsMin !== undefined && {
+                            setsMin:
+                                exercise.changes.setsMin !== null &&
+                                exercise.changes.setsMin !== ""
+                                    ? Number(exercise.changes.setsMin)
+                                    : null,
+                        }),
+                        ...(exercise.changes.setsMax !== undefined && {
+                            setsMax:
+                                exercise.changes.setsMax !== null &&
+                                exercise.changes.setsMax !== ""
+                                    ? Number(exercise.changes.setsMax)
+                                    : null,
+                        }),
+                        ...(exercise.changes.repsMin !== undefined && {
+                            repsMin:
+                                exercise.changes.repsMin !== null &&
+                                exercise.changes.repsMin !== ""
+                                    ? Number(exercise.changes.repsMin)
+                                    : null,
+                        }),
+                        ...(exercise.changes.repsMax !== undefined && {
+                            repsMax:
+                                exercise.changes.repsMax !== null &&
+                                exercise.changes.repsMax !== ""
+                                    ? Number(exercise.changes.repsMax)
+                                    : null,
+                        }),
+                        ...(exercise.changes.tempo !== undefined && {
+                            tempo: exercise.changes.tempo,
+                        }),
+                        ...(exercise.changes.tut !== undefined && {
+                            tut:
+                                exercise.changes.tut !== null &&
+                                exercise.changes.tut !== ""
+                                    ? Number(exercise.changes.tut)
+                                    : null,
+                        }),
+                        ...(exercise.changes.restMin !== undefined && {
+                            restMin:
+                                exercise.changes.restMin !== null &&
+                                exercise.changes.restMin !== ""
+                                    ? Number(exercise.changes.restMin)
+                                    : null,
+                        }),
+                        ...(exercise.changes.restMax !== undefined && {
+                            restMax:
+                                exercise.changes.restMax !== null &&
+                                exercise.changes.restMax !== ""
+                                    ? Number(exercise.changes.restMax)
+                                    : null,
+                        }),
+                        ...(exercise.changes.customizations !== undefined && {
+                            customizations: exercise.changes.customizations,
+                        }),
+                        ...(exercise.changes.notes !== undefined && {
+                            notes: exercise.changes.notes,
+                        }),
+                    };
+                    // Only update if there is at least one field to set
+                    if (Object.keys(updateObj).length > 0) {
+                        await tx
+                            .update(ExercisePlanExercises)
+                            .set(updateObj)
+                            .where(
+                                eq(
+                                    ExercisePlanExercises.planExerciseId,
+                                    exercise.id
+                                )
+                            );
+                    }
+                }
             }
 
             // --- Bulk insert operations ---
@@ -598,148 +747,6 @@ export async function updateWorkoutPlan(
                     ) {
                         const chunk = exercisesToInsert.slice(i, i + chunkSize);
                         await tx.insert(ExercisePlanExercises).values(chunk);
-                    }
-                }
-            }
-
-            // --- Bulk update operations ---
-            // Update phases
-            if (phasesToUpdate.length > 0) {
-                for (const phase of phasesToUpdate) {
-                    await tx
-                        .update(Phases)
-                        .set({
-                            ...(phase.changes.name !== undefined && {
-                                phaseName: phase.changes.name,
-                            }),
-                            ...(phase.changes.isActive !== undefined && {
-                                isActive: phase.changes.isActive,
-                            }),
-                            ...(phase.changes.orderNumber !== undefined && {
-                                orderNumber: phase.changes.orderNumber,
-                            }),
-                            ...(phase.changes.planId !== undefined && {
-                                planId: phase.changes.planId,
-                            }),
-                        })
-                        .where(eq(Phases.phaseId, phase.id));
-                }
-            }
-            // Update sessions
-            if (sessionsToUpdate.length > 0) {
-                for (const session of sessionsToUpdate) {
-                    await tx
-                        .update(Sessions)
-                        .set({
-                            ...(session.changes.name !== undefined && {
-                                sessionName: session.changes.name,
-                            }),
-                            ...(session.changes.duration !== undefined && {
-                                sessionTime: session.changes.duration,
-                            }),
-                            ...(session.changes.orderNumber !== undefined && {
-                                orderNumber: session.changes.orderNumber,
-                            }),
-                            ...(session.changes.phaseId !== undefined && {
-                                phaseId: session.changes.phaseId,
-                            }),
-                        })
-                        .where(eq(Sessions.sessionId, session.id));
-                }
-            }
-            // Update exercises
-            if (exercisesToUpdate.length > 0) {
-                for (const exercise of exercisesToUpdate) {
-                    // Build the update object
-                    const updateObj: Record<string, unknown> = {
-                        ...(exercise.changes.motion !== undefined && {
-                            motion: exercise.changes.motion,
-                        }),
-                        ...(exercise.changes.sessionId !== undefined && {
-                            sessionId: exercise.changes.sessionId,
-                        }),
-                        ...(exercise.changes.targetArea !== undefined && {
-                            targetArea: exercise.changes.targetArea,
-                        }),
-                        ...(exercise.changes.exerciseId !== undefined && {
-                            exerciseId: exercise.changes.exerciseId,
-                        }),
-                        ...(exercise.changes.order !== undefined && {
-                            setOrderMarker: exercise.changes.order,
-                            exerciseOrder: convertOrderToNumber(
-                                exercise.changes.order ?? ""
-                            ),
-                        }),
-                        ...(exercise.changes.setsMin !== undefined && {
-                            setsMin:
-                                exercise.changes.setsMin !== null &&
-                                exercise.changes.setsMin !== ""
-                                    ? Number(exercise.changes.setsMin)
-                                    : null,
-                        }),
-                        ...(exercise.changes.setsMax !== undefined && {
-                            setsMax:
-                                exercise.changes.setsMax !== null &&
-                                exercise.changes.setsMax !== ""
-                                    ? Number(exercise.changes.setsMax)
-                                    : null,
-                        }),
-                        ...(exercise.changes.repsMin !== undefined && {
-                            repsMin:
-                                exercise.changes.repsMin !== null &&
-                                exercise.changes.repsMin !== ""
-                                    ? Number(exercise.changes.repsMin)
-                                    : null,
-                        }),
-                        ...(exercise.changes.repsMax !== undefined && {
-                            repsMax:
-                                exercise.changes.repsMax !== null &&
-                                exercise.changes.repsMax !== ""
-                                    ? Number(exercise.changes.repsMax)
-                                    : null,
-                        }),
-                        ...(exercise.changes.tempo !== undefined && {
-                            tempo: exercise.changes.tempo,
-                        }),
-                        ...(exercise.changes.tut !== undefined && {
-                            tut:
-                                exercise.changes.tut !== null &&
-                                exercise.changes.tut !== ""
-                                    ? Number(exercise.changes.tut)
-                                    : null,
-                        }),
-                        ...(exercise.changes.restMin !== undefined && {
-                            restMin:
-                                exercise.changes.restMin !== null &&
-                                exercise.changes.restMin !== ""
-                                    ? Number(exercise.changes.restMin)
-                                    : null,
-                        }),
-                        ...(exercise.changes.restMax !== undefined && {
-                            restMax:
-                                exercise.changes.restMax !== null &&
-                                exercise.changes.restMax !== ""
-                                    ? Number(exercise.changes.restMax)
-                                    : null,
-                        }),
-                        ...(exercise.changes.customizations !== undefined && {
-                            customizations: exercise.changes.customizations,
-                        }),
-                        ...(exercise.changes.notes !== undefined && {
-                            notes: exercise.changes.notes,
-                        }),
-                    };
-                    // Only update if there is at least one field to set
-                    if (Object.keys(updateObj).length > 0) {
-                        await tx
-                            .update(ExercisePlanExercises)
-                            .set(updateObj)
-                            .where(
-                                eq(
-                                    ExercisePlanExercises.planExerciseId,
-                                    exercise.id
-                                )
-                            );
                     }
                 }
             }

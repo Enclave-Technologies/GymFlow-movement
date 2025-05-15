@@ -29,8 +29,20 @@ export async function saveAll(
     // Set saving state
     setSaving(true);
 
-    // Add logging to help debug state issues
-    console.log("Saving phases count:", JSON.stringify(phases, null, 2));
+    // Reassign orderNumbers sequentially to avoid stale order conflicts
+    const phasesWithOrder = phases.map((phase, index) => ({
+        ...phase,
+        orderNumber: index,
+        sessions: phase.sessions
+            ? phase.sessions
+                  .slice()
+                  .sort((a, b) => (a.orderNumber ?? 0) - (b.orderNumber ?? 0))
+                  .map((session, sessionIndex) => ({
+                      ...session,
+                      orderNumber: sessionIndex,
+                  }))
+            : [],
+    }));
 
     try {
         let result;
@@ -38,7 +50,7 @@ export async function saveAll(
         if (!planId || !lastKnownUpdatedAt) {
             // Create a new plan if no planId exists
             result = await createWorkoutPlan(client_id, trainer_id, {
-                phases,
+                phases: phasesWithOrder,
             });
 
             // Update local state with the new plan ID and timestamp
@@ -50,7 +62,7 @@ export async function saveAll(
             // Use full update
             console.log("Using full update");
             result = await updateWorkoutPlan(planId, lastKnownUpdatedAt, {
-                phases,
+                phases: phasesWithOrder,
             });
         }
 
