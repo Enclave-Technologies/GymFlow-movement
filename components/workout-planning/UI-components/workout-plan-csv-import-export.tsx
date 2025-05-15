@@ -37,6 +37,7 @@ interface WorkoutPlanCsvImportExportProps {
     phases: Phase[];
     onImport: (phases: Phase[]) => void;
     clientId: string;
+    disabled: boolean;
     exercises?: SelectExercise[];
 }
 
@@ -44,6 +45,7 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
     phases,
     onImport,
     clientId,
+    disabled,
     exercises = [],
 }) => {
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -122,6 +124,7 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
                     size="sm"
                     onClick={handleExport}
                     className="flex items-center gap-2 h-10"
+                    disabled={disabled}
                 >
                     <Upload className="h-4 w-4" />
                     Export CSV
@@ -132,6 +135,7 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     className="flex items-center gap-2 h-10"
+                    disabled={disabled}
                 >
                     <Download className="h-4 w-4" />
                     Import CSV
@@ -150,6 +154,7 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
                             variant="outline"
                             size="sm"
                             className="flex items-center gap-2 h-10"
+                            disabled={disabled}
                         >
                             <SquareDashedKanban className="h-4 w-4" />
                             Resources

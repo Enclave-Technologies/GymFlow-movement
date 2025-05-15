@@ -23,7 +23,7 @@ import {
     confirmDeletePhase,
     deletePhase,
     duplicatePhase,
-    savePhaseEdit,
+    // savePhaseEdit,
     startEditPhase,
     togglePhaseActivation,
     togglePhaseExpansion,
@@ -41,15 +41,19 @@ import { PhaseList } from "./UI-components/PhaseList";
 import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
 // import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
 import { LoadingOverlay } from "./UI-components/LoadingOverlay";
+import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
+import { updatePhaseName } from "@/actions/phase_actions";
 
 type WorkoutPlannerProps = {
     client_id: string;
     exercises: SelectExercise[];
+    trainer_id: string;
 };
 
 export default function WorkoutPlanner({
     client_id,
     exercises,
+    trainer_id,
 }: WorkoutPlannerProps) {
     // ===== Data State =====
     const [phases, setPhases] = useState<Phase[]>([]);
@@ -408,22 +412,94 @@ export default function WorkoutPlanner({
         startEditPhase(id, name, setEditingPhase, setEditPhaseValue);
     };
 
-    const handleSavePhaseEdit = () => {
-        savePhaseEdit(
-            editingPhase,
-            editPhaseValue,
-            phases,
-            updatePhases,
-            setEditingPhase,
-            setHasUnsavedChanges
+    const handleSavePhaseEdit = async () => {
+        if (!editingPhase) return;
+
+        // Store the current value locally to ensure we use the latest value
+        const currentPhaseValue = editPhaseValue;
+
+        // Update the local state first for immediate UI feedback
+        updatePhases(
+            phases.map((p) =>
+                p.id === editingPhase ? { ...p, name: editPhaseValue } : p
+            )
         );
+
+        // Clear editing state
+        setEditingPhase(null);
+
+        // Set saving state
+        setSaving(true);
+
+        try {
+            const result = await updatePhaseName(
+                planId,
+                editingPhase,
+                currentPhaseValue,
+                client_id,
+                trainer_id,
+                lastKnownUpdatedAt ?? undefined
+            );
+
+            // await saveAll(
+            //     phases,
+            //     planId,
+            //     lastKnownUpdatedAt,
+            //     client_id,
+            //     changeTracker,
+            //     setSaving,
+            //     setPlanId,
+            //     setLastKnownUpdatedAt,
+            //     setHasUnsavedChanges,
+            //     setConflictError,
+            //     setSavePerformed,
+            //     updatePhases
+            // );
+            // toast.success("Phase name saved successfully");
+
+            if (result.success) {
+                toast.success("Phase name saved successfully");
+                setHasUnsavedChanges(false);
+                setConflictError(null);
+
+                // Update the last known timestamp
+                if (result.updatedAt) {
+                    setLastKnownUpdatedAt(new Date(result.updatedAt));
+                }
+
+                // Reset the change tracker with the current phases
+                if (changeTracker) {
+                    changeTracker.reset(phases);
+                }
+            } else {
+                // Handle errors
+                if (result.conflict) {
+                    setConflictError({
+                        message:
+                            result.error ||
+                            "Plan has been modified by another user",
+                        serverTime: new Date(result.serverUpdatedAt!),
+                    });
+                    toast.error(
+                        "Conflict detected: Plan has been modified by another user"
+                    );
+                } else {
+                    toast.error(result.error || "Failed to save phase name");
+                }
+            }
+        } catch (error) {
+            console.error("Error saving phase name:", error);
+            toast.error("An error occurred while saving the phase name");
+        } finally {
+            setSaving(false);
+        }
     };
 
     const startEditSession = (id: string, name: string) => {
         setEditingSession(id);
         setEditSessionValue(name);
     };
-    const saveSessionEdit = () => {
+    const saveSessionEdit = async () => {
         if (!editingSession) return;
         updatePhases(
             phases.map((phase) => ({
@@ -436,7 +512,77 @@ export default function WorkoutPlanner({
             }))
         );
         setEditingSession(null);
-        setHasUnsavedChanges(true);
+        // Set saving state
+        setSaving(true);
+
+        try {
+            // If we don't have a plan yet, we need to save the entire workout plan
+            if (!planId || !lastKnownUpdatedAt) {
+                await saveAll(
+                    phases,
+                    planId,
+                    lastKnownUpdatedAt,
+                    client_id,
+                    changeTracker,
+                    setSaving,
+                    setPlanId,
+                    setLastKnownUpdatedAt,
+                    setHasUnsavedChanges,
+                    setConflictError,
+                    setSavePerformed,
+                    updatePhases
+                );
+                toast.success("Session name saved successfully");
+            } else {
+                // If we have a plan, we can update the whole plan
+                // (We could optimize this to just update the session, but for simplicity we'll update the whole plan)
+                const result = await updateWorkoutPlan(
+                    planId,
+                    lastKnownUpdatedAt,
+                    {
+                        phases,
+                    }
+                );
+
+                if (result.success) {
+                    toast.success("Session name saved successfully");
+                    setHasUnsavedChanges(false);
+                    setConflictError(null);
+
+                    // Update the last known timestamp
+                    if (result.updatedAt) {
+                        setLastKnownUpdatedAt(new Date(result.updatedAt));
+                    }
+
+                    // Reset the change tracker with the current phases
+                    if (changeTracker) {
+                        changeTracker.reset(phases);
+                    }
+                } else {
+                    // Handle errors
+                    if (result.conflict) {
+                        setConflictError({
+                            message:
+                                result.error ||
+                                "Plan has been modified by another user",
+                            serverTime: new Date(result.serverUpdatedAt!),
+                        });
+                        toast.error(
+                            "Conflict detected: Plan has been modified by another user"
+                        );
+                    } else {
+                        toast.error(
+                            result.error || "Failed to save session name"
+                        );
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Error saving session name:", error);
+            toast.error("An error occurred while saving the session name");
+        } finally {
+            setSaving(false);
+        }
     };
 
     // Exercise editing is now handled by the ExerciseTableInline component
@@ -641,6 +787,7 @@ export default function WorkoutPlanner({
                 exercises={exercises}
                 setHasUnsavedChanges={setHasUnsavedChanges}
                 onSaveExercise={handleSaveExercise}
+                isSaving={isSaving}
             />
         );
     };
@@ -668,6 +815,7 @@ export default function WorkoutPlanner({
                 <PhaseList
                     phases={phases}
                     isLoading={isLoading}
+                    isSaving={isSaving}
                     // Phase handlers
                     onToggleExpand={handleTogglePhaseExpansion}
                     onAddSession={addSessionHandler}

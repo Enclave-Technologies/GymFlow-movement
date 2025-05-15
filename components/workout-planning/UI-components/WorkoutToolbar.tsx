@@ -42,6 +42,7 @@ export function WorkoutToolbar({
                     <Button
                         onClick={onAddPhase}
                         className="cursor-pointer h-10"
+                        disabled={isSaving}
                     >
                         <Plus className="h-4 w-4 mr-2" /> Add Phase
                     </Button>
@@ -79,6 +80,7 @@ export function WorkoutToolbar({
                 }}
                 clientId={client_id}
                 exercises={exercises}
+                disabled={isSaving}
             />
 
             {hasUnsavedChanges && (

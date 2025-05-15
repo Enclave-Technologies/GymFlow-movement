@@ -18,6 +18,7 @@ import { useEffect, useRef } from "react";
 
 type PhaseCardProps = {
     phase: Phase;
+    isSaving: boolean;
     // Phase handlers
     onToggleExpand: (phaseId: string) => void;
     onAddSession: (phaseId: string) => void;
@@ -57,6 +58,7 @@ type PhaseCardProps = {
 
 export function PhaseCard({
     phase,
+    isSaving,
     // Phase props
     onToggleExpand,
     onAddSession,
@@ -155,7 +157,12 @@ export function PhaseCard({
                                     onClick={() =>
                                         onEditPhase(phase.id, phase.name)
                                     }
-                                    className="h-8 w-8 cursor-pointer"
+                                    disabled={isSaving}
+                                    className={`h-8 w-8 ${
+                                        isSaving
+                                            ? "cursor-not-allowed"
+                                            : "cursor-pointer"
+                                    }`}
                                 >
                                     <Edit className="h-4 w-4" />
                                 </Button>
@@ -169,7 +176,12 @@ export function PhaseCard({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => onDeletePhase(phase.id)}
-                                    className="h-8 w-8 cursor-pointer"
+                                    disabled={isSaving}
+                                    className={`h-8 w-8 ${
+                                        isSaving
+                                            ? "cursor-not-allowed"
+                                            : "cursor-pointer"
+                                    }`}
                                 >
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
@@ -183,7 +195,12 @@ export function PhaseCard({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => onDuplicatePhase(phase.id)}
-                                    className="h-8 w-8 cursor-pointer"
+                                    disabled={isSaving}
+                                    className={`h-8 w-8 ${
+                                        isSaving
+                                            ? "cursor-not-allowed"
+                                            : "cursor-pointer"
+                                    }`}
                                 >
                                     <Copy className="h-4 w-4" />
                                 </Button>
@@ -197,7 +214,12 @@ export function PhaseCard({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => onAddSession(phase.id)}
-                                    className="h-8 w-8 cursor-pointer"
+                                    disabled={isSaving}
+                                    className={`h-8 w-8 ${
+                                        isSaving
+                                            ? "cursor-not-allowed"
+                                            : "cursor-pointer"
+                                    }`}
                                 >
                                     <Plus className="h-4 w-4" />
                                 </Button>
@@ -216,6 +238,12 @@ export function PhaseCard({
                                                     onToggleActivation(phase.id)
                                                 }
                                                 id={`activate-${phase.id}`}
+                                                disabled={isSaving}
+                                                className={`h-8 w-8 ${
+                                                    isSaving
+                                                        ? "cursor-not-allowed"
+                                                        : "cursor-pointer"
+                                                }`}
                                             />
                                             <Label
                                                 htmlFor={`activate-${phase.id}`}
@@ -244,6 +272,7 @@ export function PhaseCard({
                             <DraggableSession
                                 key={session.id}
                                 phase={phase}
+                                isSaving={isSaving}
                                 session={session}
                                 index={index}
                                 toggleSessionExpansion={onToggleSession}

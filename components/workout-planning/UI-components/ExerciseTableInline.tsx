@@ -74,6 +74,7 @@ interface ExerciseTableInlineProps {
     //     exerciseId: string,
     //     exerciseData: Partial<Exercise>
     // ) => void;
+    isSaving: boolean;
 }
 
 // Derive motion and target area options from the exercises list
@@ -113,6 +114,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
     exercises,
     setHasUnsavedChanges,
     onSaveExercise,
+    isSaving,
 }) => {
     // Memoize motion and target area options to prevent recalculation on every render
     const exerciseMotionOptions = useMemo(
@@ -841,6 +843,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                                     size="icon"
                                                     onClick={saveInlineExercise}
                                                     className="h-8 w-8 cursor-pointer"
+                                                    disabled={isSaving}
                                                 >
                                                     <Check className="h-4 w-4" />
                                                 </Button>
@@ -851,6 +854,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                                         cancelInlineExercise
                                                     }
                                                     className="h-8 w-8"
+                                                    disabled={isSaving}
                                                 >
                                                     <X className="h-4 w-4" />
                                                 </Button>
@@ -865,6 +869,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                         deleteExercise={deleteExercise}
                                         phaseId={phase.id}
                                         sessionId={session.id}
+                                        isSaving={isSaving}
                                     />
                                 )
                         )}
@@ -886,10 +891,18 @@ interface ExerciseTableRowProps {
     ) => void;
     phaseId: string;
     sessionId: string;
+    isSaving: boolean;
 }
 
 const ExerciseTableRow: React.FC<ExerciseTableRowProps> = React.memo(
-    ({ exercise, onEditExercise, deleteExercise, phaseId, sessionId }) => {
+    ({
+        exercise,
+        onEditExercise,
+        deleteExercise,
+        phaseId,
+        sessionId,
+        isSaving,
+    }) => {
         // Memoize TUT calculation
         const calculatedTut = useMemo(() => {
             // Calculate TUT - sum all numbers in tempo
@@ -964,6 +977,7 @@ const ExerciseTableRow: React.FC<ExerciseTableRowProps> = React.memo(
                             size="icon"
                             onClick={() => onEditExercise(exercise.id)}
                             className="h-8 w-8 cursor-pointer"
+                            disabled={isSaving}
                         >
                             <Edit className="h-4 w-4" />
                         </Button>
@@ -974,6 +988,7 @@ const ExerciseTableRow: React.FC<ExerciseTableRowProps> = React.memo(
                                 deleteExercise(phaseId, sessionId, exercise.id);
                             }}
                             className="h-8 w-8"
+                            disabled={isSaving}
                         >
                             <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>

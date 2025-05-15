@@ -268,25 +268,25 @@ export const startEditPhase = (
     setEditPhaseValue(name);
 };
 
-/**
- * Saves the edited phase name
- */
-export const savePhaseEdit = (
-    editingPhase: string | null,
-    editPhaseValue: string,
-    phases: Phase[],
-    updatePhases: (
-        newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
-    ) => void,
-    setEditingPhase: (value: string | null) => void,
-    setHasUnsavedChanges: (value: boolean) => void
-) => {
-    if (!editingPhase) return;
-    updatePhases(
-        phases.map((p) =>
-            p.id === editingPhase ? { ...p, name: editPhaseValue } : p
-        )
-    );
-    setEditingPhase(null);
-    setHasUnsavedChanges(true);
-};
+// /**
+//  * Saves the edited phase name
+//  */
+// export const savePhaseEdit = (
+//     editingPhase: string | null,
+//     editPhaseValue: string,
+//     phases: Phase[],
+//     updatePhases: (
+//         newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
+//     ) => void,
+//     setEditingPhase: (value: string | null) => void,
+//     setHasUnsavedChanges: (value: boolean) => void
+// ) => {
+//     if (!editingPhase) return;
+//     updatePhases(
+//         phases.map((p) =>
+//             p.id === editingPhase ? { ...p, name: editPhaseValue } : p
+//         )
+//     );
+//     setEditingPhase(null);
+//     setHasUnsavedChanges(true);
+// };

@@ -6,6 +6,7 @@ import BodyMassComposition from "@/components/body-mass-composition/body-mass-co
 import WorkoutHistoryList from "../workout-history/workout-history-list";
 import { ClientType } from "./client-tabs";
 import type { SelectExercise } from "@/db/schemas";
+import { get_logged_in_user } from "@/actions/logged_in_user_actions";
 
 type ClientDetailsProps = {
     client_id: string;
@@ -13,11 +14,13 @@ type ClientDetailsProps = {
     exercises: SelectExercise[];
 };
 
-const ClientDetails = ({
+const ClientDetails = async ({
     client_id,
     userdata,
     exercises,
 }: ClientDetailsProps) => {
+    const logged_in_user = await get_logged_in_user();
+
     return (
         <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 h-full">
             <Tabs
@@ -57,7 +60,11 @@ const ClientDetails = ({
                     <WorkoutHistoryList client_id={client_id} />
                 </TabsContent>
                 <TabsContent value="workout-plan">
-                    <WorkoutPlan client_id={client_id} exercises={exercises} />
+                    <WorkoutPlan
+                        client_id={client_id}
+                        exercises={exercises}
+                        trainer_id={logged_in_user?.id ?? ""}
+                    />
                 </TabsContent>
                 <TabsContent value="goal-list">
                     <GoalList client_id={client_id} userdata={userdata} />
