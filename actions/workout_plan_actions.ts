@@ -398,6 +398,9 @@ export async function updateWorkoutPlan(
 
         planData.phases.forEach((phase) => {
             console.log(phase.name, phase.orderNumber);
+            phase.sessions.forEach((session) => {
+                console.log("\t", session.name, session.orderNumber);
+            });
         });
 
         // No conflict, proceed with update using a transaction

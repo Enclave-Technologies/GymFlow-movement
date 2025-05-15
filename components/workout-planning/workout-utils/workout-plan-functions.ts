@@ -33,6 +33,15 @@ export async function saveAll(
     const phasesWithOrder = phases.map((phase, index) => ({
         ...phase,
         orderNumber: index,
+        sessions: phase.sessions
+            ? phase.sessions
+                  .slice()
+                  .sort((a, b) => (a.orderNumber ?? 0) - (b.orderNumber ?? 0))
+                  .map((session, sessionIndex) => ({
+                      ...session,
+                      orderNumber: sessionIndex,
+                  }))
+            : [],
     }));
 
     try {
