@@ -48,9 +48,12 @@ export async function updateWorkoutPlan(
     planData: {
         phases: Phase[];
         clientId?: string;
+        trainerId?: string;
     }
 ): Promise<WorkoutPlanActionResponse> {
     const currentTrainer = await requireTrainerOrAdmin();
+
+    console.log("[UPDATING PLAN]", JSON.stringify(planData, null, 2));
 
     try {
         // Case 1: This is a new plan being created (planId and lastKnownUpdatedAt are empty)
@@ -67,7 +70,11 @@ export async function updateWorkoutPlan(
             }
 
             // Create a new plan
-            return await createWorkoutPlan(planData.clientId, planData);
+            return await createWorkoutPlan(
+                planData.clientId,
+                planData.trainerId ?? currentTrainer.id,
+                planData
+            );
         }
 
         // Case 2: This is an update to an existing plan
@@ -267,129 +274,129 @@ export async function updateWorkoutPlan(
         } = diffExercises(dbExercises, feExercises);
 
         // Log changes in a structured, readable format
-        console.log("\n===== WORKOUT PLAN CHANGES =====");
+        // console.log("\n===== WORKOUT PLAN CHANGES =====");
 
-        // Phase changes
-        console.log("\n📋 PHASE UPDATES:");
-        if (phasesToUpdate.length > 0) {
-            phasesToUpdate.forEach((phase, index) => {
-                console.log(`  ${index + 1}. Phase "${phase.id}" :`);
-                Object.entries(phase.changes).forEach(([key, value]) => {
-                    console.log(`     - ${key}: ${JSON.stringify(value)}`);
-                });
-            });
-        } else {
-            console.log("  None");
-        }
+        // // Phase changes
+        // console.log("\n📋 PHASE UPDATES:");
+        // if (phasesToUpdate.length > 0) {
+        //     phasesToUpdate.forEach((phase, index) => {
+        //         console.log(`  ${index + 1}. Phase "${phase.id}" :`);
+        //         Object.entries(phase.changes).forEach(([key, value]) => {
+        //             console.log(`     - ${key}: ${JSON.stringify(value)}`);
+        //         });
+        //     });
+        // } else {
+        //     console.log("  None");
+        // }
 
-        // Session changes
-        console.log("\n🗓️ SESSION UPDATES:");
-        if (sessionsToUpdate.length > 0) {
-            sessionsToUpdate.forEach((session, index) => {
-                console.log(`  ${index + 1}. Session "${session.id}" :`);
-                Object.entries(session.changes).forEach(([key, value]) => {
-                    console.log(`     - ${key}: ${JSON.stringify(value)}`);
-                });
-            });
-        } else {
-            console.log("  None");
-        }
+        // // Session changes
+        // console.log("\n🗓️ SESSION UPDATES:");
+        // if (sessionsToUpdate.length > 0) {
+        //     sessionsToUpdate.forEach((session, index) => {
+        //         console.log(`  ${index + 1}. Session "${session.id}" :`);
+        //         Object.entries(session.changes).forEach(([key, value]) => {
+        //             console.log(`     - ${key}: ${JSON.stringify(value)}`);
+        //         });
+        //     });
+        // } else {
+        //     console.log("  None");
+        // }
 
-        // Exercise changes
-        console.log("\n💪 EXERCISE UPDATES:");
-        if (exercisesToUpdate.length > 0) {
-            exercisesToUpdate.forEach((exercise, index) => {
-                console.log(`  ${index + 1}. Exercise ID: ${exercise.id}`);
-                Object.entries(exercise.changes).forEach(([key, value]) => {
-                    console.log(`     - ${key}: ${JSON.stringify(value)}`);
-                });
-            });
-        } else {
-            console.log("  None");
-        }
+        // // Exercise changes
+        // console.log("\n💪 EXERCISE UPDATES:");
+        // if (exercisesToUpdate.length > 0) {
+        //     exercisesToUpdate.forEach((exercise, index) => {
+        //         console.log(`  ${index + 1}. Exercise ID: ${exercise.id}`);
+        //         Object.entries(exercise.changes).forEach(([key, value]) => {
+        //             console.log(`     - ${key}: ${JSON.stringify(value)}`);
+        //         });
+        //     });
+        // } else {
+        //     console.log("  None");
+        // }
 
-        // Additions
-        console.log("\n➕ ADDITIONS:");
-        console.log(
-            `  • Phases: ${
-                phasesToAdd.length > 0 ? phasesToAdd.length : "None"
-            }`
-        );
-        if (phasesToAdd.length > 0) {
-            phasesToAdd.forEach((phase, index) => {
-                console.log(`    ${index + 1}. "${phase.name}" (${phase.id})`);
-            });
-        }
+        // // Additions
+        // console.log("\n➕ ADDITIONS:");
+        // console.log(
+        //     `  • Phases: ${
+        //         phasesToAdd.length > 0 ? phasesToAdd.length : "None"
+        //     }`
+        // );
+        // if (phasesToAdd.length > 0) {
+        //     phasesToAdd.forEach((phase, index) => {
+        //         console.log(`    ${index + 1}. "${phase.name}" (${phase.id})`);
+        //     });
+        // }
 
-        console.log(
-            `  • Sessions: ${
-                sessionsToAdd.length > 0 ? sessionsToAdd.length : "None"
-            }`
-        );
-        if (sessionsToAdd.length > 0) {
-            sessionsToAdd.forEach((session, index) => {
-                console.log(
-                    `    ${index + 1}. "${session.name}" (${
-                        session.id
-                    }) in Phase: ${session.phaseId}`
-                );
-            });
-        }
+        // console.log(
+        //     `  • Sessions: ${
+        //         sessionsToAdd.length > 0 ? sessionsToAdd.length : "None"
+        //     }`
+        // );
+        // if (sessionsToAdd.length > 0) {
+        //     sessionsToAdd.forEach((session, index) => {
+        //         console.log(
+        //             `    ${index + 1}. "${session.name}" (${
+        //                 session.id
+        //             }) in Phase: ${session.phaseId}`
+        //         );
+        //     });
+        // }
 
-        console.log(
-            `  • Exercises: ${
-                exercisesToAdd.length > 0 ? exercisesToAdd.length : "None"
-            }`
-        );
-        if (exercisesToAdd.length > 0 && exercisesToAdd.length <= 5) {
-            // Show details if there are only a few exercises
-            exercisesToAdd.forEach((exercise, index) => {
-                console.log(
-                    `    ${index + 1}. "${
-                        exercise.description || exercise.exerciseId
-                    }" in Session: ${exercise.sessionId}`
-                );
-            });
-        } else if (exercisesToAdd.length > 5) {
-            console.log(
-                `    (${exercisesToAdd.length} exercises - too many to display individually)`
-            );
-        }
+        // console.log(
+        //     `  • Exercises: ${
+        //         exercisesToAdd.length > 0 ? exercisesToAdd.length : "None"
+        //     }`
+        // );
+        // if (exercisesToAdd.length > 0 && exercisesToAdd.length <= 5) {
+        //     // Show details if there are only a few exercises
+        //     exercisesToAdd.forEach((exercise, index) => {
+        //         console.log(
+        //             `    ${index + 1}. "${
+        //                 exercise.description || exercise.exerciseId
+        //             }" in Session: ${exercise.sessionId}`
+        //         );
+        //     });
+        // } else if (exercisesToAdd.length > 5) {
+        //     console.log(
+        //         `    (${exercisesToAdd.length} exercises - too many to display individually)`
+        //     );
+        // }
 
-        // Deletions
-        console.log("\n❌ DELETIONS:");
-        console.log(
-            `  • Phases: ${
-                phasesToDelete.length > 0 ? phasesToDelete.length : "None"
-            }`
-        );
-        if (phasesToDelete.length > 0) {
-            console.log(`    IDs: ${phasesToDelete.join(", ")}`);
-        }
+        // // Deletions
+        // console.log("\n❌ DELETIONS:");
+        // console.log(
+        //     `  • Phases: ${
+        //         phasesToDelete.length > 0 ? phasesToDelete.length : "None"
+        //     }`
+        // );
+        // if (phasesToDelete.length > 0) {
+        //     console.log(`    IDs: ${phasesToDelete.join(", ")}`);
+        // }
 
-        console.log(
-            `  • Sessions: ${
-                sessionsToDelete.length > 0 ? sessionsToDelete.length : "None"
-            }`
-        );
-        if (sessionsToDelete.length > 0) {
-            console.log(`    IDs: ${sessionsToDelete.join(", ")}`);
-        }
+        // console.log(
+        //     `  • Sessions: ${
+        //         sessionsToDelete.length > 0 ? sessionsToDelete.length : "None"
+        //     }`
+        // );
+        // if (sessionsToDelete.length > 0) {
+        //     console.log(`    IDs: ${sessionsToDelete.join(", ")}`);
+        // }
 
-        console.log(
-            `  • Exercises: ${
-                exercisesToDelete.length > 0 ? exercisesToDelete.length : "None"
-            }`
-        );
-        if (exercisesToDelete.length > 0 && exercisesToDelete.length <= 10) {
-            console.log(`    IDs: ${exercisesToDelete.join(", ")}`);
-        } else if (exercisesToDelete.length > 10) {
-            console.log(
-                `    (${exercisesToDelete.length} exercises deleted - IDs not shown)`
-            );
-        }
+        // console.log(
+        //     `  • Exercises: ${
+        //         exercisesToDelete.length > 0 ? exercisesToDelete.length : "None"
+        //     }`
+        // );
+        // if (exercisesToDelete.length > 0 && exercisesToDelete.length <= 10) {
+        //     console.log(`    IDs: ${exercisesToDelete.join(", ")}`);
+        // } else if (exercisesToDelete.length > 10) {
+        //     console.log(
+        //         `    (${exercisesToDelete.length} exercises deleted - IDs not shown)`
+        //     );
+        // }
 
-        console.log("\n===== END OF CHANGES =====\n");
+        // console.log("\n===== END OF CHANGES =====\n");
 
         // No conflict, proceed with update using a transaction
         return await db.transaction(async (tx) => {
@@ -775,11 +782,14 @@ export async function updateWorkoutPlan(
  */
 export async function createWorkoutPlan(
     clientId: string,
+    trainerId: string,
     planData: {
         phases: Phase[];
     }
 ): Promise<WorkoutPlanActionResponse> {
     try {
+        console.log("[CREATING PLAN]", JSON.stringify(planData, null, 2));
+
         // Create a new plan using a transaction
         const planId = uuidv4();
         const now = new Date();
@@ -952,7 +962,7 @@ export async function createWorkoutPlan(
             await tx.insert(ExercisePlans).values({
                 planId: planId,
                 planName: "Workout Plan", // Default name
-                createdByUserId: clientId,
+                createdByUserId: trainerId,
                 assignedToUserId: clientId,
                 createdDate: now,
                 updatedAt: now,

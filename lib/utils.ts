@@ -46,3 +46,18 @@ export function safeImageUrl(url: string | null | undefined): string | null {
     const trimmed = url.trim();
     return trimmed === "" ? null : trimmed;
 }
+
+// Helper function to increment order string (A -> B, Z -> AA, etc.)
+export function incrementOrder(order: string): string {
+    if (!order) return "A";
+
+    // Simple implementation - you might want something more sophisticated
+    const lastChar = order.charAt(order.length - 1);
+    if (lastChar === "Z") {
+        return order + "A";
+    } else {
+        return (
+            order.slice(0, -1) + String.fromCharCode(lastChar.charCodeAt(0) + 1)
+        );
+    }
+}

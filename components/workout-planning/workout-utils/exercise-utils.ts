@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Phase, Exercise } from "../types";
+import { incrementOrder } from "@/lib/utils";
 
 export function addExercise(
     phases: Phase[],
@@ -33,6 +34,20 @@ export function addExercise(
         // Add sessionId to ensure parent-child relationship
         sessionId: sessionId,
     };
+
+    // Find the session to get its current exercises
+    const phase = phases.find((p) => p.id === phaseId);
+    const session = phase?.sessions.find((s) => s.id === sessionId);
+
+    if (session && session.exercises.length > 0) {
+        // Set the order based on the last exercise's order
+        const lastExercise = session.exercises[session.exercises.length - 1];
+        // Simple increment for order (you might want a more sophisticated approach)
+        newExercise.order = incrementOrder(lastExercise.order);
+    } else {
+        // First exercise in the session
+        newExercise.order = "A";
+    }
 
     const updatedPhases = phases.map((phase) =>
         phase.id !== phaseId

@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 // Table components and Dialog components are now used in other components
 // Select components are now used in ExerciseTableInline component
 import { updateSessionOrder } from "@/actions/workout_client_actions";
-import { WorkoutPlanChangeTracker } from "./workout-utils/change-tracker";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Exercise, Session, Phase } from "./types";
@@ -41,8 +40,9 @@ import { PhaseList } from "./UI-components/PhaseList";
 import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
 // import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
 import { LoadingOverlay } from "./UI-components/LoadingOverlay";
-import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
-import { updatePhaseName } from "@/actions/phase_actions";
+// import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
+// import { updatePhaseName } from "@/actions/phase_actions";
+// import { updateSessionName } from "@/actions/session_actions";
 
 type WorkoutPlannerProps = {
     client_id: string;
@@ -57,10 +57,17 @@ export default function WorkoutPlanner({
 }: WorkoutPlannerProps) {
     // ===== Data State =====
     const [phases, setPhases] = useState<Phase[]>([]);
+    // Use a ref to track the latest phases state
+    const latestPhasesRef = useRef<Phase[]>([]);
     const [planId, setPlanId] = useState<string | null>(null);
     const [lastKnownUpdatedAt, setLastKnownUpdatedAt] = useState<Date | null>(
         null
     );
+
+    // Update the ref whenever phases changes
+    useEffect(() => {
+        latestPhasesRef.current = phases;
+    }, [phases]);
 
     // ===== UI State =====
     const [isLoading, setIsLoading] = useState(true);
@@ -96,10 +103,6 @@ export default function WorkoutPlanner({
         null
     );
 
-    // ===== Change Tracking =====
-    const [changeTracker, setChangeTracker] =
-        useState<WorkoutPlanChangeTracker | null>(null);
-
     // ===== Router =====
     const router = useRouter();
 
@@ -110,8 +113,7 @@ export default function WorkoutPlanner({
             setIsLoading,
             setPlanId,
             setLastKnownUpdatedAt,
-            updatePhases,
-            setChangeTracker
+            updatePhases
         );
     }, [client_id]);
 
@@ -122,52 +124,60 @@ export default function WorkoutPlanner({
                 client_id,
                 setPlanId,
                 setLastKnownUpdatedAt,
-                updatePhases,
-                changeTracker,
-                setChangeTracker
+                updatePhases
             );
         }
     }, [savePerformed, client_id]);
 
-    // Custom setPhases function that also updates the change tracker
-    const updatePhases = createUpdatePhasesFunction(setPhases, changeTracker);
+    // Custom setPhases function
+    const updatePhases = createUpdatePhasesFunction(setPhases, latestPhasesRef);
 
     // ===== Global Save =====
     const handleSaveAll = async () => {
+        // Use the latest phases from the ref to ensure we're using the most up-to-date state
+        const currentPhases = latestPhasesRef.current;
+        console.log("Saving phases:", currentPhases.length);
+
         await saveAll(
-            phases,
+            currentPhases, // Use ref value instead of state value
             planId,
             lastKnownUpdatedAt,
             client_id,
-            changeTracker,
             setSaving,
             setPlanId,
             setLastKnownUpdatedAt,
             setHasUnsavedChanges,
             setConflictError,
             setSavePerformed,
-            updatePhases
+            updatePhases,
+            trainer_id
         );
     };
 
     // ===== Phase CRUD =====
     const handleAddPhase = () => {
-        addPhase(phases, updatePhases, setHasUnsavedChanges, planId);
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        addPhase(currentPhases, updatePhases, setHasUnsavedChanges, planId);
     };
 
     const handleTogglePhaseExpansion = (phaseId: string) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
         togglePhaseExpansion(
             phaseId,
-            phases,
+            currentPhases,
             updatePhases
             // setHasUnsavedChanges
         );
     };
 
     const handleTogglePhaseActivation = async (phaseId: string) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
         await togglePhaseActivation(
             phaseId,
-            phases,
+            currentPhases,
             updatePhases,
             lastKnownUpdatedAt,
             setLastKnownUpdatedAt,
@@ -183,9 +193,11 @@ export default function WorkoutPlanner({
     };
 
     const handleConfirmDeletePhase = (phaseId: string) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
         confirmDeletePhase(
             phaseId,
-            phases,
+            currentPhases,
             updatePhases,
             setShowConfirm,
             setHasUnsavedChanges
@@ -193,12 +205,21 @@ export default function WorkoutPlanner({
     };
 
     const handleDuplicatePhase = (phaseId: string) => {
-        duplicatePhase(phaseId, phases, updatePhases, setHasUnsavedChanges);
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        duplicatePhase(
+            phaseId,
+            currentPhases,
+            updatePhases,
+            setHasUnsavedChanges
+        );
     };
 
     // ===== Session CRUD =====
     const addSessionHandler = (phaseId: string) => {
-        updatePhases(addSession(phases, phaseId));
+        // Use the latest phases from the ref to ensure we're using the most up-to-date state
+        const currentPhases = latestPhasesRef.current;
+        updatePhases(addSession(currentPhases, phaseId));
         setHasUnsavedChanges(true);
     };
 
@@ -206,12 +227,16 @@ export default function WorkoutPlanner({
         phaseId: string,
         sessionId: string
     ) => {
-        updatePhases(toggleSessionExpansion(phases, phaseId, sessionId));
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        updatePhases(toggleSessionExpansion(currentPhases, phaseId, sessionId));
         // setHasUnsavedChanges(true);
     };
 
     const duplicateSessionHandler = (phaseId: string, sessionId: string) => {
-        updatePhases(duplicateSession(phases, phaseId, sessionId));
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        updatePhases(duplicateSession(currentPhases, phaseId, sessionId));
         setHasUnsavedChanges(true);
     };
 
@@ -222,7 +247,9 @@ export default function WorkoutPlanner({
         phaseId: string,
         sessionId: string
     ) => {
-        updatePhases(deleteSession(phases, phaseId, sessionId));
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        updatePhases(deleteSession(currentPhases, phaseId, sessionId));
         setShowConfirm({ type: null });
         setHasUnsavedChanges(true);
     };
@@ -241,11 +268,14 @@ export default function WorkoutPlanner({
 
         if (exerciseData) {
             console.log(exerciseData);
-            return;
+            // return;
         }
 
+        // Use the latest phases from the ref to ensure we're using the most up-to-date state
+        const currentPhases = latestPhasesRef.current;
+
         // Find the specific phase, session, and exercise
-        const phase = phases.find((p) => p.id === phaseId);
+        const phase = currentPhases.find((p) => p.id === phaseId);
         if (!phase) {
             console.error(`Phase with ID ${phaseId} not found`);
             return;
@@ -272,77 +302,14 @@ export default function WorkoutPlanner({
         console.log("Session:", session.name, "(", sessionId, ")");
         console.log("Exercise:", JSON.stringify(exercise, null, 2));
 
-        // try {
-        //     if (!planId || !lastKnownUpdatedAt) {
-        //         // If no plan exists yet, save the entire workout plan
-        //         await saveAll(
-        //             phases,
-        //             planId,
-        //             lastKnownUpdatedAt,
-        //             client_id,
-        //             changeTracker,
-        //             setSaving,
-        //             setPlanId,
-        //             setLastKnownUpdatedAt,
-        //             setHasUnsavedChanges,
-        //             setConflictError,
-        //             setSavePerformed,
-        //             updatePhases
-        //         );
-        //     } else {
-        //         // If plan exists, update it with the current phases
-        //         const result = await updateWorkoutPlan(
-        //             planId,
-        //             lastKnownUpdatedAt,
-        //             {
-        //                 phases,
-        //             }
-        //         );
-
-        //         if (result.success) {
-        //             toast.success("Exercise saved successfully");
-        //             setHasUnsavedChanges(false);
-        //             setConflictError(null);
-
-        //             // Update the last known timestamp
-        //             if (result.updatedAt) {
-        //                 setLastKnownUpdatedAt(new Date(result.updatedAt));
-        //             }
-
-        //             // Reset the change tracker with the current phases
-        //             if (changeTracker) {
-        //                 changeTracker.reset(phases);
-        //             }
-
-        //             // No need to trigger a refetch here
-        //         } else {
-        //             // Handle errors
-        //             if (result.conflict) {
-        //                 setConflictError({
-        //                     message:
-        //                         result.error ||
-        //                         "Plan has been modified by another user",
-        //                     serverTime: new Date(result.serverUpdatedAt!),
-        //                 });
-        //                 toast.error(
-        //                     "Conflict detected: Plan has been modified by another user"
-        //                 );
-        //             } else {
-        //                 toast.error(result.error || "Failed to save exercise");
-        //             }
-        //         }
-        //     }
-        // } catch (error) {
-        //     console.error("Error saving exercise:", error);
-        //     toast.error("An error occurred while saving the exercise");
-        // } finally {
-        //     setSaving(false);
-        // }
+        await handleSaveAll();
     };
 
     const addExerciseHandler = (phaseId: string, sessionId: string) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
         const { updatedPhases, newExerciseId } = addExercise(
-            phases,
+            currentPhases,
             phaseId,
             sessionId
         );
@@ -350,41 +317,6 @@ export default function WorkoutPlanner({
         setEditingExercise({ sessionId, exerciseId: newExerciseId });
         setHasUnsavedChanges(true);
     };
-
-    // // Add a function to update exercise data from the editor
-    // const updateExerciseData = (
-    //     phaseId: string,
-    //     sessionId: string,
-    //     exerciseId: string,
-    //     exerciseData: Partial<Exercise>
-    // ) => {
-    //     const updatedPhases = phases.map((phase) => {
-    //         if (phase.id !== phaseId) return phase;
-
-    //         return {
-    //             ...phase,
-    //             sessions: phase.sessions.map((session) => {
-    //                 if (session.id !== sessionId) return session;
-
-    //                 return {
-    //                     ...session,
-    //                     exercises: session.exercises.map((exercise) => {
-    //                         if (exercise.id !== exerciseId) return exercise;
-
-    //                         // Update the exercise with the new data
-    //                         return {
-    //                             ...exercise,
-    //                             ...exerciseData,
-    //                         };
-    //                     }),
-    //                 };
-    //             }),
-    //         };
-    //     });
-
-    //     updatePhases(updatedPhases);
-    //     setHasUnsavedChanges(true);
-    // };
 
     const deleteExerciseHandler = (
         phaseId: string,
@@ -397,7 +329,11 @@ export default function WorkoutPlanner({
         sessionId: string,
         exerciseId: string
     ) => {
-        updatePhases(deleteExercise(phases, phaseId, sessionId, exerciseId));
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+        updatePhases(
+            deleteExercise(currentPhases, phaseId, sessionId, exerciseId)
+        );
         setShowConfirm({ type: null });
         setHasUnsavedChanges(true);
     };
@@ -415,12 +351,12 @@ export default function WorkoutPlanner({
     const handleSavePhaseEdit = async () => {
         if (!editingPhase) return;
 
-        // Store the current value locally to ensure we use the latest value
-        const currentPhaseValue = editPhaseValue;
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
 
         // Update the local state first for immediate UI feedback
         updatePhases(
-            phases.map((p) =>
+            currentPhases.map((p) =>
                 p.id === editingPhase ? { ...p, name: editPhaseValue } : p
             )
         );
@@ -428,71 +364,7 @@ export default function WorkoutPlanner({
         // Clear editing state
         setEditingPhase(null);
 
-        // Set saving state
-        setSaving(true);
-
-        try {
-            const result = await updatePhaseName(
-                planId,
-                editingPhase,
-                currentPhaseValue,
-                client_id,
-                trainer_id,
-                lastKnownUpdatedAt ?? undefined
-            );
-
-            // await saveAll(
-            //     phases,
-            //     planId,
-            //     lastKnownUpdatedAt,
-            //     client_id,
-            //     changeTracker,
-            //     setSaving,
-            //     setPlanId,
-            //     setLastKnownUpdatedAt,
-            //     setHasUnsavedChanges,
-            //     setConflictError,
-            //     setSavePerformed,
-            //     updatePhases
-            // );
-            // toast.success("Phase name saved successfully");
-
-            if (result.success) {
-                toast.success("Phase name saved successfully");
-                setHasUnsavedChanges(false);
-                setConflictError(null);
-
-                // Update the last known timestamp
-                if (result.updatedAt) {
-                    setLastKnownUpdatedAt(new Date(result.updatedAt));
-                }
-
-                // Reset the change tracker with the current phases
-                if (changeTracker) {
-                    changeTracker.reset(phases);
-                }
-            } else {
-                // Handle errors
-                if (result.conflict) {
-                    setConflictError({
-                        message:
-                            result.error ||
-                            "Plan has been modified by another user",
-                        serverTime: new Date(result.serverUpdatedAt!),
-                    });
-                    toast.error(
-                        "Conflict detected: Plan has been modified by another user"
-                    );
-                } else {
-                    toast.error(result.error || "Failed to save phase name");
-                }
-            }
-        } catch (error) {
-            console.error("Error saving phase name:", error);
-            toast.error("An error occurred while saving the phase name");
-        } finally {
-            setSaving(false);
-        }
+        await handleSaveAll();
     };
 
     const startEditSession = (id: string, name: string) => {
@@ -501,8 +373,25 @@ export default function WorkoutPlanner({
     };
     const saveSessionEdit = async () => {
         if (!editingSession) return;
+
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+
+        // Find the phase that contains this session
+        const phaseWithSession = currentPhases.find((phase) =>
+            phase.sessions.some((session) => session.id === editingSession)
+        );
+
+        if (!phaseWithSession) {
+            console.error(
+                "Could not find phase containing session:",
+                editingSession
+            );
+            return;
+        }
+
         updatePhases(
-            phases.map((phase) => ({
+            currentPhases.map((phase) => ({
                 ...phase,
                 sessions: phase.sessions.map((s) =>
                     s.id === editingSession
@@ -512,77 +401,8 @@ export default function WorkoutPlanner({
             }))
         );
         setEditingSession(null);
-        // Set saving state
-        setSaving(true);
 
-        try {
-            // If we don't have a plan yet, we need to save the entire workout plan
-            if (!planId || !lastKnownUpdatedAt) {
-                await saveAll(
-                    phases,
-                    planId,
-                    lastKnownUpdatedAt,
-                    client_id,
-                    changeTracker,
-                    setSaving,
-                    setPlanId,
-                    setLastKnownUpdatedAt,
-                    setHasUnsavedChanges,
-                    setConflictError,
-                    setSavePerformed,
-                    updatePhases
-                );
-                toast.success("Session name saved successfully");
-            } else {
-                // If we have a plan, we can update the whole plan
-                // (We could optimize this to just update the session, but for simplicity we'll update the whole plan)
-                const result = await updateWorkoutPlan(
-                    planId,
-                    lastKnownUpdatedAt,
-                    {
-                        phases,
-                    }
-                );
-
-                if (result.success) {
-                    toast.success("Session name saved successfully");
-                    setHasUnsavedChanges(false);
-                    setConflictError(null);
-
-                    // Update the last known timestamp
-                    if (result.updatedAt) {
-                        setLastKnownUpdatedAt(new Date(result.updatedAt));
-                    }
-
-                    // Reset the change tracker with the current phases
-                    if (changeTracker) {
-                        changeTracker.reset(phases);
-                    }
-                } else {
-                    // Handle errors
-                    if (result.conflict) {
-                        setConflictError({
-                            message:
-                                result.error ||
-                                "Plan has been modified by another user",
-                            serverTime: new Date(result.serverUpdatedAt!),
-                        });
-                        toast.error(
-                            "Conflict detected: Plan has been modified by another user"
-                        );
-                    } else {
-                        toast.error(
-                            result.error || "Failed to save session name"
-                        );
-                    }
-                }
-            }
-        } catch (error) {
-            console.error("Error saving session name:", error);
-            toast.error("An error occurred while saving the session name");
-        } finally {
-            setSaving(false);
-        }
+        await handleSaveAll();
     };
 
     // Exercise editing is now handled by the ExerciseTableInline component
@@ -626,9 +446,12 @@ export default function WorkoutPlanner({
         dragIndex: number,
         hoverIndex: number
     ) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+
         // This function only updates the UI for visual feedback during dragging
         updatePhases(
-            phases.map((phase) => {
+            currentPhases.map((phase) => {
                 if (phase.id !== phaseId) return phase;
 
                 const newSessions = [...phase.sessions];
@@ -651,9 +474,12 @@ export default function WorkoutPlanner({
         dragIndex: number,
         hoverIndex: number
     ) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+
         // First update the UI (this might be redundant if handleDragVisual was called during drag)
         // but we include it for safety to ensure the final state is correct
-        const updatedPhases = phases.map((phase) => {
+        const updatedPhases = currentPhases.map((phase) => {
             if (phase.id !== phaseId) return phase;
 
             const newSessions = [...phase.sessions];
@@ -762,6 +588,9 @@ export default function WorkoutPlanner({
     // ===== Render Helpers =====
     // Function to render the exercises table
     const renderExercisesTable = (phase: Phase, session: Session) => {
+        // Use the latest phases from the ref
+        const currentPhases = latestPhasesRef.current;
+
         // Determine if this session has an exercise being edited
         const editingExerciseId =
             editingExercise && editingExercise.sessionId === session.id
@@ -778,7 +607,7 @@ export default function WorkoutPlanner({
                 phase={phase}
                 session={session}
                 updatePhases={updatePhases}
-                phases={phases}
+                phases={currentPhases}
                 deleteExercise={deleteExerciseHandler}
                 calculateSessionDuration={calculateSessionDuration}
                 editingExerciseId={editingExerciseId}
