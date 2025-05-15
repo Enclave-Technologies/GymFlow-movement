@@ -544,13 +544,15 @@ export default function WorkoutPlanner({
 
             // Update orderNumber for each session based on its new position
             // This ensures the UI state matches what will be saved in the database
-            newSessions.forEach((session, idx) => {
-                session.orderNumber = idx;
-            });
+            // Create new session objects with updated orderNumber to maintain immutability
+            const updatedSessions = newSessions.map((session, idx) => ({
+                ...session,
+                orderNumber: idx,
+            }));
 
             return {
                 ...phase,
-                sessions: newSessions,
+                sessions: updatedSessions,
             };
         });
 
