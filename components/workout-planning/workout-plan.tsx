@@ -130,7 +130,44 @@ export default function WorkoutPlanner({
     }, [savePerformed, client_id]);
 
     // Custom setPhases function
-    const updatePhases = createUpdatePhasesFunction(setPhases, latestPhasesRef);
+    const updatePhasesOriginal = createUpdatePhasesFunction(
+        setPhases,
+        latestPhasesRef
+    );
+
+    // Helper function to format and log phases
+    const formatPhasesForLogging = (phases: Phase[]) => {
+        if (!phases || phases.length === 0) {
+            console.log("No phases available");
+            return;
+        }
+        phases.forEach((phase) => {
+            const phaseOrder = phase.orderNumber ?? "?";
+            console.log(`${phase.name} (${phaseOrder})`);
+            phase.sessions.forEach((session) => {
+                const sessionOrder = session.orderNumber ?? "?";
+                const sessionDuration = session.duration ?? 0;
+                console.log(
+                    `\t${session.name} (${sessionOrder}) - ${sessionDuration} min`
+                );
+                session.exercises.forEach((exercise) => {
+                    const description =
+                        exercise.description ?? "(No description)";
+                    console.log(`\t\t${description}`);
+                });
+            });
+        });
+    };
+
+    // Wrapped updatePhases to add logging
+    const updatePhases = (
+        newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
+    ) => {
+        updatePhasesOriginal(newPhases);
+        if (Array.isArray(newPhases)) {
+            formatPhasesForLogging(newPhases);
+        }
+    };
 
     // ===== Global Save =====
     const handleSaveAll = async () => {
@@ -192,7 +229,7 @@ export default function WorkoutPlanner({
         deletePhase(phaseId, setShowConfirm);
     };
 
-    const handleConfirmDeletePhase = (phaseId: string) => {
+    const handleConfirmDeletePhase = async (phaseId: string) => {
         // Use the latest phases from the ref
         const currentPhases = latestPhasesRef.current;
         confirmDeletePhase(
@@ -202,9 +239,12 @@ export default function WorkoutPlanner({
             setShowConfirm,
             setHasUnsavedChanges
         );
+
+        // Save changes to the database
+        await handleSaveAll();
     };
 
-    const handleDuplicatePhase = (phaseId: string) => {
+    const handleDuplicatePhase = async (phaseId: string) => {
         // Use the latest phases from the ref
         const currentPhases = latestPhasesRef.current;
         duplicatePhase(
@@ -213,6 +253,9 @@ export default function WorkoutPlanner({
             updatePhases,
             setHasUnsavedChanges
         );
+
+        // Save changes to the database
+        await handleSaveAll();
     };
 
     // ===== Session CRUD =====
@@ -233,17 +276,23 @@ export default function WorkoutPlanner({
         // setHasUnsavedChanges(true);
     };
 
-    const duplicateSessionHandler = (phaseId: string, sessionId: string) => {
+    const duplicateSessionHandler = async (
+        phaseId: string,
+        sessionId: string
+    ) => {
         // Use the latest phases from the ref
         const currentPhases = latestPhasesRef.current;
         updatePhases(duplicateSession(currentPhases, phaseId, sessionId));
         setHasUnsavedChanges(true);
+
+        // Save changes to the database
+        await handleSaveAll();
     };
 
     const deleteSessionHandler = (phaseId: string, sessionId: string) =>
         setShowConfirm({ type: "session", phaseId, sessionId });
 
-    const confirmDeleteSessionHandler = (
+    const confirmDeleteSessionHandler = async (
         phaseId: string,
         sessionId: string
     ) => {
@@ -252,6 +301,9 @@ export default function WorkoutPlanner({
         updatePhases(deleteSession(currentPhases, phaseId, sessionId));
         setShowConfirm({ type: null });
         setHasUnsavedChanges(true);
+
+        // Save changes to the database
+        await handleSaveAll();
     };
 
     // ===== Exercise CRUD =====
@@ -324,7 +376,7 @@ export default function WorkoutPlanner({
         exerciseId: string
     ) => setShowConfirm({ type: "exercise", phaseId, sessionId, exerciseId });
 
-    const confirmDeleteExerciseHandler = (
+    const confirmDeleteExerciseHandler = async (
         phaseId: string,
         sessionId: string,
         exerciseId: string
@@ -336,6 +388,9 @@ export default function WorkoutPlanner({
         );
         setShowConfirm({ type: null });
         setHasUnsavedChanges(true);
+
+        // Save changes to the database
+        await handleSaveAll();
     };
 
     // Reset the editingExercise state after the exercise has been saved or cancelled
@@ -486,6 +541,12 @@ export default function WorkoutPlanner({
             const draggedSession = newSessions[dragIndex];
             newSessions.splice(dragIndex, 1);
             newSessions.splice(hoverIndex, 0, draggedSession);
+
+            // Update orderNumber for each session based on its new position
+            // This ensures the UI state matches what will be saved in the database
+            newSessions.forEach((session, idx) => {
+                session.orderNumber = idx;
+            });
 
             return {
                 ...phase,
