@@ -207,6 +207,10 @@ function convertCsvRowsToPhases(
     const phases: Phase[] = [];
     const phaseMap = new Map<string, Phase>();
     const sessionMap = new Map<string, Session>();
+    
+    // Track phase and session order counters
+    let phaseOrderCounter = 0;
+    const sessionOrderCounters = new Map<string, number>();
 
     // Process each CSV row
     csvRows.forEach((row) => {
@@ -222,22 +226,34 @@ function convertCsvRowsToPhases(
                 name: phaseName,
                 isActive: false,
                 isExpanded: true,
+                orderNumber: phaseOrderCounter++, // Set order number for phase
                 sessions: [],
             };
             phaseMap.set(phaseName, phase);
             phases.push(phase);
+            
+            // Initialize session order counter for this phase
+            sessionOrderCounters.set(phaseName, 0);
         }
 
         // Create or get session
         let session = sessionMap.get(phaseSessionKey);
         if (!session) {
+            // Get the current session order counter for this phase
+            const sessionOrder = sessionOrderCounters.get(phaseName) || 0;
+            
             session = {
                 id: uuidv4(),
                 name: sessionName,
                 duration: 0, // Will be calculated later
                 isExpanded: true,
+                orderNumber: sessionOrder, // Set order number for session
                 exercises: [],
             };
+            
+            // Increment the session order counter for this phase
+            sessionOrderCounters.set(phaseName, sessionOrder + 1);
+            
             sessionMap.set(phaseSessionKey, session);
             phase.sessions.push(session);
         }
@@ -317,6 +333,27 @@ function convertCsvRowsToPhases(
 
         // Add exercise to session
         session.exercises.push(exercise);
+    });
+
+    // Sort phases by orderNumber
+    phases.sort((a, b) => {
+        return (a.orderNumber || 0) - (b.orderNumber || 0);
+    });
+
+    // Sort sessions within each phase by orderNumber
+    phases.forEach(phase => {
+        phase.sessions.sort((a, b) => {
+            return (a.orderNumber || 0) - (b.orderNumber || 0);
+        });
+        
+        // Sort exercises within each session by order
+        phase.sessions.forEach(session => {
+            session.exercises.sort((a, b) => {
+                const orderA = parseInt(a.order) || 0;
+                const orderB = parseInt(b.order) || 0;
+                return orderA - orderB;
+            });
+        });
     });
 
     // Set the first phase as active

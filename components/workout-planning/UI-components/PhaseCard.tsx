@@ -158,7 +158,7 @@ export function PhaseCard({
                                         onEditPhase(phase.id, phase.name)
                                     }
                                     disabled={isSaving}
-                                    className={`h-8 w-8 ${
+                                    className={`${
                                         isSaving
                                             ? "cursor-not-allowed"
                                             : "cursor-pointer"
@@ -239,7 +239,7 @@ export function PhaseCard({
                                                 }
                                                 id={`activate-${phase.id}`}
                                                 disabled={isSaving}
-                                                className={`h-8 w-8 ${
+                                                className={`${
                                                     isSaving
                                                         ? "cursor-not-allowed"
                                                         : "cursor-pointer"

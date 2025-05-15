@@ -1670,7 +1670,7 @@ export async function saveSession(
         if (!phase.length) {
             return {
                 success: false,
-                error: "Phase not found",
+                error: "Phase not found, save the plan first",
                 conflict: false,
                 planId: "",
                 updatedAt: new Date(),
