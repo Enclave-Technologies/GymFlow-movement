@@ -53,8 +53,6 @@ export async function updateWorkoutPlan(
 ): Promise<WorkoutPlanActionResponse> {
     const currentTrainer = await requireTrainerOrAdmin();
 
-    console.log("[UPDATING PLAN]", JSON.stringify(planData, null, 2));
-
     try {
         // Case 1: This is a new plan being created (planId and lastKnownUpdatedAt are empty)
         if (!planId || !lastKnownUpdatedAt) {
@@ -434,7 +432,7 @@ export async function updateWorkoutPlan(
                     orderNumber: phase.orderNumber ?? 0,
                     isActive: phase.isActive ?? true,
                 }));
-                console.log("Phases:\n", phasesToInsert);
+
                 await tx.insert(Phases).values(phasesToInsert);
             }
             // Insert new sessions
@@ -446,7 +444,7 @@ export async function updateWorkoutPlan(
                     orderNumber: session.orderNumber ?? 0,
                     sessionTime: session.duration ?? 0,
                 }));
-                console.log("Sessions:\n", sessionsToInsert);
+
                 await tx.insert(Sessions).values(sessionsToInsert);
             }
             // Insert new exercises
@@ -590,7 +588,7 @@ export async function updateWorkoutPlan(
                         };
                     })
                     .filter((e) => e !== null);
-                console.log("Exercises:\n", exercisesToInsert);
+
                 if (exercisesToInsert.length > 0) {
                     const chunkSize = 100;
                     for (
@@ -788,8 +786,6 @@ export async function createWorkoutPlan(
     }
 ): Promise<WorkoutPlanActionResponse> {
     try {
-        console.log("[CREATING PLAN]", JSON.stringify(planData, null, 2));
-
         // Create a new plan using a transaction
         const planId = uuidv4();
         const now = new Date();
@@ -1072,8 +1068,6 @@ export async function applyWorkoutPlanChanges(
     lastKnownUpdatedAt: Date,
     changes: WorkoutPlanChanges
 ): Promise<WorkoutPlanActionResponse> {
-    console.log("Starting applyWorkoutPlanChanges with planId:", planId);
-
     // Skip processing if there are no actual changes - fast path return
     const hasNoChanges =
         changes.created.phases.length === 0 &&
@@ -1087,7 +1081,6 @@ export async function applyWorkoutPlanChanges(
         changes.deleted.exercises.length === 0;
 
     if (hasNoChanges) {
-        console.log("No changes detected, returning early");
         return {
             success: true,
             planId: planId,
