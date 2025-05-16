@@ -97,12 +97,21 @@ export function SettingsForm({ user: initialUser }: SettingsFormProps) {
         const subscription = settingsForm.watch(() => {
             // Only set hasUnsavedChanges to true if the form values are different from the current user values
             const currentValues = settingsForm.getValues();
+
+            const normalizeValue = (value: string | null | undefined) =>
+                value === null || value === undefined || value === ""
+                    ? ""
+                    : value;
+
             const hasChanges =
                 currentValues.fullName !== user.fullName ||
                 currentValues.email !== user.email ||
-                currentValues.phone !== user.phone ||
-                currentValues.gender !== user.gender ||
-                currentValues.jobTitle !== user.jobTitle ||
+                normalizeValue(currentValues.phone) !==
+                    normalizeValue(user.phone) ||
+                normalizeValue(currentValues.gender) !==
+                    normalizeValue(user.gender) ||
+                normalizeValue(currentValues.jobTitle) !==
+                    normalizeValue(user.jobTitle) ||
                 imageFile !== null; // Also check if an image has been selected
 
             setHasUnsavedChanges(hasChanges);
