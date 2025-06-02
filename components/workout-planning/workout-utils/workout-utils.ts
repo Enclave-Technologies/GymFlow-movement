@@ -156,30 +156,39 @@ export async function refetchWorkoutPlan(
         response as WorkoutPlanResponse
       );
 
-      // Ensure phases are sorted by orderNumber and preserve expansion state
+      // Ensure phases are sorted by orderNumber and preserve expansion states
       const sortedPhases = [...mapped]
         .sort((a, b) => (a.orderNumber || 0) - (b.orderNumber || 0))
         .map((phase) => {
           // Find matching phase in current phases to preserve expansion state
           const currentPhase = currentPhases?.find((p) => p.id === phase.id);
+
+          // Map sessions and preserve their expansion states
+          const sessionsWithPreservedState = phase.sessions
+            .map((session) => {
+              // Find matching session in current phase to preserve expansion state
+              const currentSession = currentPhase?.sessions.find(
+                (s) => s.id === session.id
+              );
+              return {
+                ...session,
+                // Keep current session expansion state if it exists, otherwise use default (true)
+                isExpanded: currentSession ? currentSession.isExpanded : true,
+              };
+            })
+            .sort((a, b) => (a.orderNumber || 0) - (b.orderNumber || 0));
+
           return {
             ...phase,
-            // Keep current expansion state if it exists, otherwise use default (true)
+            // Keep current phase expansion state if it exists, otherwise use default (true)
             isExpanded: currentPhase ? currentPhase.isExpanded : true,
+            sessions: sessionsWithPreservedState,
           };
         });
 
-      // For each phase, ensure sessions are sorted by orderNumber
-      const phasesWithSortedSessions = sortedPhases.map((phase) => ({
-        ...phase,
-        sessions: [...phase.sessions].sort(
-          (a, b) => (a.orderNumber || 0) - (b.orderNumber || 0)
-        ),
-      }));
-
       // Update phases with the fetched data
       if (typeof updatePhases === "function") {
-        updatePhases(phasesWithSortedSessions);
+        updatePhases(sortedPhases);
       }
     }
   } catch (error) {
