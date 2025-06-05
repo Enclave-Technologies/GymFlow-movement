@@ -91,7 +91,7 @@ const DraggableSession = ({
         }
     }, [editingSession, session.id]);
 
-    // Set up drag
+    // Set up drag - DISABLED: Drag and drop is not necessary as trainers can start any workout routine
     const [{ isDragging }, drag] = useDrag({
         type: ItemTypes.SESSION,
         item: {
@@ -103,37 +103,20 @@ const DraggableSession = ({
         collect: (monitor) => ({
             isDragging: monitor.isDragging(),
         }),
-        canDrag: !isSaving, // Make sure this is added to disable dragging
+        canDrag: false, // Disabled: Drag and drop is not necessary for workout planning
     });
 
-    // Set up drop
+    // Set up drop - DISABLED: Drag and drop is not necessary as trainers can start any workout routine
     const [, drop] = useDrop({
         accept: ItemTypes.SESSION,
+        canDrop: () => false, // Disabled: Drag and drop is not necessary for workout planning
         hover(item: DragItem) {
-            if (!ref.current) {
-                return;
-            }
-
-            const dragIndex = item.index;
-            const hoverIndex = index;
-
-            // Don't replace items with themselves
-            if (dragIndex === hoverIndex) {
-                return;
-            }
-
-            // Call handleDragVisual for visual feedback during hover if it exists
-            if (handleDragVisual) {
-                handleDragVisual(item.phaseId, dragIndex, hoverIndex);
-            }
-
-            // Update the item's index for the next hover
-            item.index = hoverIndex;
+            // Disabled - no hover functionality needed
+            return;
         },
         drop(item: DragItem) {
-            // Always call moveSession when the drop is completed
-            // This ensures the unsaved changes UI is triggered and the order is saved
-            moveSession(item.phaseId, item.index, index);
+            // Disabled - no drop functionality needed
+            return;
         },
     });
 
@@ -150,12 +133,8 @@ const DraggableSession = ({
         >
             <div className="flex items-center justify-between p-2 bg-muted rounded-md">
                 <div className="flex items-center">
-                    <span
-                        className={`mr-2 ${
-                            isSaving ? "cursor-not-allowed" : "cursor-move"
-                        }`}
-                    >
-                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    <span className="mr-2 cursor-default">
+                        <GripVertical className="h-4 w-4 text-muted-foreground/50" />
                     </span>
                     <Button
                         variant="ghost"
