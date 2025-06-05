@@ -33,7 +33,7 @@ export async function get_user_account() {
         const { account } = await createSessionClient(session);
         const appwriteUser = await account.get();
 
-        const user = await getUserById(appwriteUser.$id);
+        const user = await getUserByAppwriteId(appwriteUser.$id);
 
         return {
             ...user,
@@ -554,7 +554,7 @@ export async function uploadUserImage(
 
         // Create a new File object with the WebP data
         const webpFile = new File(
-            [webpBuffer],
+            [new Uint8Array(webpBuffer)],
             `${file.name.split(".")[0]}.webp`,
             {
                 type: "image/webp",
