@@ -391,21 +391,11 @@ const GoalList = ({
 
     if (loading) {
         return (
-            <div className="space-y-8">
-                <div className="flex gap-2 mt-4">
-                    <div className="h-10 w-32 bg-muted animate-pulse rounded-md"></div>
-                    <div className="h-10 w-32 bg-muted animate-pulse rounded-md"></div>
+            <div className="flex items-center justify-center py-12">
+                <div className="flex items-center space-x-3">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <span className="text-foreground">Loading goals...</span>
                 </div>
-
-                {[1, 2, 3].map((i) => (
-                    <div key={i} className="mb-6">
-                        <div className="h-7 w-40 bg-muted animate-pulse rounded-md mb-4"></div>
-                        <div className="space-y-2">
-                            <div className="h-16 bg-muted animate-pulse rounded-lg"></div>
-                            <div className="h-16 bg-muted animate-pulse rounded-lg"></div>
-                        </div>
-                    </div>
-                ))}
             </div>
         );
     }

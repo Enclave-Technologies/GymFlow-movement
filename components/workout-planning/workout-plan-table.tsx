@@ -18,7 +18,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Clock, Dumbbell } from "lucide-react";
+import { Clock, Dumbbell, Loader2 } from "lucide-react";
 import Link from "next/link";
 import type { Phase } from "./types";
 import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
@@ -90,7 +90,7 @@ export default function WorkoutPlanTable({
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         <span className="ml-2 text-gray-600">
                             Loading workout plan...
                         </span>
