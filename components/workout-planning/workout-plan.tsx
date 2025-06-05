@@ -911,7 +911,9 @@ export default function WorkoutPlanner({
                 isVisible={isReorderingSessions}
                 message="Updating session order..."
             />
-            <div className="flex-1 w-full p-2 overflow-hidden flex flex-col">
+
+            {/* Fixed Toolbar */}
+            <div className="flex-shrink-0 w-full p-2 bg-card border-b border-border sticky top-0 z-10">
                 <WorkoutToolbar
                     onAddPhase={handleAddPhase}
                     onSaveAll={handleSaveAll}
@@ -925,38 +927,43 @@ export default function WorkoutPlanner({
                     updatePhases={updatePhases}
                     setHasUnsavedChanges={setHasUnsavedChanges}
                 />
+            </div>
 
-                <PhaseList
-                    phases={phases}
-                    isLoading={isLoading}
-                    isSaving={isSaving}
-                    // Phase handlers
-                    onToggleExpand={handleTogglePhaseExpansion}
-                    onAddSession={addSessionHandler}
-                    onEditPhase={handleStartEditPhase}
-                    onDeletePhase={handleDeletePhase}
-                    onDuplicatePhase={handleDuplicatePhase}
-                    onToggleActivation={handleTogglePhaseActivation}
-                    editingPhase={editingPhase}
-                    editPhaseValue={editPhaseValue}
-                    onSavePhaseEdit={handleSavePhaseEdit}
-                    onEditPhaseValueChange={setEditPhaseValue}
-                    // Session handlers
-                    onToggleSession={toggleSessionExpansionHandler}
-                    onDeleteSession={deleteSessionHandler}
-                    onDuplicateSession={duplicateSessionHandler}
-                    onAddExercise={addExerciseHandler}
-                    onStartSession={startSession}
-                    startingSessionId={startingSessionId}
-                    onStartEditSession={startEditSession}
-                    onMoveSession={moveSession}
-                    onDragVisual={handleDragVisual}
-                    onRenderExercises={renderExercisesTable}
-                    editingSession={editingSession}
-                    editSessionValue={editSessionValue}
-                    onSaveSessionEdit={saveSessionEdit}
-                    onEditSessionValueChange={setEditSessionValue}
-                />
+            {/* Scrollable Content Area */}
+            <div className="flex-1 w-full overflow-y-auto overflow-x-hidden">
+                <div className="p-2">
+                    <PhaseList
+                        phases={phases}
+                        isLoading={isLoading}
+                        isSaving={isSaving}
+                        // Phase handlers
+                        onToggleExpand={handleTogglePhaseExpansion}
+                        onAddSession={addSessionHandler}
+                        onEditPhase={handleStartEditPhase}
+                        onDeletePhase={handleDeletePhase}
+                        onDuplicatePhase={handleDuplicatePhase}
+                        onToggleActivation={handleTogglePhaseActivation}
+                        editingPhase={editingPhase}
+                        editPhaseValue={editPhaseValue}
+                        onSavePhaseEdit={handleSavePhaseEdit}
+                        onEditPhaseValueChange={setEditPhaseValue}
+                        // Session handlers
+                        onToggleSession={toggleSessionExpansionHandler}
+                        onDeleteSession={deleteSessionHandler}
+                        onDuplicateSession={duplicateSessionHandler}
+                        onAddExercise={addExerciseHandler}
+                        onStartSession={startSession}
+                        startingSessionId={startingSessionId}
+                        onStartEditSession={startEditSession}
+                        onMoveSession={moveSession}
+                        onDragVisual={handleDragVisual}
+                        onRenderExercises={renderExercisesTable}
+                        editingSession={editingSession}
+                        editSessionValue={editSessionValue}
+                        onSaveSessionEdit={saveSessionEdit}
+                        onEditSessionValueChange={setEditSessionValue}
+                    />
+                </div>
             </div>
 
             {/* Confirm Delete Dialog */}

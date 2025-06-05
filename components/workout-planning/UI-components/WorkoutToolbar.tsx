@@ -37,7 +37,7 @@ export function WorkoutToolbar({
     setHasUnsavedChanges,
 }: WorkoutToolbarProps) {
     return (
-        <div className="mb-2 flex items-center gap-2">
+        <div className="flex items-center gap-2">
             {/* Toolbar buttons and indicators */}
             <Tooltip>
                 <TooltipTrigger asChild>
