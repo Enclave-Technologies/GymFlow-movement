@@ -79,6 +79,15 @@ export default function WorkoutPlanner({
         serverTime: Date;
     } | null>(null);
     const [isReorderingSessions, setIsReorderingSessions] = useState(false);
+    const [saveStatus, setSaveStatus] = useState<
+        "editing" | "queued" | "saving" | "saved"
+    >("saved");
+
+    // ===== Phase 2: Smart Batching & Background Sync =====
+    const [exerciseUpdateQueue, setExerciseUpdateQueue] = useState<
+        Map<string, Exercise>
+    >(new Map());
+    const [backgroundSyncActive, setBackgroundSyncActive] = useState(false);
 
     // ===== Editing State =====
     const [editingPhase, setEditingPhase] = useState<string | null>(null);
@@ -161,14 +170,140 @@ export default function WorkoutPlanner({
     };
 
     // Wrapped updatePhases to add logging
-    const updatePhases = (
-        newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
-    ) => {
-        updatePhasesOriginal(newPhases);
-        if (Array.isArray(newPhases)) {
-            formatPhasesForLogging(newPhases);
+    const updatePhases = useCallback(
+        (newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])) => {
+            updatePhasesOriginal(newPhases);
+            if (Array.isArray(newPhases)) {
+                formatPhasesForLogging(newPhases);
+            }
+        },
+        [updatePhasesOriginal]
+    );
+
+    // ===== Local Storage Backup =====
+    const localStorageKey = `workout-plan-${client_id}`;
+
+    // Save to localStorage immediately for instant persistence feel
+    const saveToLocalStorage = useCallback(
+        (phases: Phase[]) => {
+            try {
+                localStorage.setItem(
+                    localStorageKey,
+                    JSON.stringify({
+                        phases,
+                        timestamp: Date.now(),
+                        version: "1.0",
+                    })
+                );
+                console.log("Saved to localStorage");
+                setSaveStatus("queued"); // Show queued status
+            } catch (error) {
+                console.error("Failed to save to localStorage:", error);
+            }
+        },
+        [localStorageKey]
+    );
+
+    // Auto-save to localStorage whenever phases change
+    useEffect(() => {
+        if (phases.length > 0) {
+            saveToLocalStorage(phases);
         }
-    };
+    }, [phases, saveToLocalStorage]);
+
+    // Restore from localStorage on initial load
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(localStorageKey);
+            if (saved && phases.length === 0 && !isLoading) {
+                const data = JSON.parse(saved);
+                if (data.phases && Array.isArray(data.phases)) {
+                    console.log("Restored from localStorage");
+                    updatePhases(data.phases);
+                    setHasUnsavedChanges(true); // Mark as needing server save
+                    setSaveStatus("queued");
+                }
+            }
+        } catch (error) {
+            console.error("Failed to restore from localStorage:", error);
+        }
+    }, [localStorageKey, phases.length, isLoading, updatePhases]);
+
+    // ===== Selective Field Updates =====
+    // const getChangedFields = useCallback(
+    //     (original: Exercise, updated: Exercise) => {
+    //         const changes: Partial<Exercise> = {};
+    //         const fieldsToCheck: (keyof Exercise)[] = [
+    //             "description",
+    //             "order",
+    //             "motion",
+    //             "targetArea",
+    //             "setsMin",
+    //             "setsMax",
+    //             "repsMin",
+    //             "repsMax",
+    //             "restMin",
+    //             "restMax",
+    //             "tempo",
+    //             "additionalInfo",
+    //             "customizations",
+    //             "notes",
+    //             "duration",
+    //         ];
+
+    //         fieldsToCheck.forEach((field) => {
+    //             if (original[field] !== updated[field]) {
+    //                 (changes as any)[field] = updated[field];
+    //             }
+    //         });
+
+    //         return changes;
+    //     },
+    //     []
+    // );
+
+    // ===== Preemptive Validation =====
+    const validateWorkoutPlan = useCallback((phases: Phase[]) => {
+        const errors: string[] = [];
+
+        phases.forEach((phase, phaseIndex) => {
+            if (!phase.name?.trim()) {
+                errors.push(`Phase ${phaseIndex + 1} is missing a name`);
+            }
+
+            phase.sessions.forEach((session, sessionIndex) => {
+                if (!session.name?.trim()) {
+                    errors.push(
+                        `Session ${sessionIndex + 1} in Phase "${
+                            phase.name
+                        }" is missing a name`
+                    );
+                }
+
+                session.exercises.forEach((exercise, exerciseIndex) => {
+                    if (!exercise.description?.trim()) {
+                        errors.push(
+                            `Exercise ${exerciseIndex + 1} in Session "${
+                                session.name
+                            }" is missing a description`
+                        );
+                    }
+                    if (!exercise.order?.trim()) {
+                        errors.push(
+                            `Exercise ${exerciseIndex + 1} in Session "${
+                                session.name
+                            }" is missing an order`
+                        );
+                    }
+                });
+            });
+        });
+
+        return {
+            isValid: errors.length === 0,
+            errors,
+        };
+    }, []);
 
     // ===== Global Save =====
     const handleSaveAll = useCallback(async () => {
@@ -176,20 +311,46 @@ export default function WorkoutPlanner({
         const currentPhases = latestPhasesRef.current;
         console.log("Saving phases:", currentPhases.length);
 
-        await saveAll(
-            currentPhases, // Use ref value instead of state value
-            planId,
-            lastKnownUpdatedAt,
-            client_id,
-            setSaving,
-            setPlanId,
-            setLastKnownUpdatedAt,
-            setHasUnsavedChanges,
-            setConflictError,
-            setSavePerformed,
-            updatePhases,
-            trainer_id
-        );
+        // Preemptive validation
+        const validation = validateWorkoutPlan(currentPhases);
+        if (!validation.isValid) {
+            toast.error(`Cannot save: ${validation.errors[0]}`);
+            return;
+        }
+
+        setSaveStatus("saving");
+
+        try {
+            await saveAll(
+                currentPhases, // Use ref value instead of state value
+                planId,
+                lastKnownUpdatedAt,
+                client_id,
+                setSaving,
+                setPlanId,
+                setLastKnownUpdatedAt,
+                setHasUnsavedChanges,
+                setConflictError,
+                setSavePerformed,
+                updatePhases,
+                trainer_id
+            );
+            setSaveStatus("saved");
+
+            // Show success message
+            toast.success("Saved successfully");
+
+            // Clear localStorage after successful save
+            try {
+                localStorage.removeItem(localStorageKey);
+                console.log("Cleared localStorage after successful save");
+            } catch (error) {
+                console.error("Failed to clear localStorage:", error);
+            }
+        } catch (error) {
+            console.error("Save failed:", error);
+            setSaveStatus("queued"); // Reset to queued on failure
+        }
     }, [
         planId,
         lastKnownUpdatedAt,
@@ -202,7 +363,44 @@ export default function WorkoutPlanner({
         setSavePerformed,
         updatePhases,
         trainer_id,
+        validateWorkoutPlan,
+        localStorageKey,
     ]);
+
+    // ===== Background Sync Queue =====
+    const processExerciseUpdateQueue = useCallback(async () => {
+        if (exerciseUpdateQueue.size === 0 || backgroundSyncActive) return;
+
+        setBackgroundSyncActive(true);
+        console.log(
+            `Processing ${exerciseUpdateQueue.size} queued exercise updates`
+        );
+
+        try {
+            // For now, we'll still use the full save approach
+            // In a real implementation, you'd send only the changed exercises
+            await handleSaveAll();
+
+            // Clear the queue after successful save
+            setExerciseUpdateQueue(new Map());
+            console.log("Exercise update queue processed successfully");
+        } catch (error) {
+            console.error("Failed to process exercise update queue:", error);
+        } finally {
+            setBackgroundSyncActive(false);
+        }
+    }, [exerciseUpdateQueue, backgroundSyncActive, handleSaveAll]);
+
+    // Process queue every 5 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (exerciseUpdateQueue.size > 0) {
+                processExerciseUpdateQueue();
+            }
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [exerciseUpdateQueue.size, processExerciseUpdateQueue]);
 
     // ===== Phase CRUD =====
     const handleAddPhase = () => {
@@ -363,15 +561,21 @@ export default function WorkoutPlanner({
         console.log("Session:", session.name, "(", sessionId, ")");
         console.log("Exercise:", JSON.stringify(exercise, null, 2));
 
-        // Show immediate optimistic feedback
-        toast.success("Exercise updated", {
-            duration: 2000,
-            description:
-                "Click 'Save All' to save your changes to the database",
+        // Add to background sync queue for smart batching
+        setExerciseUpdateQueue((prev) => {
+            const newQueue = new Map(prev);
+            newQueue.set(exercise.id, exercise);
+            return newQueue;
         });
 
-        // Mark as having unsaved changes for manual save
+        // Show simple feedback
+        toast.success("Exercise updated", {
+            duration: 1000,
+        });
+
+        // Mark as having unsaved changes and update status
         setHasUnsavedChanges(true);
+        setSaveStatus("queued");
     };
 
     const addExerciseHandler = (phaseId: string, sessionId: string) => {
@@ -713,6 +917,7 @@ export default function WorkoutPlanner({
                     onSaveAll={handleSaveAll}
                     hasUnsavedChanges={hasUnsavedChanges}
                     isSaving={isSaving}
+                    saveStatus={saveStatus}
                     conflictError={conflictError}
                     client_id={client_id}
                     phases={phases}

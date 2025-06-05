@@ -7,13 +7,14 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import WorkoutPlanCsvImportExport from "./workout-plan-csv-import-export";
-import { Loader2, Plus, SaveAllIcon } from "lucide-react";
+import { Check, Loader2, Plus, SaveAllIcon } from "lucide-react";
 
 type WorkoutToolbarProps = {
     onAddPhase: () => void;
     onSaveAll: () => void;
     hasUnsavedChanges: boolean;
     isSaving: boolean;
+    saveStatus?: "editing" | "queued" | "saving" | "saved";
     conflictError: { message: string } | null;
     client_id: string;
     phases: Phase[];
@@ -27,6 +28,7 @@ export function WorkoutToolbar({
     onSaveAll,
     hasUnsavedChanges,
     isSaving,
+    saveStatus = "saved",
     conflictError,
     client_id,
     phases,
@@ -83,9 +85,22 @@ export function WorkoutToolbar({
                 disabled={isSaving}
             />
 
-            {hasUnsavedChanges && (
+            {/* Simple Status Indicators */}
+            {hasUnsavedChanges && !isSaving && (
                 <span className="ml-2 text-yellow-600 font-medium text-sm">
                     * You have unsaved changes
+                </span>
+            )}
+            {isSaving && (
+                <span className="ml-2 text-blue-600 font-medium text-sm flex items-center">
+                    <Loader2 className="animate-spin h-4 w-4 mr-1" />
+                    Saving...
+                </span>
+            )}
+            {saveStatus === "saved" && !hasUnsavedChanges && !isSaving && (
+                <span className="ml-2 text-green-600 font-medium text-sm flex items-center">
+                    <Check className="h-4 w-4 mr-1" />
+                    Saved successfully
                 </span>
             )}
             {conflictError && (
