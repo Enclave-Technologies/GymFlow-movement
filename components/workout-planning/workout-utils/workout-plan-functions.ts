@@ -29,20 +29,8 @@ export async function saveAll(
     // Set saving state
     setSaving(true);
 
-    // Reassign orderNumbers sequentially to avoid stale order conflicts
-    const phasesWithOrder = phases.map((phase, index) => ({
-        ...phase,
-        orderNumber: index,
-        sessions: phase.sessions
-            ? phase.sessions
-                  .slice()
-                  .sort((a, b) => (a.orderNumber ?? 0) - (b.orderNumber ?? 0))
-                  .map((session, sessionIndex) => ({
-                      ...session,
-                      orderNumber: sessionIndex,
-                  }))
-            : [],
-    }));
+    // Use phases as-is since orderNumbers are now timestamps and sorting is handled elsewhere
+    const phasesWithOrder = phases;
 
     try {
         let result;

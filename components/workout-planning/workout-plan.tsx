@@ -362,7 +362,7 @@ export default function WorkoutPlanner({
             setSaveStatus("saved");
 
             // Show success message
-            toast.success("Saved successfully");
+            // toast.success("Saved successfully");
 
             // Invalidate the workout plan cache so the read-only table will refetch
             invalidateWorkoutPlanCache(client_id);

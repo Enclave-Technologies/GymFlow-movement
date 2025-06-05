@@ -81,7 +81,20 @@ export function WorkoutToolbar({
             <WorkoutPlanCsvImportExport
                 phases={phases}
                 onImport={(importedPhases) => {
-                    updatePhases(importedPhases);
+                    // Use timestamp-based order numbers to avoid conflicts (future-proof for 100+ years)
+                    const baseTimestamp = Math.floor(Date.now() / 10000);
+
+                    // Update imported phases with timestamp-based order numbers and deactivate them
+                    const phasesWithCorrectOrder = importedPhases.map(
+                        (phase, index) => ({
+                            ...phase,
+                            orderNumber: baseTimestamp + index, // Use timestamp + index for unique ordering
+                            isActive: false, // Ensure all imported phases are deactivated
+                        })
+                    );
+
+                    // Append to existing phases instead of replacing
+                    updatePhases([...phases, ...phasesWithCorrectOrder]);
                     setHasUnsavedChanges(true);
                 }}
                 clientId={client_id}

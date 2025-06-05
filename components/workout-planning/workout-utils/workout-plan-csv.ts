@@ -207,10 +207,10 @@ function convertCsvRowsToPhases(
     const phases: Phase[] = [];
     const phaseMap = new Map<string, Phase>();
     const sessionMap = new Map<string, Session>();
-    
-    // Track phase and session order counters
-    let phaseOrderCounter = 0;
+
+    // Track session order counters and use timestamp for phase ordering
     const sessionOrderCounters = new Map<string, number>();
+    const baseTimestamp = Math.floor(Date.now() / 10000);
 
     // Process each CSV row
     csvRows.forEach((row) => {
@@ -226,12 +226,12 @@ function convertCsvRowsToPhases(
                 name: phaseName,
                 isActive: false,
                 isExpanded: true,
-                orderNumber: phaseOrderCounter++, // Set order number for phase
+                orderNumber: baseTimestamp, // Use timestamp for unique ordering
                 sessions: [],
             };
             phaseMap.set(phaseName, phase);
             phases.push(phase);
-            
+
             // Initialize session order counter for this phase
             sessionOrderCounters.set(phaseName, 0);
         }
@@ -241,7 +241,7 @@ function convertCsvRowsToPhases(
         if (!session) {
             // Get the current session order counter for this phase
             const sessionOrder = sessionOrderCounters.get(phaseName) || 0;
-            
+
             session = {
                 id: uuidv4(),
                 name: sessionName,
@@ -250,10 +250,10 @@ function convertCsvRowsToPhases(
                 orderNumber: sessionOrder, // Set order number for session
                 exercises: [],
             };
-            
+
             // Increment the session order counter for this phase
             sessionOrderCounters.set(phaseName, sessionOrder + 1);
-            
+
             sessionMap.set(phaseSessionKey, session);
             phase.sessions.push(session);
         }
@@ -335,19 +335,19 @@ function convertCsvRowsToPhases(
         session.exercises.push(exercise);
     });
 
-    // Sort phases by orderNumber
-    phases.sort((a, b) => {
-        return (a.orderNumber || 0) - (b.orderNumber || 0);
+    // Assign timestamp-based order numbers to phases based on their appearance in CSV
+    phases.forEach((phase, index) => {
+        phase.orderNumber = baseTimestamp + index;
     });
 
     // Sort sessions within each phase by orderNumber
-    phases.forEach(phase => {
+    phases.forEach((phase) => {
         phase.sessions.sort((a, b) => {
             return (a.orderNumber || 0) - (b.orderNumber || 0);
         });
-        
+
         // Sort exercises within each session by order
-        phase.sessions.forEach(session => {
+        phase.sessions.forEach((session) => {
             session.exercises.sort((a, b) => {
                 const orderA = parseInt(a.order) || 0;
                 const orderB = parseInt(b.order) || 0;
@@ -356,10 +356,8 @@ function convertCsvRowsToPhases(
         });
     });
 
-    // Set the first phase as active
-    if (phases.length > 0) {
-        phases[0].isActive = true;
-    }
+    // Keep all imported phases deactivated to avoid conflicts with existing active phases
+    // Trainers can manually activate phases as needed
 
     return phases;
 }
