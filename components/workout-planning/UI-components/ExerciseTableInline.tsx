@@ -278,7 +278,11 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
             setHasUnsavedChanges(true);
         }
 
-        // Trigger a save of the workout plan
+        // End editing mode immediately for better UX
+        setEditingExerciseRow(null);
+        onEditEnd();
+
+        // Trigger a save of the workout plan (this will now be debounced)
         if (onSaveExercise) {
             onSaveExercise(
                 phase.id,
@@ -287,9 +291,6 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                 editingExerciseRow
             );
         }
-
-        setEditingExerciseRow(null);
-        onEditEnd();
     }, [
         editingExerciseRow,
         phase.id,

@@ -88,12 +88,6 @@ export function WorkoutToolbar({
                     * You have unsaved changes
                 </span>
             )}
-            {/* {isSaving && (
-                <span className="ml-2 text-blue-600 font-medium text-sm flex items-center">
-                    <Loader2 className="animate-spin h-4 w-4 mr-1" />
-                    Saving...
-                </span>
-            )} */}
             {conflictError && (
                 <span className="ml-2 text-red-600 font-medium text-sm">
                     * {conflictError.message}
