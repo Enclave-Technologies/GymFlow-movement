@@ -75,6 +75,10 @@ interface ExerciseTableInlineProps {
     //     exerciseData: Partial<Exercise>
     // ) => void;
     isSaving: boolean;
+    isAnyOperationInProgress?: boolean;
+    onEditingStart?: (exerciseId: string) => void;
+    onEditingEnd?: (exerciseId: string) => void;
+    onEditingChange?: () => void;
 }
 
 // Derive motion and target area options from the exercises list
@@ -115,6 +119,10 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
     setHasUnsavedChanges,
     onSaveExercise,
     isSaving,
+    isAnyOperationInProgress = false,
+    onEditingStart,
+    onEditingEnd,
+    onEditingChange,
 }) => {
     // Memoize motion and target area options to prevent recalculation on every render
     const exerciseMotionOptions = useMemo(
@@ -145,11 +153,15 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
             if (exercise) {
                 setEditingExerciseRow({ ...exercise });
                 setShouldFocusFirstCell(true); // Set flag to focus on entering edit mode
+                // Notify parent that editing has started
+                if (onEditingStart) {
+                    onEditingStart(editingExerciseId);
+                }
             }
         } else {
             setEditingExerciseRow(null);
         }
-    }, [editingExerciseId, session.exercises]);
+    }, [editingExerciseId, session.exercises, onEditingStart]);
 
     // Focus the first input when shouldFocusFirstCell is true
     useEffect(() => {
@@ -168,8 +180,12 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                 ...editingExerciseRow,
                 [field]: value,
             });
+            // Notify parent that a change was made
+            if (onEditingChange) {
+                onEditingChange();
+            }
         },
-        [editingExerciseRow]
+        [editingExerciseRow, onEditingChange]
     );
 
     const saveInlineExercise = useCallback(() => {
@@ -278,6 +294,11 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
             setHasUnsavedChanges(true);
         }
 
+        // Notify parent that editing has ended
+        if (onEditingEnd) {
+            onEditingEnd(editingExerciseRow.id);
+        }
+
         // End editing mode immediately for better UX
         setEditingExerciseRow(null);
         onEditEnd();
@@ -302,6 +323,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
         onEditEnd,
         exercises,
         onSaveExercise,
+        onEditingEnd,
     ]);
 
     const cancelInlineExercise = useCallback(() => {
@@ -341,6 +363,10 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                     )
                 );
             }
+            // Notify parent that editing has ended
+            if (onEditingEnd) {
+                onEditingEnd(editingExerciseRow.id);
+            }
         }
         setEditingExerciseRow(null);
         onEditEnd();
@@ -352,6 +378,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
         calculateSessionDuration,
         updatePhases,
         onEditEnd,
+        onEditingEnd,
     ]);
 
     // Memoize filtered exercises based on search term
@@ -516,6 +543,12 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                                                                         };
                                                                                     }
                                                                                 );
+                                                                                // Notify parent that a change was made
+                                                                                if (
+                                                                                    onEditingChange
+                                                                                ) {
+                                                                                    onEditingChange();
+                                                                                }
                                                                                 console.log(
                                                                                     "Selected exercise:",
                                                                                     selectedExercise.exerciseName,
@@ -875,6 +908,9 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                                         phaseId={phase.id}
                                         sessionId={session.id}
                                         isSaving={isSaving}
+                                        isAnyOperationInProgress={
+                                            isAnyOperationInProgress
+                                        }
                                     />
                                 )
                         )}
@@ -897,6 +933,7 @@ interface ExerciseTableRowProps {
     phaseId: string;
     sessionId: string;
     isSaving: boolean;
+    isAnyOperationInProgress?: boolean;
 }
 
 const ExerciseTableRow: React.FC<ExerciseTableRowProps> = React.memo(
@@ -906,7 +943,8 @@ const ExerciseTableRow: React.FC<ExerciseTableRowProps> = React.memo(
         deleteExercise,
         phaseId,
         sessionId,
-        isSaving,
+        // isSaving,
+        isAnyOperationInProgress = false,
     }) => {
         // Memoize TUT calculation
         const calculatedTut = useMemo(() => {
@@ -982,7 +1020,7 @@ const ExerciseTableRow: React.FC<ExerciseTableRowProps> = React.memo(
                             size="icon"
                             onClick={() => onEditExercise(exercise.id)}
                             className="h-8 w-8 cursor-pointer"
-                            disabled={isSaving}
+                            disabled={isAnyOperationInProgress}
                         >
                             <Edit className="h-4 w-4" />
                         </Button>
@@ -993,7 +1031,7 @@ const ExerciseTableRow: React.FC<ExerciseTableRowProps> = React.memo(
                                 deleteExercise(phaseId, sessionId, exercise.id);
                             }}
                             className="h-8 w-8"
-                            disabled={isSaving}
+                            disabled={isAnyOperationInProgress}
                         >
                             <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>

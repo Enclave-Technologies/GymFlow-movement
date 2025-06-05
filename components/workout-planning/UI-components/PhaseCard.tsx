@@ -14,11 +14,13 @@ import type { Phase, Session } from "../types";
 import { Input } from "@/components/ui/input";
 import DraggableSession from "./draggable-session";
 import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 // import SessionList from "../session/SessionList";
 
 type PhaseCardProps = {
     phase: Phase;
     isSaving: boolean;
+    isAnyOperationInProgress?: boolean;
     // Phase handlers
     onToggleExpand: (phaseId: string) => void;
     onAddSession: (phaseId: string) => void;
@@ -59,6 +61,7 @@ type PhaseCardProps = {
 export function PhaseCard({
     phase,
     isSaving,
+    isAnyOperationInProgress = false,
     // Phase props
     onToggleExpand,
     onAddSession,
@@ -131,7 +134,14 @@ export function PhaseCard({
                                     className="h-8 w-48"
                                     onKeyDown={(e) => {
                                         if (e.key === "Enter") {
-                                            onSavePhaseEdit();
+                                            if (isSaving) {
+                                                // Provide feedback that save is already in progress
+                                                toast.info(
+                                                    "Save already in progress..."
+                                                );
+                                            } else {
+                                                onSavePhaseEdit();
+                                            }
                                         }
                                     }}
                                 />
@@ -140,6 +150,7 @@ export function PhaseCard({
                                     size="sm"
                                     onClick={onSavePhaseEdit}
                                     className="ml-2 cursor-pointer"
+                                    disabled={isSaving}
                                 >
                                     Save
                                 </Button>
@@ -161,9 +172,9 @@ export function PhaseCard({
                                     onClick={() =>
                                         onEditPhase(phase.id, phase.name)
                                     }
-                                    disabled={isSaving}
+                                    disabled={isAnyOperationInProgress}
                                     className={`${
-                                        isSaving
+                                        isAnyOperationInProgress
                                             ? "cursor-not-allowed"
                                             : "cursor-pointer"
                                     }`}
@@ -180,9 +191,9 @@ export function PhaseCard({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => onDeletePhase(phase.id)}
-                                    disabled={isSaving}
+                                    disabled={isAnyOperationInProgress}
                                     className={`h-8 w-8 ${
-                                        isSaving
+                                        isAnyOperationInProgress
                                             ? "cursor-not-allowed"
                                             : "cursor-pointer"
                                     }`}
@@ -199,9 +210,9 @@ export function PhaseCard({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => onDuplicatePhase(phase.id)}
-                                    disabled={isSaving}
+                                    disabled={isAnyOperationInProgress}
                                     className={`h-8 w-8 ${
-                                        isSaving
+                                        isAnyOperationInProgress
                                             ? "cursor-not-allowed"
                                             : "cursor-pointer"
                                     }`}
@@ -218,9 +229,9 @@ export function PhaseCard({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => onAddSession(phase.id)}
-                                    disabled={isSaving}
+                                    disabled={isAnyOperationInProgress}
                                     className={`h-8 w-8 ${
-                                        isSaving
+                                        isAnyOperationInProgress
                                             ? "cursor-not-allowed"
                                             : "cursor-pointer"
                                     }`}
@@ -277,6 +288,9 @@ export function PhaseCard({
                                 key={session.id}
                                 phase={phase}
                                 isSaving={isSaving}
+                                isAnyOperationInProgress={
+                                    isAnyOperationInProgress
+                                }
                                 session={session}
                                 index={index}
                                 toggleSessionExpansion={onToggleSession}

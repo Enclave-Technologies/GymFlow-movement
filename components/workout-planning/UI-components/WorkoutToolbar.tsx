@@ -21,6 +21,7 @@ type WorkoutToolbarProps = {
     exercises: SelectExercise[];
     updatePhases: (phases: Phase[]) => void;
     setHasUnsavedChanges: (value: boolean) => void;
+    isAnyOperationInProgress?: boolean;
 };
 
 export function WorkoutToolbar({
@@ -35,6 +36,7 @@ export function WorkoutToolbar({
     exercises,
     updatePhases,
     setHasUnsavedChanges,
+    isAnyOperationInProgress = false,
 }: WorkoutToolbarProps) {
     return (
         <div className="flex items-center gap-2">
@@ -44,7 +46,7 @@ export function WorkoutToolbar({
                     <Button
                         onClick={onAddPhase}
                         className="cursor-pointer h-10"
-                        disabled={isSaving}
+                        disabled={isAnyOperationInProgress}
                     >
                         <Plus className="h-4 w-4 mr-2" /> Add Phase
                     </Button>
@@ -57,7 +59,9 @@ export function WorkoutToolbar({
                     <Button
                         onClick={onSaveAll}
                         className="cursor-pointer h-10"
-                        disabled={!hasUnsavedChanges || isSaving}
+                        disabled={
+                            !hasUnsavedChanges || isAnyOperationInProgress
+                        }
                         variant={hasUnsavedChanges ? "default" : "outline"}
                     >
                         {isSaving ? (
@@ -82,7 +86,7 @@ export function WorkoutToolbar({
                 }}
                 clientId={client_id}
                 exercises={exercises}
-                disabled={isSaving}
+                disabled={isAnyOperationInProgress}
             />
 
             {/* Simple Status Indicators */}

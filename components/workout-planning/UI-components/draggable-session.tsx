@@ -9,7 +9,7 @@ import {
     ChevronUp,
     Copy,
     Edit,
-    GripVertical,
+    // GripVertical,
     Loader,
     Plus,
     Trash2,
@@ -19,20 +19,22 @@ export const ItemTypes = {
     SESSION: "session",
 };
 
-type DragItem = {
-    id: string;
-    index: number;
-    phaseId: string;
-    type: string;
-};
+// type DragItem = {
+//     id: string;
+//     index: number;
+//     phaseId: string;
+//     type: string;
+// };
 
 import { Phase, Session } from "../types";
 import { TooltipContent, Tooltip, TooltipTrigger } from "../../ui/tooltip";
+import { toast } from "sonner";
 
 type DraggableSessionProps = {
     phase: Phase;
     session: Session;
     isSaving: boolean;
+    isAnyOperationInProgress?: boolean;
     index: number;
     toggleSessionExpansion: (phaseId: string, sessionId: string) => void;
     deleteSession: (phaseId: string, sessionId: string) => void;
@@ -62,6 +64,7 @@ const DraggableSession = ({
     phase,
     session,
     isSaving,
+    isAnyOperationInProgress = false,
     index,
     toggleSessionExpansion,
     deleteSession,
@@ -70,13 +73,11 @@ const DraggableSession = ({
     startSession,
     startingSessionId,
     startEditSession,
-    moveSession,
     renderExercisesTable,
     editingSession,
     editSessionValue,
     saveSessionEdit,
     setEditSessionValue,
-    handleDragVisual,
 }: DraggableSessionProps) => {
     const ref = useRef<HTMLDivElement>(null);
 
@@ -110,11 +111,11 @@ const DraggableSession = ({
     const [, drop] = useDrop({
         accept: ItemTypes.SESSION,
         canDrop: () => false, // Disabled: Drag and drop is not necessary for workout planning
-        hover(item: DragItem) {
+        hover() {
             // Disabled - no hover functionality needed
             return;
         },
-        drop(item: DragItem) {
+        drop() {
             // Disabled - no drop functionality needed
             return;
         },
@@ -133,9 +134,9 @@ const DraggableSession = ({
         >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 bg-muted rounded-md gap-2 w-full overflow-hidden">
                 <div className="flex items-center min-w-0 flex-1">
-                    <span className="mr-2 cursor-default">
+                    {/* <span className="mr-2 cursor-default">
                         <GripVertical className="h-4 w-4 text-muted-foreground/50" />
-                    </span>
+                    </span> */}
                     <Button
                         variant="ghost"
                         size="sm"
@@ -161,7 +162,14 @@ const DraggableSession = ({
                                 className="h-8 w-32 sm:w-48"
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter") {
-                                        saveSessionEdit();
+                                        if (isSaving) {
+                                            // Provide feedback that save is already in progress
+                                            toast.info(
+                                                "Save already in progress..."
+                                            );
+                                        } else {
+                                            saveSessionEdit();
+                                        }
                                     }
                                 }}
                             />
@@ -170,6 +178,7 @@ const DraggableSession = ({
                                 size="sm"
                                 onClick={saveSessionEdit}
                                 className="ml-2 cursor-pointer"
+                                disabled={isSaving}
                             >
                                 Save
                             </Button>
@@ -188,9 +197,9 @@ const DraggableSession = ({
                                 onClick={() =>
                                     startEditSession(session.id, session.name)
                                 }
-                                disabled={isSaving}
+                                disabled={isAnyOperationInProgress}
                                 className={`h-8 w-8 ${
-                                    isSaving
+                                    isAnyOperationInProgress
                                         ? "cursor-not-allowed"
                                         : "cursor-pointer"
                                 }`}
@@ -209,9 +218,9 @@ const DraggableSession = ({
                                 onClick={() =>
                                     deleteSession(phase.id, session.id)
                                 }
-                                disabled={isSaving}
+                                disabled={isAnyOperationInProgress}
                                 className={`h-8 w-8 ${
-                                    isSaving
+                                    isAnyOperationInProgress
                                         ? "cursor-not-allowed"
                                         : "cursor-pointer"
                                 }`}
@@ -230,9 +239,9 @@ const DraggableSession = ({
                                 onClick={() =>
                                     duplicateSession(phase.id, session.id)
                                 }
-                                disabled={isSaving}
+                                disabled={isAnyOperationInProgress}
                                 className={`h-8 w-8 ${
-                                    isSaving
+                                    isAnyOperationInProgress
                                         ? "cursor-not-allowed"
                                         : "cursor-pointer"
                                 }`}
@@ -251,9 +260,9 @@ const DraggableSession = ({
                                 onClick={() =>
                                     addExercise(phase.id, session.id)
                                 }
-                                disabled={isSaving}
+                                disabled={isAnyOperationInProgress}
                                 className={`h-8 w-8 ${
-                                    isSaving
+                                    isAnyOperationInProgress
                                         ? "cursor-not-allowed"
                                         : "cursor-pointer"
                                 }`}
@@ -271,7 +280,7 @@ const DraggableSession = ({
                             !phase.isActive ||
                             session.exercises.length === 0 ||
                             startingSessionId === session.id ||
-                            isSaving
+                            isAnyOperationInProgress
                         }
                         onClick={() => startSession(session.id, phase.id)}
                     >

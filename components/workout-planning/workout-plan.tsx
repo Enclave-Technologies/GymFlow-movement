@@ -88,6 +88,13 @@ export default function WorkoutPlanner({
         Map<string, Exercise>
     >(new Map());
     const [backgroundSyncActive, setBackgroundSyncActive] = useState(false);
+    const [manualSaveInProgress, setManualSaveInProgress] = useState(false);
+
+    // ===== Active Editing State for Smart Auto-Save =====
+    const [activeEditingSessions, setActiveEditingSessions] = useState<
+        Set<string>
+    >(new Set());
+    const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // ===== Editing State =====
     const [editingPhase, setEditingPhase] = useState<string | null>(null);
@@ -111,6 +118,17 @@ export default function WorkoutPlanner({
     const [startingSessionId, setStartingSessionId] = useState<string | null>(
         null
     );
+
+    // ===== Computed States =====
+    // Comprehensive operation tracking to block all buttons during any operation
+    // Note: We don't include editingPhase/editingSession here because those are just UI states
+    // for inline editing - they shouldn't block other operations
+    const isAnyOperationInProgress =
+        isSaving ||
+        manualSaveInProgress ||
+        backgroundSyncActive ||
+        isReorderingSessions ||
+        startingSessionId !== null;
 
     // ===== Router =====
     const router = useRouter();
@@ -319,6 +337,7 @@ export default function WorkoutPlanner({
         }
 
         setSaveStatus("saving");
+        setManualSaveInProgress(true);
 
         try {
             await saveAll(
@@ -347,9 +366,15 @@ export default function WorkoutPlanner({
             } catch (error) {
                 console.error("Failed to clear localStorage:", error);
             }
+
+            // Clear the exercise update queue to prevent auto-save conflicts
+            setExerciseUpdateQueue(new Map());
+            console.log("Cleared exercise update queue after manual save");
         } catch (error) {
             console.error("Save failed:", error);
             setSaveStatus("queued"); // Reset to queued on failure
+        } finally {
+            setManualSaveInProgress(false);
         }
     }, [
         planId,
@@ -369,7 +394,13 @@ export default function WorkoutPlanner({
 
     // ===== Background Sync Queue =====
     const processExerciseUpdateQueue = useCallback(async () => {
-        if (exerciseUpdateQueue.size === 0 || backgroundSyncActive) return;
+        if (
+            exerciseUpdateQueue.size === 0 ||
+            backgroundSyncActive ||
+            manualSaveInProgress
+        ) {
+            return;
+        }
 
         setBackgroundSyncActive(true);
         console.log(
@@ -389,18 +420,67 @@ export default function WorkoutPlanner({
         } finally {
             setBackgroundSyncActive(false);
         }
-    }, [exerciseUpdateQueue, backgroundSyncActive, handleSaveAll]);
+    }, [
+        exerciseUpdateQueue,
+        backgroundSyncActive,
+        manualSaveInProgress,
+        handleSaveAll,
+    ]);
 
-    // Process queue every 5 seconds
-    useEffect(() => {
-        const interval = setInterval(() => {
-            if (exerciseUpdateQueue.size > 0) {
-                processExerciseUpdateQueue();
+    // Smart auto-save with editing-aware debouncing
+    const scheduleAutoSave = useCallback(() => {
+        // Clear any existing timer
+        if (autoSaveTimerRef.current) {
+            clearTimeout(autoSaveTimerRef.current);
+        }
+
+        // Determine delay based on whether editing is active
+        const baseDelay = 5000; // 5 seconds
+        const isActivelyEditing = activeEditingSessions.size > 0;
+        const delay = isActivelyEditing ? baseDelay * 2 : baseDelay; // 10 seconds if editing, 5 if not
+
+        console.log(
+            `Scheduling auto-save in ${delay}ms (editing: ${isActivelyEditing})`
+        );
+
+        autoSaveTimerRef.current = setTimeout(() => {
+            if (
+                exerciseUpdateQueue.size > 0 &&
+                !manualSaveInProgress &&
+                !backgroundSyncActive
+            ) {
+                // Double-check if still editing before processing
+                const stillEditing = activeEditingSessions.size > 0;
+                if (stillEditing) {
+                    console.log("Still editing, rescheduling auto-save...");
+                    scheduleAutoSave(); // Reschedule if still editing
+                } else {
+                    console.log("Processing auto-save queue");
+                    processExerciseUpdateQueue();
+                }
             }
-        }, 5000);
+        }, delay);
+    }, [
+        activeEditingSessions.size,
+        exerciseUpdateQueue.size,
+        manualSaveInProgress,
+        backgroundSyncActive,
+        processExerciseUpdateQueue,
+    ]);
 
-        return () => clearInterval(interval);
-    }, [exerciseUpdateQueue.size, processExerciseUpdateQueue]);
+    // Schedule auto-save when queue changes
+    useEffect(() => {
+        if (exerciseUpdateQueue.size > 0) {
+            scheduleAutoSave();
+        }
+
+        // Cleanup timer on unmount
+        return () => {
+            if (autoSaveTimerRef.current) {
+                clearTimeout(autoSaveTimerRef.current);
+            }
+        };
+    }, [exerciseUpdateQueue.size, scheduleAutoSave]);
 
     // ===== Phase CRUD =====
     const handleAddPhase = () => {
@@ -618,6 +698,53 @@ export default function WorkoutPlanner({
     const handleExerciseEditEnd = () => {
         setEditingExercise(null);
     };
+
+    // ===== Editing Session Tracking =====
+    const handleEditingStart = useCallback((exerciseId: string) => {
+        setActiveEditingSessions((prev) => {
+            const newSet = new Set(prev);
+            newSet.add(exerciseId);
+            return newSet;
+        });
+        console.log(`Started editing exercise: ${exerciseId}`);
+    }, []);
+
+    const handleEditingEnd = useCallback(
+        (exerciseId: string) => {
+            setActiveEditingSessions((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(exerciseId);
+                return newSet;
+            });
+            console.log(`Ended editing exercise: ${exerciseId}`);
+
+            // If no more active editing sessions and there are queued updates,
+            // trigger immediate save after a short delay
+            setTimeout(() => {
+                if (
+                    activeEditingSessions.size === 0 &&
+                    exerciseUpdateQueue.size > 0
+                ) {
+                    console.log(
+                        "No more active editing, triggering immediate save"
+                    );
+                    processExerciseUpdateQueue();
+                }
+            }, 500); // Small delay to ensure state has updated
+        },
+        [
+            activeEditingSessions.size,
+            exerciseUpdateQueue.size,
+            processExerciseUpdateQueue,
+        ]
+    );
+
+    const handleEditingChange = useCallback(() => {
+        // Reschedule auto-save when user makes changes
+        if (exerciseUpdateQueue.size > 0) {
+            scheduleAutoSave();
+        }
+    }, [exerciseUpdateQueue.size, scheduleAutoSave]);
 
     // ===== Phase/Session/Exercise Editing State =====
     const handleStartEditPhase = (id: string, name: string) => {
@@ -901,6 +1028,10 @@ export default function WorkoutPlanner({
                 setHasUnsavedChanges={setHasUnsavedChanges}
                 onSaveExercise={handleSaveExercise}
                 isSaving={isSaving}
+                isAnyOperationInProgress={isAnyOperationInProgress}
+                onEditingStart={handleEditingStart}
+                onEditingEnd={handleEditingEnd}
+                onEditingChange={handleEditingChange}
             />
         );
     };
@@ -926,6 +1057,7 @@ export default function WorkoutPlanner({
                     exercises={exercises}
                     updatePhases={updatePhases}
                     setHasUnsavedChanges={setHasUnsavedChanges}
+                    isAnyOperationInProgress={isAnyOperationInProgress}
                 />
             </div>
 
@@ -936,6 +1068,7 @@ export default function WorkoutPlanner({
                         phases={phases}
                         isLoading={isLoading}
                         isSaving={isSaving}
+                        isAnyOperationInProgress={isAnyOperationInProgress}
                         // Phase handlers
                         onToggleExpand={handleTogglePhaseExpansion}
                         onAddSession={addSessionHandler}
