@@ -28,8 +28,8 @@ interface WorkoutPlanTableProps {
 
 export default function WorkoutPlanTable({
     client_id,
-    trainer_id, // Keep for interface compatibility, but not needed for cached data
-}: WorkoutPlanTableProps) {
+}: // trainer_id, // Keep for interface compatibility, but not needed for cached data
+WorkoutPlanTableProps) {
     // Use cached workout plan data instead of fetching every time
     const {
         phases,
@@ -79,7 +79,7 @@ export default function WorkoutPlanTable({
                             No workout plan created yet
                         </p>
                         <Link href={`/workout-planner/${client_id}`}>
-                            <Button className="bg-blue-600 hover:bg-blue-700">
+                            <Button className="bg-primary hover:bg-primary/80">
                                 Create First Workout Plan
                             </Button>
                         </Link>

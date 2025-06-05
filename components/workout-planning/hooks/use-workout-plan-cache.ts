@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
 import { mapWorkoutPlanResponseToPhase } from "../workout-utils/workout-utils";
+import { sortPhasesByActiveStatus } from "../workout-utils/phase-utils";
 import type { Phase, WorkoutPlanResponse } from "../types";
 
 export interface UseWorkoutPlanCacheResult {
@@ -57,10 +58,8 @@ export function useWorkoutPlanCache(
                 response as WorkoutPlanResponse
             );
 
-            // Ensure phases are sorted by orderNumber
-            const sortedPhases = [...mapped].sort(
-                (a, b) => (a.orderNumber || 0) - (b.orderNumber || 0)
-            );
+            // Sort phases by active status first, then by orderNumber
+            const sortedPhases = sortPhasesByActiveStatus(mapped);
 
             // For each phase, ensure sessions are sorted by orderNumber
             return sortedPhases.map((phase) => ({

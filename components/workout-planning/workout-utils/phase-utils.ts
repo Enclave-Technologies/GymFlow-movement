@@ -290,3 +290,21 @@ export const startEditPhase = (
 //     setEditingPhase(null);
 //     setHasUnsavedChanges(true);
 // };
+
+/**
+ * Sorts phases to show the active phase first, then inactive phases
+ * @param phases Array of phases to sort
+ * @returns Sorted array with active phase first
+ */
+export const sortPhasesByActiveStatus = (phases: Phase[]): Phase[] => {
+    return [...phases].sort((a, b) => {
+        // Active phases come first (true > false in boolean comparison)
+        if (a.isActive && !b.isActive) return -1;
+        if (!a.isActive && b.isActive) return 1;
+
+        // If both have same active status, maintain original order using orderNumber
+        const orderA = a.orderNumber ?? 0;
+        const orderB = b.orderNumber ?? 0;
+        return orderA - orderB;
+    });
+};

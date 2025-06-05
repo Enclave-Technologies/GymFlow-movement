@@ -23,6 +23,7 @@ import {
     deletePhase,
     duplicatePhase,
     // savePhaseEdit,
+    sortPhasesByActiveStatus,
     startEditPhase,
     togglePhaseActivation,
     togglePhaseExpansion,
@@ -1062,7 +1063,7 @@ export default function WorkoutPlanner({
                     saveStatus={saveStatus}
                     conflictError={conflictError}
                     client_id={client_id}
-                    phases={phases}
+                    phases={sortPhasesByActiveStatus(phases)}
                     exercises={exercises}
                     updatePhases={updatePhases}
                     setHasUnsavedChanges={setHasUnsavedChanges}
@@ -1074,7 +1075,7 @@ export default function WorkoutPlanner({
             <div className="flex-1 w-full overflow-y-auto overflow-x-hidden">
                 <div className="p-2">
                     <PhaseList
-                        phases={phases}
+                        phases={sortPhasesByActiveStatus(phases)}
                         isLoading={isLoading}
                         isSaving={isSaving}
                         isAnyOperationInProgress={isAnyOperationInProgress}
