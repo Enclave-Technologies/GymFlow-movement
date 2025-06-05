@@ -40,6 +40,7 @@ import { PhaseList } from "./UI-components/PhaseList";
 import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
 // import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
 import { LoadingOverlay } from "./UI-components/LoadingOverlay";
+import { useWorkoutPlanCacheInvalidation } from "./hooks/use-workout-plan-cache";
 // import { updateWorkoutPlan } from "@/actions/workout_plan_actions";
 // import { updatePhaseName } from "@/actions/phase_actions";
 // import { updateSessionName } from "@/actions/session_actions";
@@ -132,6 +133,9 @@ export default function WorkoutPlanner({
 
     // ===== Router =====
     const router = useRouter();
+
+    // ===== Cache Invalidation =====
+    const invalidateWorkoutPlanCache = useWorkoutPlanCacheInvalidation();
 
     // ===== Data Fetching =====
     useEffect(() => {
@@ -359,6 +363,10 @@ export default function WorkoutPlanner({
             // Show success message
             toast.success("Saved successfully");
 
+            // Invalidate the workout plan cache so the read-only table will refetch
+            invalidateWorkoutPlanCache(client_id);
+            console.log("Invalidated workout plan cache after successful save");
+
             // Clear localStorage after successful save
             try {
                 localStorage.removeItem(localStorageKey);
@@ -390,6 +398,7 @@ export default function WorkoutPlanner({
         trainer_id,
         validateWorkoutPlan,
         localStorageKey,
+        invalidateWorkoutPlanCache,
     ]);
 
     // ===== Background Sync Queue =====

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,10 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Clock, Dumbbell, Loader2 } from "lucide-react";
 import Link from "next/link";
-import type { Phase } from "./types";
-import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
-import { mapWorkoutPlanResponseToPhase } from "./workout-utils/workout-utils";
-import type { WorkoutPlanResponse } from "./types";
+import { useWorkoutPlanCache } from "./hooks/use-workout-plan-cache";
 
 interface WorkoutPlanTableProps {
     client_id: string;
@@ -32,55 +28,25 @@ interface WorkoutPlanTableProps {
 
 export default function WorkoutPlanTable({
     client_id,
-    trainer_id,
+    trainer_id, // Keep for interface compatibility, but not needed for cached data
 }: WorkoutPlanTableProps) {
-    const [phases, setPhases] = useState<Phase[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Use cached workout plan data instead of fetching every time
+    const {
+        phases,
+        isLoading: loading,
+        error,
+        isStale,
+    } = useWorkoutPlanCache(client_id);
 
-    useEffect(() => {
-        const loadWorkoutPlan = async () => {
-            try {
-                setLoading(true);
-                const response = await getWorkoutPlanByClientId(client_id);
+    // Log cache status for debugging (can be removed in production)
+    console.log(
+        `Workout plan cache status - Loading: ${loading}, Stale: ${isStale}, Phases: ${phases.length}`
+    );
 
-                // If no plan exists yet or empty array is returned
-                if (
-                    !response ||
-                    (Array.isArray(response) && response.length === 0)
-                ) {
-                    setPhases([]);
-                    return;
-                }
-
-                // Map the phases from the response
-                const mapped = mapWorkoutPlanResponseToPhase(
-                    response as WorkoutPlanResponse
-                );
-
-                // Ensure phases are sorted by orderNumber
-                const sortedPhases = [...mapped].sort(
-                    (a, b) => (a.orderNumber || 0) - (b.orderNumber || 0)
-                );
-
-                // For each phase, ensure sessions are sorted by orderNumber
-                const phasesWithSortedSessions = sortedPhases.map((phase) => ({
-                    ...phase,
-                    sessions: [...phase.sessions].sort(
-                        (a, b) => (a.orderNumber || 0) - (b.orderNumber || 0)
-                    ),
-                }));
-
-                setPhases(phasesWithSortedSessions);
-            } catch (error) {
-                console.error("Failed to load workout plan:", error);
-                setPhases([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadWorkoutPlan();
-    }, [client_id, trainer_id]);
+    // Log any errors (optional - could be removed in production)
+    if (error) {
+        console.error("Failed to load workout plan:", error);
+    }
 
     if (loading) {
         return (
