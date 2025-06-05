@@ -906,12 +906,12 @@ export default function WorkoutPlanner({
     };
 
     return (
-        <div className="w-full max-w-6xl mx-auto rounded-lg text-accent-foreground bg-card">
+        <div className="w-full h-full flex flex-col rounded-lg text-accent-foreground bg-card overflow-hidden">
             <LoadingOverlay
                 isVisible={isReorderingSessions}
                 message="Updating session order..."
             />
-            <div className="w-full p-2">
+            <div className="flex-1 w-full p-2 overflow-hidden flex flex-col">
                 <WorkoutToolbar
                     onAddPhase={handleAddPhase}
                     onSaveAll={handleSaveAll}

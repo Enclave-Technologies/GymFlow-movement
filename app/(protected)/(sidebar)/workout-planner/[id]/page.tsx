@@ -11,9 +11,9 @@ import { cookies } from "next/headers";
 import { get_user_account } from "@/actions/auth_actions";
 
 interface WorkoutPlannerPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
 export default async function WorkoutPlannerPage({
@@ -53,22 +53,22 @@ export default async function WorkoutPlannerPage({
     const exercises = await getAllExercisesForWorkoutPlanning();
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="w-full min-h-screen flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">
+            <div className="flex-shrink-0 w-full px-4 py-2 md:py-4 border-b bg-background">
+                <div className="flex items-center justify-between w-full min-w-0">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-2xl font-bold text-foreground truncate">
                             Workout Planner
                         </h1>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm text-muted-foreground mt-1 truncate">
                             Planning workout for {clientData.fullName}
                         </p>
                     </div>
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-3 flex-shrink-0">
                         <a
-                            href={`/clients/${params.id}`}
-                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                            href={`/clients/${resolvedParams.id}`}
+                            className="text-sm text-primary hover:text-primary/80 font-medium whitespace-nowrap"
                         >
                             ← Back to Client
                         </a>
@@ -77,9 +77,9 @@ export default async function WorkoutPlannerPage({
             </div>
 
             {/* Workout Planner Component */}
-            <div className="p-6">
+            <div className="flex-1 w-full overflow-hidden">
                 <WorkoutPlanner
-                    client_id={params.id}
+                    client_id={resolvedParams.id}
                     trainer_id={String(user.userId)}
                     exercises={exercises}
                 />

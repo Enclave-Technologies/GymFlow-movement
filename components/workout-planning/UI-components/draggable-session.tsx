@@ -127,12 +127,12 @@ const DraggableSession = ({
     return (
         <div
             ref={ref}
-            className={`mb-4 ${index > 0 ? "mt-6" : ""} ${
-                isDragging ? "opacity-50" : ""
-            }`}
+            className={`mb-4 min-w-0 overflow-hidden ${
+                index > 0 ? "mt-6" : ""
+            } ${isDragging ? "opacity-50" : ""}`}
         >
-            <div className="flex items-center justify-between p-2 bg-muted rounded-md">
-                <div className="flex items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 bg-muted rounded-md gap-2 w-full overflow-hidden">
+                <div className="flex items-center min-w-0 flex-1">
                     <span className="mr-2 cursor-default">
                         <GripVertical className="h-4 w-4 text-muted-foreground/50" />
                     </span>
@@ -158,7 +158,7 @@ const DraggableSession = ({
                                 onChange={(e) =>
                                     setEditSessionValue(e.target.value)
                                 }
-                                className="h-8 w-48"
+                                className="h-8 w-32 sm:w-48"
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter") {
                                         saveSessionEdit();
@@ -178,7 +178,7 @@ const DraggableSession = ({
                         <span className="font-medium">{session.name}</span>
                     )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
                     {/* Edit Session */}
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -266,7 +266,7 @@ const DraggableSession = ({
                     {/* Save button removed */}
                     <Button
                         variant="default"
-                        className="ml-4 cursor-pointer"
+                        className="ml-0 sm:ml-4 cursor-pointer text-sm"
                         disabled={
                             !phase.isActive ||
                             session.exercises.length === 0 ||
@@ -278,10 +278,20 @@ const DraggableSession = ({
                         {startingSessionId === session.id ? (
                             <>
                                 <Loader className="animate-spin h-4 w-4 mr-2" />
-                                Please wait...
+                                <span className="hidden sm:inline">
+                                    Please wait...
+                                </span>
+                                <span className="sm:hidden">Wait...</span>
                             </>
                         ) : (
-                            <>Start Session ({session.duration} mins)</>
+                            <>
+                                <span className="hidden sm:inline">
+                                    Start Session ({session.duration} mins)
+                                </span>
+                                <span className="sm:hidden">
+                                    Start ({session.duration}m)
+                                </span>
+                            </>
                         )}
                     </Button>
                 </div>
