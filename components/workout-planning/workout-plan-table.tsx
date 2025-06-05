@@ -17,9 +17,11 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Clock, Dumbbell, Loader2 } from "lucide-react";
+import { Clock, Dumbbell, Loader2, Download, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { useWorkoutPlanCache } from "./hooks/use-workout-plan-cache";
+import { downloadWorkoutPlanCsv } from "./workout-utils/workout-plan-csv";
+import { toast } from "sonner";
 
 interface WorkoutPlanTableProps {
     client_id: string;
@@ -47,6 +49,17 @@ WorkoutPlanTableProps) {
     if (error) {
         console.error("Failed to load workout plan:", error);
     }
+
+    // Handle download functionality
+    const handleDownload = () => {
+        try {
+            downloadWorkoutPlanCsv(phases, `workout-plan-${client_id}.csv`);
+            toast.success("Workout plan downloaded successfully");
+        } catch (err) {
+            console.error("Error downloading workout plan:", err);
+            toast.error("Failed to download workout plan");
+        }
+    };
 
     if (loading) {
         return (
@@ -94,14 +107,25 @@ WorkoutPlanTableProps) {
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <CardTitle>Current Workout Plan</CardTitle>
-                    <Link href={`/workout-planner/${client_id}`}>
+                    <div className="flex items-center gap-2">
                         <Button
+                            variant="outline"
                             size="sm"
-                            className="bg-primary hover:bg-primary/90 hover:text-accent-background"
+                            onClick={handleDownload}
+                            className="flex items-center gap-2"
                         >
-                            Edit Workout Plan
+                            <Download className="h-4 w-4" />
+                            Download CSV
                         </Button>
-                    </Link>
+                        <Link href={`/workout-planner/${client_id}`}>
+                            <Button
+                                size="sm"
+                                className="bg-primary hover:bg-primary/90 hover:text-accent-background"
+                            >
+                                Edit Workout Plan
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
@@ -117,6 +141,15 @@ WorkoutPlanTableProps) {
                                     <h3 className="font-semibold">
                                         {phase.name}
                                     </h3>
+                                    {phase.isActive && (
+                                        <Badge
+                                            variant="default"
+                                            className="bg-green-600 hover:bg-green-700"
+                                        >
+                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                            Active
+                                        </Badge>
+                                    )}
                                     <Badge variant="secondary">
                                         {phase.sessions.length} session
                                         {phase.sessions.length !== 1 ? "s" : ""}
