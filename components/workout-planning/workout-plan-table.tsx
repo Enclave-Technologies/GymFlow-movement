@@ -131,7 +131,7 @@ export default function WorkoutPlanTable({
                     <Link href={`/workout-planner/${client_id}`}>
                         <Button
                             size="sm"
-                            className="bg-blue-600 hover:bg-blue-700"
+                            className="bg-primary hover:bg-primary/90 hover:text-accent-background"
                         >
                             Edit Workout Plan
                         </Button>
