@@ -69,7 +69,7 @@ export default async function WorkoutPlannerPage({
                     <div className="flex items-center space-x-3 flex-shrink-0">
                         <a
                             href={`/clients/${resolvedParams.id}`}
-                            className="text-sm text-primary hover:text-primary/80 font-medium whitespace-nowrap"
+                            className="text-sm text-foreground hover:text-foreground/80 font-medium whitespace-nowrap transition-colors"
                         >
                             ← Back to Client
                         </a>
