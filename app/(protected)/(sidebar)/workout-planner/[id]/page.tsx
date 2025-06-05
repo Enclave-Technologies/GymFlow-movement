@@ -9,6 +9,7 @@ import { MOVEMENT_SESSION_NAME } from "@/lib/constants";
 import { authenticated_or_login } from "@/actions/appwrite_actions";
 import { cookies } from "next/headers";
 import { get_user_account } from "@/actions/auth_actions";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface WorkoutPlannerPageProps {
     params: Promise<{
@@ -53,9 +54,9 @@ export default async function WorkoutPlannerPage({
     const exercises = await getAllExercisesForWorkoutPlanning();
 
     return (
-        <div className="w-full min-h-screen flex flex-col overflow-hidden">
+        <div className="container mx-auto py-2 md:py-6">
             {/* Header */}
-            <div className="flex-shrink-0 w-full px-4 py-2 md:py-4 border-b bg-background">
+            <div className="flex-shrink-0 w-full px-4 py-2 md:py-4 bg-background">
                 <div className="flex items-center justify-between w-full min-w-0">
                     <div className="min-w-0 flex-1">
                         <h1 className="text-2xl font-bold text-foreground truncate">
@@ -77,12 +78,16 @@ export default async function WorkoutPlannerPage({
             </div>
 
             {/* Workout Planner Component */}
-            <div className="flex-1 w-full overflow-hidden">
-                <WorkoutPlanner
-                    client_id={resolvedParams.id}
-                    trainer_id={String(user.userId)}
-                    exercises={exercises}
-                />
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+                <Card className="flex flex-col p-4 h-full min-h-[800px] md:col-span-5">
+                    <CardContent className="h-full p-0">
+                        <WorkoutPlanner
+                            client_id={resolvedParams.id}
+                            trainer_id={String(user.userId)}
+                            exercises={exercises}
+                        />
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );
