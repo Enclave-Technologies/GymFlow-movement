@@ -70,7 +70,7 @@ export async function updateWorkoutPlan(
             // Create a new plan
             return await createWorkoutPlan(
                 planData.clientId,
-                planData.trainerId ?? currentTrainer.id,
+                planData.trainerId ?? currentTrainer.userId,
                 planData
             );
         }
@@ -634,7 +634,8 @@ export async function updateWorkoutPlan(
                         await tx.insert(Exercises).values({
                             exerciseId: newExerciseId,
                             exerciseName: desc,
-                            uploadedByUserId: currentTrainer?.id ?? "system",
+                            uploadedByUserId:
+                                currentTrainer?.userId ?? "system",
                         });
                         exerciseNameToIdMap.set(desc, newExerciseId);
                     }

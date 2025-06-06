@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, QueryClient } from "@tanstack/react-query";
 import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
 import { mapWorkoutPlanResponseToPhase } from "../workout-utils/workout-utils";
 import { sortPhasesByActiveStatus } from "../workout-utils/phase-utils";
@@ -105,7 +105,10 @@ export function useWorkoutPlanCache(
  * Utility function to invalidate workout plan cache for a specific client
  * from outside of a React component (e.g., in server actions or other utilities).
  */
-export function invalidateWorkoutPlanCache(queryClient: any, clientId: string) {
+export function invalidateWorkoutPlanCache(
+    queryClient: QueryClient,
+    clientId: string
+) {
     queryClient.invalidateQueries({
         queryKey: ["workoutPlan", clientId],
     });

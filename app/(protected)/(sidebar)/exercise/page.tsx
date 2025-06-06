@@ -48,7 +48,7 @@ export default async function ExercisePage({
     return (
         <AddExerciseForm
             exercises={exercises}
-            userId={user?.id || ""}
+            userId={user?.userId || ""}
             existingExercise={existingExercise}
         />
     );
