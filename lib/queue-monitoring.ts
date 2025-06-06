@@ -249,27 +249,56 @@ export class QueueMonitoring {
             const errors: string[] = [];
             let cleaned = 0;
 
+            // Get current counts before cleanup
+            const beforeStats = await messageQueue.getJobCounts();
+            console.log("Before cleanup:", beforeStats);
+
             try {
-                await messageQueue.clean(
-                    24 * 60 * 60 * 1000,
+                // Clean completed jobs older than 24 hours
+                const completedCleaned = await messageQueue.clean(
+                    24 * 60 * 60 * 1000, // 24 hours
                     keepCompleted,
                     "completed"
                 );
-                cleaned += keepCompleted;
+                cleaned += completedCleaned.length || 0;
+                console.log(
+                    `Cleaned ${completedCleaned.length || 0} completed jobs`
+                );
             } catch (error) {
                 errors.push(`Failed to clean completed jobs: ${error}`);
             }
 
             try {
-                await messageQueue.clean(
-                    24 * 60 * 60 * 1000,
+                // Clean failed jobs older than 24 hours
+                const failedCleaned = await messageQueue.clean(
+                    24 * 60 * 60 * 1000, // 24 hours
                     keepFailed,
                     "failed"
                 );
-                cleaned += keepFailed;
+                cleaned += failedCleaned.length || 0;
+                console.log(`Cleaned ${failedCleaned.length || 0} failed jobs`);
             } catch (error) {
                 errors.push(`Failed to clean failed jobs: ${error}`);
             }
+
+            // Also clean active jobs that might be stalled (older than 24 hours)
+            try {
+                const activeCleaned = await messageQueue.clean(
+                    24 * 60 * 60 * 1000, // 24 hours
+                    0, // Keep 0 old active jobs
+                    "active"
+                );
+                cleaned += activeCleaned.length || 0;
+                console.log(
+                    `Cleaned ${activeCleaned.length || 0} stalled active jobs`
+                );
+            } catch (error) {
+                errors.push(`Failed to clean stalled active jobs: ${error}`);
+            }
+
+            // Get counts after cleanup
+            const afterStats = await messageQueue.getJobCounts();
+            console.log("After cleanup:", afterStats);
 
             return { cleaned, errors };
         } catch (error) {

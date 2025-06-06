@@ -91,110 +91,202 @@ export default function QueueTestPage() {
     // Send different types of messages using server actions
     const handleSendTestMessage = async () => {
         setLoading("TEST");
+
+        // Optimistic UI update
+        setQueueData((prevData) =>
+            prevData
+                ? {
+                      ...prevData,
+                      stats: {
+                          ...prevData.stats,
+                          waiting: prevData.stats.waiting + 1,
+                          total: prevData.stats.total + 1,
+                      },
+                  }
+                : null
+        );
+
         try {
-            const result = await sendTestMessage("basic", {
+            // Fire and forget - don't await the full operation
+            sendTestMessage("basic", {
                 message: "Hello from queue test!",
                 timestamp: Date.now(),
+            }).then((result) => {
+                if (!result.success) {
+                    toast.error(`Failed to add test job: ${result.error}`);
+                    // Revert optimistic update
+                    fetchQueueStats();
+                }
             });
 
-            if (result.success) {
-                toast.success("Test job added to queue!");
-                fetchQueueStats();
-            } else {
-                toast.error(`Failed to add test job: ${result.error}`);
-            }
+            // Show success immediately
+            toast.success("Test job added to queue!");
+
+            // Schedule a refresh after a short delay
+            setTimeout(() => fetchQueueStats(), 500);
         } catch (error) {
             console.error("Error sending test message:", error);
             toast.error("Error sending test message");
+            fetchQueueStats(); // Revert optimistic update
         } finally {
-            setLoading(null);
+            // Release UI quickly
+            setTimeout(() => setLoading(null), 300);
         }
     };
 
     const handleSendWorkoutUpdate = async () => {
         setLoading("WORKOUT_UPDATE");
+
+        // Optimistic UI update
+        setQueueData((prevData) =>
+            prevData
+                ? {
+                      ...prevData,
+                      stats: {
+                          ...prevData.stats,
+                          waiting: prevData.stats.waiting + 1,
+                          total: prevData.stats.total + 1,
+                      },
+                  }
+                : null
+        );
+
         try {
-            const result = await sendWorkoutUpdateMessage(
+            // Fire and forget
+            sendWorkoutUpdateMessage(
                 "plan-123",
                 "phase-456",
                 "session-789",
                 "exercise-101",
                 { sets: 4, reps: 12, weight: 135 }
-            );
+            ).then((result) => {
+                if (!result.success) {
+                    toast.error(
+                        `Failed to add workout update job: ${result.error}`
+                    );
+                    fetchQueueStats();
+                }
+            });
 
-            if (result.success) {
-                toast.success("Workout update job added to queue!");
-                fetchQueueStats();
-            } else {
-                toast.error(
-                    `Failed to add workout update job: ${result.error}`
-                );
-            }
+            toast.success("Workout update job added to queue!");
+            setTimeout(() => fetchQueueStats(), 500);
         } catch (error) {
             console.error("Error sending workout update:", error);
             toast.error("Error sending workout update");
+            fetchQueueStats();
         } finally {
-            setLoading(null);
+            setTimeout(() => setLoading(null), 300);
         }
     };
 
     const handleSendUserAction = async () => {
         setLoading("USER_ACTION");
-        try {
-            const result = await sendUserActionMessage(
-                "profile_update",
-                "user",
-                "user-123",
-                {
-                    field: "email",
-                    oldValue: "old@example.com",
-                    newValue: "new@example.com",
-                }
-            );
 
-            if (result.success) {
-                toast.success("User action job added to queue!");
-                fetchQueueStats();
-            } else {
-                toast.error(`Failed to add user action job: ${result.error}`);
-            }
+        // Optimistic UI update
+        setQueueData((prevData) =>
+            prevData
+                ? {
+                      ...prevData,
+                      stats: {
+                          ...prevData.stats,
+                          waiting: prevData.stats.waiting + 1,
+                          total: prevData.stats.total + 1,
+                      },
+                  }
+                : null
+        );
+
+        try {
+            // Fire and forget
+            sendUserActionMessage("profile_update", "user", "user-123", {
+                field: "email",
+                oldValue: "old@example.com",
+                newValue: "new@example.com",
+            }).then((result) => {
+                if (!result.success) {
+                    toast.error(
+                        `Failed to add user action job: ${result.error}`
+                    );
+                    fetchQueueStats();
+                }
+            });
+
+            toast.success("User action job added to queue!");
+            setTimeout(() => fetchQueueStats(), 500);
         } catch (error) {
             console.error("Error sending user action:", error);
             toast.error("Error sending user action");
+            fetchQueueStats();
         } finally {
-            setLoading(null);
+            setTimeout(() => setLoading(null), 300);
         }
     };
 
     const handleSendNotification = async () => {
         setLoading("NOTIFICATION");
+
+        // Optimistic UI update
+        setQueueData((prevData) =>
+            prevData
+                ? {
+                      ...prevData,
+                      stats: {
+                          ...prevData.stats,
+                          waiting: prevData.stats.waiting + 1,
+                          total: prevData.stats.total + 1,
+                      },
+                  }
+                : null
+        );
+
         try {
-            const result = await sendNotificationMessage(
+            // Fire and forget
+            sendNotificationMessage(
                 "user-123",
                 "Workout Reminder",
                 "Time for your scheduled workout!",
                 "info",
                 "/workouts"
-            );
+            ).then((result) => {
+                if (!result.success) {
+                    toast.error(
+                        `Failed to add notification job: ${result.error}`
+                    );
+                    fetchQueueStats();
+                }
+            });
 
-            if (result.success) {
-                toast.success("Notification job added to queue!");
-                fetchQueueStats();
-            } else {
-                toast.error(`Failed to add notification job: ${result.error}`);
-            }
+            toast.success("Notification job added to queue!");
+            setTimeout(() => fetchQueueStats(), 500);
         } catch (error) {
             console.error("Error sending notification:", error);
             toast.error("Error sending notification");
+            fetchQueueStats();
         } finally {
-            setLoading(null);
+            setTimeout(() => setLoading(null), 300);
         }
     };
 
     const handleSendEmail = async () => {
         setLoading("EMAIL");
+
+        // Optimistic UI update
+        setQueueData((prevData) =>
+            prevData
+                ? {
+                      ...prevData,
+                      stats: {
+                          ...prevData.stats,
+                          waiting: prevData.stats.waiting + 1,
+                          total: prevData.stats.total + 1,
+                      },
+                  }
+                : null
+        );
+
         try {
-            const result = await sendEmailMessage(
+            // Fire and forget
+            sendEmailMessage(
                 "user@example.com",
                 "Weekly Progress Report",
                 "progress_report",
@@ -203,43 +295,63 @@ export default function QueueTestPage() {
                     weeklyGoals: 5,
                     completedWorkouts: 4,
                 }
-            );
+            ).then((result) => {
+                if (!result.success) {
+                    toast.error(`Failed to add email job: ${result.error}`);
+                    fetchQueueStats();
+                }
+            });
 
-            if (result.success) {
-                toast.success("Email job added to queue!");
-                fetchQueueStats();
-            } else {
-                toast.error(`Failed to add email job: ${result.error}`);
-            }
+            toast.success("Email job added to queue!");
+            setTimeout(() => fetchQueueStats(), 500);
         } catch (error) {
             console.error("Error sending email:", error);
             toast.error("Error sending email");
+            fetchQueueStats();
         } finally {
-            setLoading(null);
+            setTimeout(() => setLoading(null), 300);
         }
     };
 
     const handleSendDataSync = async () => {
         setLoading("DATA_SYNC");
+
+        // Optimistic UI update
+        setQueueData((prevData) =>
+            prevData
+                ? {
+                      ...prevData,
+                      stats: {
+                          ...prevData.stats,
+                          waiting: prevData.stats.waiting + 1,
+                          total: prevData.stats.total + 1,
+                      },
+                  }
+                : null
+        );
+
         try {
-            const result = await sendDataSyncMessage(
+            // Fire and forget
+            sendDataSyncMessage(
                 "backup",
                 "workout_plans",
                 ["plan-1", "plan-2", "plan-3"],
                 "s3://backup-bucket/workouts"
-            );
+            ).then((result) => {
+                if (!result.success) {
+                    toast.error(`Failed to add data sync job: ${result.error}`);
+                    fetchQueueStats();
+                }
+            });
 
-            if (result.success) {
-                toast.success("Data sync job added to queue!");
-                fetchQueueStats();
-            } else {
-                toast.error(`Failed to add data sync job: ${result.error}`);
-            }
+            toast.success("Data sync job added to queue!");
+            setTimeout(() => fetchQueueStats(), 500);
         } catch (error) {
             console.error("Error sending data sync:", error);
             toast.error("Error sending data sync");
+            fetchQueueStats();
         } finally {
-            setLoading(null);
+            setTimeout(() => setLoading(null), 300);
         }
     };
 

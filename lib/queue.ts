@@ -2,7 +2,7 @@ import { Queue, Job } from "bullmq";
 import { getRedisConnectionOptions } from "./redis-utils";
 import { QueueMessage, QueueJobOptions } from "@/types/queue-types";
 
-// Create the main queue instance
+// Create the main queue instance with reasonable cleanup settings
 export const messageQueue = new Queue("messageQueue", {
     connection: getRedisConnectionOptions(),
     defaultJobOptions: {
@@ -28,8 +28,8 @@ export class QueueManager {
                 attempts: options.attempts || 3,
                 backoff: options.backoff,
                 priority: options.priority,
-                removeOnComplete: options.removeOnComplete || 100,
-                removeOnFail: options.removeOnFail || 50,
+                removeOnComplete: options.removeOnComplete || 100, // Keep 100 completed jobs
+                removeOnFail: options.removeOnFail || 50, // Keep 50 failed jobs
             });
 
             console.log(
