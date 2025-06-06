@@ -397,20 +397,29 @@ export default function WorkoutPlanner({
   };
 
   const handleSavePhaseEdit = async () => {
-    if (!editingPhase) return;
+    if (!editingPhase && !editingSession) return;
 
     // Use the latest phases from the ref
     const currentPhases = latestPhasesRef.current;
 
-    // Update the local state first for immediate UI feedback
+    // Apply ALL pending edits in one update (both phase AND session)
     updatePhases(
-      currentPhases.map((p) =>
-        p.id === editingPhase ? { ...p, name: editPhaseValue } : p
-      )
+      currentPhases.map((phase) => ({
+        ...phase,
+        // Update phase name if being edited
+        name: editingPhase === phase.id ? editPhaseValue : phase.name,
+        // Update session names if any are being edited in this phase
+        sessions: phase.sessions.map((session) =>
+          editingSession === session.id
+            ? { ...session, name: editSessionValue }
+            : session
+        ),
+      }))
     );
 
-    // Clear editing state
+    // Clear ALL editing states
     setEditingPhase(null);
+    setEditingSession(null);
 
     await handleSaveAll();
   };
@@ -419,30 +428,30 @@ export default function WorkoutPlanner({
     setEditingSession(id);
     setEditSessionValue(name);
   };
+
   const saveSessionEdit = async () => {
-    if (!editingSession) return;
+    if (!editingPhase && !editingSession) return;
 
     // Use the latest phases from the ref
     const currentPhases = latestPhasesRef.current;
 
-    // Find the phase that contains this session
-    const phaseWithSession = currentPhases.find((phase) =>
-      phase.sessions.some((session) => session.id === editingSession)
-    );
-
-    if (!phaseWithSession) {
-      console.error("Could not find phase containing session:", editingSession);
-      return;
-    }
-
+    // Apply ALL pending edits in one update (both phase AND session)
     updatePhases(
       currentPhases.map((phase) => ({
         ...phase,
-        sessions: phase.sessions.map((s) =>
-          s.id === editingSession ? { ...s, name: editSessionValue } : s
+        // Update phase name if being edited
+        name: editingPhase === phase.id ? editPhaseValue : phase.name,
+        // Update session names if any are being edited in this phase
+        sessions: phase.sessions.map((session) =>
+          editingSession === session.id
+            ? { ...session, name: editSessionValue }
+            : session
         ),
       }))
     );
+
+    // Clear ALL editing states
+    setEditingPhase(null);
     setEditingSession(null);
 
     await handleSaveAll();
