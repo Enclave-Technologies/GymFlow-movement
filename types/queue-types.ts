@@ -46,6 +46,7 @@ export interface BaseQueueMessage {
     timestamp: string;
     userId?: string;
     metadata?: QueueMetadata;
+    [key: string]: unknown; // Index signature for compatibility
 }
 
 // Specific message types
@@ -57,6 +58,174 @@ export interface WorkoutUpdateMessage extends BaseQueueMessage {
         sessionId: string;
         exerciseId: string;
         changes: ExerciseChanges;
+    };
+}
+
+// New granular workout operation message types
+export interface WorkoutPhaseCreateMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_PHASE_CREATE";
+    data: {
+        planId: string;
+        clientId: string;
+        trainerId: string;
+        phase: {
+            id: string;
+            name: string;
+            orderNumber: number;
+            isActive: boolean;
+        };
+    };
+}
+
+export interface WorkoutPhaseUpdateMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_PHASE_UPDATE";
+    data: {
+        planId: string;
+        phaseId: string;
+        clientId: string;
+        changes: {
+            name?: string;
+            isActive?: boolean;
+            orderNumber?: number;
+        };
+        lastKnownUpdatedAt: string; // ISO string
+    };
+}
+
+export interface WorkoutPhaseDeleteMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_PHASE_DELETE";
+    data: {
+        planId: string;
+        phaseId: string;
+        clientId: string;
+        lastKnownUpdatedAt: string; // ISO string
+    };
+}
+
+export interface WorkoutSessionCreateMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_SESSION_CREATE";
+    data: {
+        planId: string;
+        phaseId: string;
+        clientId: string;
+        session: {
+            id: string;
+            name: string;
+            orderNumber: number;
+            sessionTime?: number;
+        };
+        lastKnownUpdatedAt: string; // ISO string
+    };
+}
+
+export interface WorkoutSessionUpdateMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_SESSION_UPDATE";
+    data: {
+        planId: string;
+        phaseId: string;
+        sessionId: string;
+        clientId: string;
+        changes: {
+            name?: string;
+            orderNumber?: number;
+            sessionTime?: number;
+        };
+        lastKnownUpdatedAt: string; // ISO string
+    };
+}
+
+export interface WorkoutSessionDeleteMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_SESSION_DELETE";
+    data: {
+        planId: string;
+        phaseId: string;
+        sessionId: string;
+        clientId: string;
+        lastKnownUpdatedAt: string; // ISO string
+    };
+}
+
+export interface WorkoutExerciseCreateMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_EXERCISE_CREATE";
+    data: {
+        planId: string;
+        phaseId: string;
+        sessionId: string;
+        clientId: string;
+        exercise: {
+            id: string;
+            exerciseId: string;
+            description: string;
+            motion: string;
+            targetArea: string;
+            setsMin?: string;
+            setsMax?: string;
+            repsMin?: string;
+            repsMax?: string;
+            tempo?: string;
+            restMin?: string;
+            restMax?: string;
+            customizations?: string;
+            notes?: string;
+            exerciseOrder?: number;
+        };
+        lastKnownUpdatedAt: string; // ISO string
+    };
+}
+
+export interface WorkoutExerciseUpdateMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_EXERCISE_UPDATE";
+    data: {
+        planId: string;
+        phaseId: string;
+        sessionId: string;
+        exerciseId: string;
+        planExerciseId: string;
+        clientId: string;
+        changes: {
+            exerciseId?: string;
+            description?: string;
+            motion?: string;
+            targetArea?: string;
+            setsMin?: string;
+            setsMax?: string;
+            repsMin?: string;
+            repsMax?: string;
+            tempo?: string;
+            restMin?: string;
+            restMax?: string;
+            customizations?: string;
+            notes?: string;
+            exerciseOrder?: number;
+        };
+        lastKnownUpdatedAt: string; // ISO string
+    };
+}
+
+export interface WorkoutExerciseDeleteMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_EXERCISE_DELETE";
+    data: {
+        planId: string;
+        phaseId: string;
+        sessionId: string;
+        exerciseId: string;
+        planExerciseId: string;
+        clientId: string;
+        lastKnownUpdatedAt: string; // ISO string
+    };
+}
+
+// Import Phase type for proper typing
+import type { Phase } from "@/components/workout-planning/types";
+
+export interface WorkoutPlanFullSaveMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_PLAN_FULL_SAVE";
+    data: {
+        planId?: string;
+        clientId: string;
+        trainerId: string;
+        phases: Phase[]; // Full phase data structure
+        lastKnownUpdatedAt?: string; // ISO string
     };
 }
 
@@ -113,6 +282,16 @@ export interface TestMessage extends BaseQueueMessage {
 // Union type for all possible messages
 export type QueueMessage =
     | WorkoutUpdateMessage
+    | WorkoutPhaseCreateMessage
+    | WorkoutPhaseUpdateMessage
+    | WorkoutPhaseDeleteMessage
+    | WorkoutSessionCreateMessage
+    | WorkoutSessionUpdateMessage
+    | WorkoutSessionDeleteMessage
+    | WorkoutExerciseCreateMessage
+    | WorkoutExerciseUpdateMessage
+    | WorkoutExerciseDeleteMessage
+    | WorkoutPlanFullSaveMessage
     | UserActionMessage
     | NotificationMessage
     | EmailMessage

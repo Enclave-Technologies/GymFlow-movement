@@ -45,24 +45,11 @@ export class WorkoutQueueIntegration {
             },
         };
 
-        try {
-            const result = await addJobToQueue(message, {
-                priority: 5, // Medium priority
-                attempts: 3,
-            });
-
-            if (result.success) {
-                console.log(`Workout update queued: ${result.data?.jobId}`);
-                return result;
-            } else {
-                throw new Error(
-                    result.error || "Failed to queue workout update"
-                );
-            }
-        } catch (error) {
-            console.error("Failed to queue workout update:", error);
-            throw error;
-        }
+        return addJobToQueue(message, {
+            priority: 5,
+            attempts: 3,
+            delay: 0, // Immediate processing for responsiveness
+        });
     }
 
     /**

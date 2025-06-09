@@ -1,0 +1,433 @@
+/**
+ * Workout Queue Integration
+ *
+ * This file provides helper functions to integrate the queue system
+ * with workout planning operations for event-driven architecture.
+ */
+
+import { addJobToQueue } from "@/actions/queue_actions";
+import {
+    WorkoutPhaseCreateMessage,
+    WorkoutPhaseUpdateMessage,
+    WorkoutPhaseDeleteMessage,
+    WorkoutSessionCreateMessage,
+    WorkoutSessionUpdateMessage,
+    WorkoutSessionDeleteMessage,
+    WorkoutExerciseCreateMessage,
+    WorkoutExerciseUpdateMessage,
+    WorkoutExerciseDeleteMessage,
+    WorkoutPlanFullSaveMessage,
+} from "@/types/queue-types";
+import type { Phase } from "@/components/workout-planning/types";
+
+export class WorkoutQueueIntegration {
+    /**
+     * Queue a phase creation for background processing
+     */
+    static async queuePhaseCreate(
+        planId: string,
+        clientId: string,
+        trainerId: string,
+        phase: {
+            id: string;
+            name: string;
+            orderNumber: number;
+            isActive: boolean;
+        },
+        userId?: string
+    ) {
+        const message: WorkoutPhaseCreateMessage = {
+            messageType: "WORKOUT_PHASE_CREATE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "phase_creation",
+            },
+            data: {
+                planId,
+                clientId,
+                trainerId,
+                phase,
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 5,
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
+     * Queue a phase update for background processing
+     */
+    static async queuePhaseUpdate(
+        planId: string,
+        phaseId: string,
+        clientId: string,
+        changes: {
+            name?: string;
+            isActive?: boolean;
+            orderNumber?: number;
+        },
+        lastKnownUpdatedAt: Date,
+        userId?: string
+    ) {
+        const message: WorkoutPhaseUpdateMessage = {
+            messageType: "WORKOUT_PHASE_UPDATE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "phase_update",
+            },
+            data: {
+                planId,
+                phaseId,
+                clientId,
+                changes,
+                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 5,
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
+     * Queue a phase deletion for background processing
+     */
+    static async queuePhaseDelete(
+        planId: string,
+        phaseId: string,
+        clientId: string,
+        lastKnownUpdatedAt: Date,
+        userId?: string
+    ) {
+        const message: WorkoutPhaseDeleteMessage = {
+            messageType: "WORKOUT_PHASE_DELETE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "phase_deletion",
+            },
+            data: {
+                planId,
+                phaseId,
+                clientId,
+                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 5,
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
+     * Queue a session creation for background processing
+     */
+    static async queueSessionCreate(
+        planId: string,
+        phaseId: string,
+        clientId: string,
+        session: {
+            id: string;
+            name: string;
+            orderNumber: number;
+            sessionTime?: number;
+        },
+        lastKnownUpdatedAt: Date,
+        userId?: string
+    ) {
+        const message: WorkoutSessionCreateMessage = {
+            messageType: "WORKOUT_SESSION_CREATE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "session_creation",
+            },
+            data: {
+                planId,
+                phaseId,
+                clientId,
+                session,
+                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 5,
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
+     * Queue a session update for background processing
+     */
+    static async queueSessionUpdate(
+        planId: string,
+        phaseId: string,
+        sessionId: string,
+        clientId: string,
+        changes: {
+            name?: string;
+            orderNumber?: number;
+            sessionTime?: number;
+        },
+        lastKnownUpdatedAt: Date,
+        userId?: string
+    ) {
+        const message: WorkoutSessionUpdateMessage = {
+            messageType: "WORKOUT_SESSION_UPDATE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "session_update",
+            },
+            data: {
+                planId,
+                phaseId,
+                sessionId,
+                clientId,
+                changes,
+                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 5,
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
+     * Queue a session deletion for background processing
+     */
+    static async queueSessionDelete(
+        planId: string,
+        phaseId: string,
+        sessionId: string,
+        clientId: string,
+        lastKnownUpdatedAt: Date,
+        userId?: string
+    ) {
+        const message: WorkoutSessionDeleteMessage = {
+            messageType: "WORKOUT_SESSION_DELETE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "session_deletion",
+            },
+            data: {
+                planId,
+                phaseId,
+                sessionId,
+                clientId,
+                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 5,
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
+     * Queue an exercise creation for background processing
+     */
+    static async queueExerciseCreate(
+        planId: string,
+        phaseId: string,
+        sessionId: string,
+        clientId: string,
+        exercise: {
+            id: string;
+            exerciseId: string;
+            description: string;
+            motion: string;
+            targetArea: string;
+            setsMin?: string;
+            setsMax?: string;
+            repsMin?: string;
+            repsMax?: string;
+            tempo?: string;
+            restMin?: string;
+            restMax?: string;
+            customizations?: string;
+            notes?: string;
+            exerciseOrder?: number;
+        },
+        lastKnownUpdatedAt: Date,
+        userId?: string
+    ) {
+        const message: WorkoutExerciseCreateMessage = {
+            messageType: "WORKOUT_EXERCISE_CREATE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "exercise_creation",
+            },
+            data: {
+                planId,
+                phaseId,
+                sessionId,
+                clientId,
+                exercise,
+                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 5,
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
+     * Queue an exercise update for background processing
+     */
+    static async queueExerciseUpdate(
+        planId: string,
+        phaseId: string,
+        sessionId: string,
+        exerciseId: string,
+        planExerciseId: string,
+        clientId: string,
+        changes: {
+            exerciseId?: string;
+            description?: string;
+            motion?: string;
+            targetArea?: string;
+            setsMin?: string;
+            setsMax?: string;
+            repsMin?: string;
+            repsMax?: string;
+            tempo?: string;
+            restMin?: string;
+            restMax?: string;
+            customizations?: string;
+            notes?: string;
+            exerciseOrder?: number;
+        },
+        lastKnownUpdatedAt: Date,
+        userId?: string
+    ) {
+        const message: WorkoutExerciseUpdateMessage = {
+            messageType: "WORKOUT_EXERCISE_UPDATE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "exercise_update",
+            },
+            data: {
+                planId,
+                phaseId,
+                sessionId,
+                exerciseId,
+                planExerciseId,
+                clientId,
+                changes,
+                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 5,
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
+     * Queue an exercise deletion for background processing
+     */
+    static async queueExerciseDelete(
+        planId: string,
+        phaseId: string,
+        sessionId: string,
+        exerciseId: string,
+        planExerciseId: string,
+        clientId: string,
+        lastKnownUpdatedAt: Date,
+        userId?: string
+    ) {
+        const message: WorkoutExerciseDeleteMessage = {
+            messageType: "WORKOUT_EXERCISE_DELETE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "exercise_deletion",
+            },
+            data: {
+                planId,
+                phaseId,
+                sessionId,
+                exerciseId,
+                planExerciseId,
+                clientId,
+                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 5,
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
+     * Queue a full workout plan save for background processing
+     * This is used for complex operations like CSV uploads or bulk changes
+     */
+    static async queueFullPlanSave(
+        planId: string | undefined,
+        clientId: string,
+        trainerId: string,
+        phases: Phase[],
+        lastKnownUpdatedAt?: Date,
+        userId?: string
+    ) {
+        const message: WorkoutPlanFullSaveMessage = {
+            messageType: "WORKOUT_PLAN_FULL_SAVE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "full_plan_save",
+            },
+            data: {
+                planId,
+                clientId,
+                trainerId,
+                phases,
+                lastKnownUpdatedAt: lastKnownUpdatedAt?.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 3, // Lower priority for bulk operations
+            attempts: 3,
+            delay: 0,
+        });
+    }
+}

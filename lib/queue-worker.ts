@@ -1,9 +1,21 @@
 import { Worker, Job } from "bullmq";
 import { getRedisConnectionOptions } from "./redis-utils";
+import { SimpleWorkoutProcessors } from "./queue-processors/simple-workout-processors";
+import { GeneralProcessors } from "./queue-processors/general-processors";
 import {
     QueueMessage,
     QueueJobResult,
     WorkoutUpdateMessage,
+    WorkoutPhaseCreateMessage,
+    WorkoutPhaseUpdateMessage,
+    WorkoutPhaseDeleteMessage,
+    WorkoutSessionCreateMessage,
+    WorkoutSessionUpdateMessage,
+    WorkoutSessionDeleteMessage,
+    WorkoutExerciseCreateMessage,
+    WorkoutExerciseUpdateMessage,
+    WorkoutExerciseDeleteMessage,
+    WorkoutPlanFullSaveMessage,
     UserActionMessage,
     NotificationMessage,
     EmailMessage,
@@ -11,188 +23,38 @@ import {
     TestMessage,
 } from "@/types/queue-types";
 
-// Message processors
+// Message processors bridge class
+// This class serves as a bridge to the separated processor files
 class MessageProcessors {
-    static async processWorkoutUpdate(
-        message: WorkoutUpdateMessage
-    ): Promise<QueueJobResult> {
-        console.log("Processing workout update:", message.data);
+    // Workout-related processors (using simplified versions)
+    static processWorkoutUpdate = SimpleWorkoutProcessors.processWorkoutUpdate;
+    static processWorkoutPhaseCreate =
+        SimpleWorkoutProcessors.processWorkoutPhaseCreate;
+    static processWorkoutPhaseUpdate =
+        SimpleWorkoutProcessors.processWorkoutPhaseUpdate;
+    static processWorkoutPhaseDelete =
+        SimpleWorkoutProcessors.processWorkoutPhaseDelete;
+    static processWorkoutSessionCreate =
+        SimpleWorkoutProcessors.processWorkoutSessionCreate;
+    static processWorkoutSessionUpdate =
+        SimpleWorkoutProcessors.processWorkoutSessionUpdate;
+    static processWorkoutSessionDelete =
+        SimpleWorkoutProcessors.processWorkoutSessionDelete;
+    static processWorkoutExerciseCreate =
+        SimpleWorkoutProcessors.processWorkoutExerciseCreate;
+    static processWorkoutExerciseUpdate =
+        SimpleWorkoutProcessors.processWorkoutExerciseUpdate;
+    static processWorkoutExerciseDelete =
+        SimpleWorkoutProcessors.processWorkoutExerciseDelete;
+    static processWorkoutPlanFullSave =
+        SimpleWorkoutProcessors.processWorkoutPlanFullSave;
 
-        try {
-            // TODO: Implement actual workout update logic
-            // This would typically involve database updates
-
-            // Simulate processing time
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            return {
-                success: true,
-                message: "Workout update processed successfully",
-                data: {
-                    exercisePlanId: message.data.exercisePlanId,
-                    updatedFieldsCount: Object.keys(message.data.changes)
-                        .length,
-                },
-                processedAt: new Date().toISOString(),
-            };
-        } catch (error) {
-            return {
-                success: false,
-                message: "Failed to process workout update",
-                error: error instanceof Error ? error.message : "Unknown error",
-                processedAt: new Date().toISOString(),
-            };
-        }
-    }
-
-    static async processUserAction(
-        message: UserActionMessage
-    ): Promise<QueueJobResult> {
-        console.log("Processing user action:", message.data);
-
-        try {
-            // TODO: Implement actual user action logic
-            // This could involve logging, analytics, notifications, etc.
-
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            return {
-                success: true,
-                message: "User action processed successfully",
-                data: {
-                    action: message.data.action,
-                    entityType: message.data.entityType,
-                    entityId: message.data.entityId,
-                },
-                processedAt: new Date().toISOString(),
-            };
-        } catch (error) {
-            return {
-                success: false,
-                message: "Failed to process user action",
-                error: error instanceof Error ? error.message : "Unknown error",
-                processedAt: new Date().toISOString(),
-            };
-        }
-    }
-
-    static async processNotification(
-        message: NotificationMessage
-    ): Promise<QueueJobResult> {
-        console.log("Processing notification:", message.data);
-
-        try {
-            // TODO: Implement actual notification logic
-            // This could involve push notifications, in-app notifications, etc.
-
-            await new Promise((resolve) => setTimeout(resolve, 300));
-
-            return {
-                success: true,
-                message: "Notification processed successfully",
-                data: {
-                    recipientId: message.data.recipientId,
-                    type: message.data.type,
-                    title: message.data.title,
-                },
-                processedAt: new Date().toISOString(),
-            };
-        } catch (error) {
-            return {
-                success: false,
-                message: "Failed to process notification",
-                error: error instanceof Error ? error.message : "Unknown error",
-                processedAt: new Date().toISOString(),
-            };
-        }
-    }
-
-    static async processEmail(message: EmailMessage): Promise<QueueJobResult> {
-        console.log("Processing email:", message.data);
-
-        try {
-            // TODO: Implement actual email sending logic
-            // This would typically involve an email service like SendGrid, SES, etc.
-
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-
-            return {
-                success: true,
-                message: "Email processed successfully",
-                data: {
-                    to: message.data.to,
-                    subject: message.data.subject,
-                    template: message.data.template,
-                },
-                processedAt: new Date().toISOString(),
-            };
-        } catch (error) {
-            return {
-                success: false,
-                message: "Failed to process email",
-                error: error instanceof Error ? error.message : "Unknown error",
-                processedAt: new Date().toISOString(),
-            };
-        }
-    }
-
-    static async processDataSync(
-        message: DataSyncMessage
-    ): Promise<QueueJobResult> {
-        console.log("Processing data sync:", message.data);
-
-        try {
-            // TODO: Implement actual data sync logic
-            // This could involve backups, exports, imports, etc.
-
-            await new Promise((resolve) => setTimeout(resolve, 5000));
-
-            return {
-                success: true,
-                message: "Data sync processed successfully",
-                data: {
-                    syncType: message.data.syncType,
-                    entityType: message.data.entityType,
-                    entityCount: message.data.entityIds.length,
-                },
-                processedAt: new Date().toISOString(),
-            };
-        } catch (error) {
-            return {
-                success: false,
-                message: "Failed to process data sync",
-                error: error instanceof Error ? error.message : "Unknown error",
-                processedAt: new Date().toISOString(),
-            };
-        }
-    }
-
-    static async processTest(message: TestMessage): Promise<QueueJobResult> {
-        console.log("Processing test message:", message.data);
-
-        try {
-            // Simulate some processing
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            return {
-                success: true,
-                message: "Test message processed successfully",
-                data: {
-                    testType: message.data.testType,
-                    payloadSize: Object.keys(message.data.payload).length,
-                    processedBy: "queue-worker",
-                },
-                processedAt: new Date().toISOString(),
-            };
-        } catch (error) {
-            return {
-                success: false,
-                message: "Failed to process test message",
-                error: error instanceof Error ? error.message : "Unknown error",
-                processedAt: new Date().toISOString(),
-            };
-        }
-    }
+    // General processors
+    static processUserAction = GeneralProcessors.processUserAction;
+    static processNotification = GeneralProcessors.processNotification;
+    static processEmail = GeneralProcessors.processEmail;
+    static processDataSync = GeneralProcessors.processDataSync;
+    static processTest = GeneralProcessors.processTest;
 }
 
 // Main job processor
@@ -208,6 +70,56 @@ async function processJob(job: Job<QueueMessage>): Promise<QueueJobResult> {
             case "WORKOUT_UPDATE":
                 result = await MessageProcessors.processWorkoutUpdate(
                     message as WorkoutUpdateMessage
+                );
+                break;
+            case "WORKOUT_PHASE_CREATE":
+                result = await MessageProcessors.processWorkoutPhaseCreate(
+                    message as WorkoutPhaseCreateMessage
+                );
+                break;
+            case "WORKOUT_PHASE_UPDATE":
+                result = await MessageProcessors.processWorkoutPhaseUpdate(
+                    message as WorkoutPhaseUpdateMessage
+                );
+                break;
+            case "WORKOUT_PHASE_DELETE":
+                result = await MessageProcessors.processWorkoutPhaseDelete(
+                    message as WorkoutPhaseDeleteMessage
+                );
+                break;
+            case "WORKOUT_SESSION_CREATE":
+                result = await MessageProcessors.processWorkoutSessionCreate(
+                    message as WorkoutSessionCreateMessage
+                );
+                break;
+            case "WORKOUT_SESSION_UPDATE":
+                result = await MessageProcessors.processWorkoutSessionUpdate(
+                    message as WorkoutSessionUpdateMessage
+                );
+                break;
+            case "WORKOUT_SESSION_DELETE":
+                result = await MessageProcessors.processWorkoutSessionDelete(
+                    message as WorkoutSessionDeleteMessage
+                );
+                break;
+            case "WORKOUT_EXERCISE_CREATE":
+                result = await MessageProcessors.processWorkoutExerciseCreate(
+                    message as WorkoutExerciseCreateMessage
+                );
+                break;
+            case "WORKOUT_EXERCISE_UPDATE":
+                result = await MessageProcessors.processWorkoutExerciseUpdate(
+                    message as WorkoutExerciseUpdateMessage
+                );
+                break;
+            case "WORKOUT_EXERCISE_DELETE":
+                result = await MessageProcessors.processWorkoutExerciseDelete(
+                    message as WorkoutExerciseDeleteMessage
+                );
+                break;
+            case "WORKOUT_PLAN_FULL_SAVE":
+                result = await MessageProcessors.processWorkoutPlanFullSave(
+                    message as WorkoutPlanFullSaveMessage
                 );
                 break;
             case "USER_ACTION":
