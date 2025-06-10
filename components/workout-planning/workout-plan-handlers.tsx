@@ -472,28 +472,96 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         console.log("Session:", session.name, "(", sessionId, ")");
         console.log("Exercise:", JSON.stringify(exercise, null, 2));
 
-        // Queue the exercise update event
+        // Determine if this is a new exercise creation or an update
+        // New exercises have empty exerciseId until they are properly saved
+        const isNewExercise =
+            !exercise.exerciseId || exercise.exerciseId === "";
+
+        // Validate that exerciseId is set for new exercises
+        if (
+            isNewExercise &&
+            exerciseData &&
+            (!exerciseData.exerciseId || exerciseData.exerciseId === "")
+        ) {
+            console.error("Cannot save new exercise without valid exerciseId");
+            toast.error("Please select a valid exercise from the dropdown");
+            return;
+        }
+
+        // Queue the appropriate event based on whether this is new or existing
         try {
             if (props.planId && exerciseData) {
-                await WorkoutQueueIntegration.queueExerciseUpdate(
-                    props.planId,
-                    phaseId,
-                    sessionId,
-                    exerciseId,
-                    exercise.id, // Use exercise.id as planExerciseId
-                    props.client_id,
-                    exerciseData,
-                    props.lastKnownUpdatedAt || new Date()
-                );
+                if (isNewExercise) {
+                    // This is a new exercise creation
+                    await WorkoutQueueIntegration.queueExerciseCreate(
+                        props.planId,
+                        phaseId,
+                        sessionId,
+                        props.client_id,
+                        {
+                            id: exercise.id,
+                            exerciseId: exerciseData.exerciseId || "",
+                            description:
+                                exerciseData.description ||
+                                exercise.description ||
+                                "New Exercise",
+                            motion:
+                                exerciseData.motion ||
+                                exercise.motion ||
+                                "Unspecified",
+                            targetArea:
+                                exerciseData.targetArea ||
+                                exercise.targetArea ||
+                                "Unspecified",
+                            setsMin: exerciseData.setsMin || exercise.setsMin,
+                            setsMax: exerciseData.setsMax || exercise.setsMax,
+                            repsMin: exerciseData.repsMin || exercise.repsMin,
+                            repsMax: exerciseData.repsMax || exercise.repsMax,
+                            tempo: exerciseData.tempo || exercise.tempo,
+                            restMin: exerciseData.restMin || exercise.restMin,
+                            restMax: exerciseData.restMax || exercise.restMax,
+                            customizations:
+                                exerciseData.customizations ||
+                                exercise.customizations,
+                            notes: exerciseData.notes || exercise.notes,
+                            exerciseOrder:
+                                parseInt(
+                                    exerciseData.order || exercise.order || "0"
+                                ) || 0,
+                        },
+                        props.lastKnownUpdatedAt || new Date()
+                    );
+                    toast.success(
+                        "Exercise created and queued for processing.",
+                        {
+                            duration: 2000,
+                        }
+                    );
+                } else {
+                    // This is an existing exercise update
+                    await WorkoutQueueIntegration.queueExerciseUpdate(
+                        props.planId,
+                        phaseId,
+                        sessionId,
+                        exerciseId,
+                        exercise.id, // Use exercise.id as planExerciseId
+                        props.client_id,
+                        exerciseData,
+                        props.lastKnownUpdatedAt || new Date()
+                    );
+                    toast.success(
+                        "Exercise updated and queued for processing.",
+                        {
+                            duration: 2000,
+                        }
+                    );
+                }
             }
         } catch (error) {
-            console.error("Failed to queue exercise update:", error);
+            console.error("Failed to queue exercise operation:", error);
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Exercise updated and queued for processing.", {
-            duration: 2000,
-        });
         props.setHasUnsavedChanges(true);
     };
 
@@ -509,55 +577,14 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         props.setEditingExercise({ sessionId, exerciseId: newExerciseId });
         props.setHasUnsavedChanges(true);
 
-        // Queue the exercise creation event
-        try {
-            if (props.planId) {
-                // Find the newly created exercise
-                const updatedPhase = updatedPhases.find(
-                    (p) => p.id === phaseId
-                );
-                const updatedSession = updatedPhase?.sessions.find(
-                    (s) => s.id === sessionId
-                );
-                const newExercise = updatedSession?.exercises.find(
-                    (e) => e.id === newExerciseId
-                );
-
-                if (newExercise) {
-                    await WorkoutQueueIntegration.queueExerciseCreate(
-                        props.planId,
-                        phaseId,
-                        sessionId,
-                        props.client_id,
-                        {
-                            id: newExercise.id,
-                            exerciseId: newExercise.exerciseId || "",
-                            description:
-                                newExercise.description || "New Exercise",
-                            motion: newExercise.motion || "Unspecified",
-                            targetArea: newExercise.targetArea || "Unspecified",
-                            setsMin: newExercise.setsMin,
-                            setsMax: newExercise.setsMax,
-                            repsMin: newExercise.repsMin,
-                            repsMax: newExercise.repsMax,
-                            tempo: newExercise.tempo,
-                            restMin: newExercise.restMin,
-                            restMax: newExercise.restMax,
-                            customizations: newExercise.customizations,
-                            notes: newExercise.notes,
-                        },
-                        props.lastKnownUpdatedAt || new Date()
-                    );
-                }
+        // Note: Queue event will be triggered when user clicks the checkmark button
+        // after filling in required fields and selecting a valid exercise
+        toast.success(
+            "Exercise added. Complete the details and click the checkmark to save.",
+            {
+                duration: 3000,
             }
-        } catch (error) {
-            console.error("Failed to queue exercise creation:", error);
-            // Don't show error to user as the operation succeeded locally
-        }
-
-        toast.success("Exercise added and queued for processing.", {
-            duration: 2000,
-        });
+        );
     };
 
     const deleteExerciseHandler = (

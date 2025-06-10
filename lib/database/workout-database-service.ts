@@ -20,12 +20,11 @@ import {
 } from "@/components/workout-planning/types";
 
 /**
- * Apply changes to a workout plan with optimistic concurrency control
+ * Apply changes to a workout plan without concurrency control
  * Worker-compatible version without Next.js dependencies
  */
 export async function applyWorkoutPlanChangesWorker(
     planId: string,
-    lastKnownUpdatedAt: Date,
     changes: WorkoutPlanChanges
 ): Promise<WorkoutPlanActionResponse> {
     try {
@@ -71,31 +70,9 @@ export async function applyWorkoutPlanChangesWorker(
             };
         }
 
-        const currentUpdatedAt = currentPlan[0].updatedAt;
-
-        // Check for conflicts (skip for queue operations using epoch time)
-        const isQueueOperation = lastKnownUpdatedAt.getTime() === 0; // Epoch time indicates queue operation
-
-        if (
-            !isQueueOperation &&
-            currentUpdatedAt.toISOString() !== lastKnownUpdatedAt.toISOString()
-        ) {
-            return {
-                success: false,
-                error: "Plan has been modified since last fetch",
-                conflict: true,
-                serverUpdatedAt: currentUpdatedAt,
-                planId: planId,
-                updatedAt: currentUpdatedAt,
-            };
-        }
-
-        // For queue operations, log that we're bypassing concurrency control
-        if (isQueueOperation) {
-            console.log(
-                `Queue operation: Bypassing concurrency control for plan ${planId}`
-            );
-        }
+        console.log(
+            `Applying changes to plan ${planId} without concurrency control`
+        );
 
         const now = new Date();
 
@@ -604,11 +581,7 @@ export async function updateWorkoutPlanWorker(
             },
         };
 
-        return await applyWorkoutPlanChangesWorker(
-            planId,
-            lastKnownUpdatedAt,
-            changes
-        );
+        return await applyWorkoutPlanChangesWorker(planId, changes);
     } catch (error) {
         console.error("Error updating workout plan:", error);
         return {

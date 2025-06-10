@@ -1,6 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { getRedisConnectionOptions } from "./redis-utils";
-import { WorkerWorkoutProcessors } from "./queue-processors/worker-workout-processors";
+import { WorkoutProcessorsMain } from "./queue-processors/workout-processors-main";
 import { GeneralProcessors } from "./queue-processors/general-processors";
 import {
     QueueMessage,
@@ -34,30 +34,30 @@ interface RedisConnectionConfig {
 // Message processors bridge class
 // This class serves as a bridge to the separated processor files
 class MessageProcessors {
-    // Workout-related processors (using worker-compatible versions)
-    static processWorkoutUpdate = WorkerWorkoutProcessors.processWorkoutUpdate;
+    // Workout-related processors (using modular worker-compatible versions)
+    static processWorkoutUpdate = WorkoutProcessorsMain.processWorkoutUpdate;
     static processWorkoutPlanCreate =
-        WorkerWorkoutProcessors.processWorkoutPlanCreate;
+        WorkoutProcessorsMain.processWorkoutPlanCreate;
     static processWorkoutPhaseCreate =
-        WorkerWorkoutProcessors.processWorkoutPhaseCreate;
+        WorkoutProcessorsMain.processWorkoutPhaseCreate;
     static processWorkoutPhaseUpdate =
-        WorkerWorkoutProcessors.processWorkoutPhaseUpdate;
+        WorkoutProcessorsMain.processWorkoutPhaseUpdate;
     static processWorkoutPhaseDelete =
-        WorkerWorkoutProcessors.processWorkoutPhaseDelete;
+        WorkoutProcessorsMain.processWorkoutPhaseDelete;
     static processWorkoutSessionCreate =
-        WorkerWorkoutProcessors.processWorkoutSessionCreate;
+        WorkoutProcessorsMain.processWorkoutSessionCreate;
     static processWorkoutSessionUpdate =
-        WorkerWorkoutProcessors.processWorkoutSessionUpdate;
+        WorkoutProcessorsMain.processWorkoutSessionUpdate;
     static processWorkoutSessionDelete =
-        WorkerWorkoutProcessors.processWorkoutSessionDelete;
+        WorkoutProcessorsMain.processWorkoutSessionDelete;
     static processWorkoutExerciseCreate =
-        WorkerWorkoutProcessors.processWorkoutExerciseCreate;
+        WorkoutProcessorsMain.processWorkoutExerciseCreate;
     static processWorkoutExerciseUpdate =
-        WorkerWorkoutProcessors.processWorkoutExerciseUpdate;
+        WorkoutProcessorsMain.processWorkoutExerciseUpdate;
     static processWorkoutExerciseDelete =
-        WorkerWorkoutProcessors.processWorkoutExerciseDelete;
+        WorkoutProcessorsMain.processWorkoutExerciseDelete;
     static processWorkoutPlanFullSave =
-        WorkerWorkoutProcessors.processWorkoutPlanFullSave;
+        WorkoutProcessorsMain.processWorkoutPlanFullSave;
 
     // General processors
     static processUserAction = GeneralProcessors.processUserAction;
