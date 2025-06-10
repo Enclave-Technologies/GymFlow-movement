@@ -111,37 +111,43 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
                     duration: 2000,
                 });
             } else {
-                // No plan exists - issue two separate events with dependency:
-                // 1. Create plan
-                // 2. Create phase (depends on plan creation)
+                // No plan exists - issue two separate events with delay:
+                // 1. Create plan (immediate)
+                // 2. Create phase (with 3-second delay to ensure plan is created first)
 
                 const newPlanId = uuidv4(); // Generate plan ID in frontend
 
-                // First: Create the plan and get the job ID
-                const planJobResult =
-                    await WorkoutQueueIntegration.queuePlanCreate(
-                        newPlanId,
-                        "Workout Plan", // Default plan name
-                        props.client_id,
-                        props.trainer_id,
-                        true // isActive
-                    );
-
-                // Second: Create the phase with dependency on plan creation
-                await WorkoutQueueIntegration.queuePhaseCreateWithDependency(
+                // First: Create the plan immediately
+                await WorkoutQueueIntegration.queuePlanCreate(
                     newPlanId,
+                    "Workout Plan", // Default plan name
                     props.client_id,
                     props.trainer_id,
-                    {
-                        id: newPhase.id,
-                        name: newPhase.name,
-                        orderNumber: newPhase.orderNumber || 0,
-                        isActive: newPhase.isActive,
-                    },
-                    planJobResult.success
-                        ? planJobResult.data?.jobId
-                        : undefined // Depend on the plan creation job
+                    true // isActive
                 );
+
+                // Second: Create the phase with a delay to ensure plan is created first
+                setTimeout(async () => {
+                    try {
+                        await WorkoutQueueIntegration.queuePhaseCreate(
+                            newPlanId,
+                            props.client_id,
+                            props.trainer_id,
+                            {
+                                id: newPhase.id,
+                                name: newPhase.name,
+                                orderNumber: newPhase.orderNumber || 0,
+                                isActive: newPhase.isActive,
+                            }
+                        );
+                        console.log("Phase creation queued after delay");
+                    } catch (error) {
+                        console.error(
+                            "Failed to queue delayed phase creation:",
+                            error
+                        );
+                    }
+                }, 3000); // 3-second delay to ensure plan is created first
 
                 // Update local state with the new plan ID immediately
                 props.setPlanId(newPlanId);

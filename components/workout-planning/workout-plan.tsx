@@ -29,7 +29,7 @@ export default function WorkoutPlanner({
     const [lastKnownUpdatedAt, setLastKnownUpdatedAt] = useState<Date | null>(
         null
     );
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [, setHasUnsavedChanges] = useState(false);
     const [isSaving, setSaving] = useState(false);
     const [manualSaveInProgress, setManualSaveInProgress] = useState(false);
 
@@ -152,7 +152,7 @@ export default function WorkoutPlanner({
             {/* Simplified - no conflict error display for now */}
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 flex flex-col min-h-0 gap-2">
                 {/* Toolbar */}
                 <WorkoutToolbar
                     onAddPhase={handlers.handleAddPhase}

@@ -10,7 +10,6 @@ import {
     Phases,
     Sessions,
     ExercisePlanExercises,
-    Exercises,
 } from "@/db/schemas";
 import { eq, inArray } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
@@ -74,8 +73,11 @@ export async function applyWorkoutPlanChangesWorker(
 
         const currentUpdatedAt = currentPlan[0].updatedAt;
 
-        // Check for conflicts
+        // Check for conflicts (skip for queue operations using epoch time)
+        const isQueueOperation = lastKnownUpdatedAt.getTime() === 0; // Epoch time indicates queue operation
+
         if (
+            !isQueueOperation &&
             currentUpdatedAt.toISOString() !== lastKnownUpdatedAt.toISOString()
         ) {
             return {
@@ -86,6 +88,13 @@ export async function applyWorkoutPlanChangesWorker(
                 planId: planId,
                 updatedAt: currentUpdatedAt,
             };
+        }
+
+        // For queue operations, log that we're bypassing concurrency control
+        if (isQueueOperation) {
+            console.log(
+                `Queue operation: Bypassing concurrency control for plan ${planId}`
+            );
         }
 
         const now = new Date();
@@ -120,7 +129,7 @@ export async function applyWorkoutPlanChangesWorker(
 
             // Process updates
             for (const phaseUpdate of changes.updated.phases) {
-                const updateData: any = {};
+                const updateData: Record<string, unknown> = {};
                 if (phaseUpdate.changes.name !== undefined) {
                     updateData.phaseName = phaseUpdate.changes.name;
                 }
@@ -140,15 +149,15 @@ export async function applyWorkoutPlanChangesWorker(
             }
 
             for (const sessionUpdate of changes.updated.sessions) {
-                const updateData: any = {};
+                const updateData: Record<string, unknown> = {};
                 if (sessionUpdate.changes.name !== undefined) {
                     updateData.sessionName = sessionUpdate.changes.name;
                 }
                 if (sessionUpdate.changes.orderNumber !== undefined) {
                     updateData.orderNumber = sessionUpdate.changes.orderNumber;
                 }
-                if (sessionUpdate.changes.sessionTime !== undefined) {
-                    updateData.sessionTime = sessionUpdate.changes.sessionTime;
+                if (sessionUpdate.changes.duration !== undefined) {
+                    updateData.sessionTime = sessionUpdate.changes.duration;
                 }
 
                 if (Object.keys(updateData).length > 0) {
@@ -160,7 +169,7 @@ export async function applyWorkoutPlanChangesWorker(
             }
 
             for (const exerciseUpdate of changes.updated.exercises) {
-                const updateData: any = {};
+                const updateData: Record<string, unknown> = {};
                 if (exerciseUpdate.changes.exerciseId !== undefined) {
                     updateData.exerciseId = exerciseUpdate.changes.exerciseId;
                 }
@@ -174,25 +183,31 @@ export async function applyWorkoutPlanChangesWorker(
                     updateData.targetArea = exerciseUpdate.changes.targetArea;
                 }
                 if (exerciseUpdate.changes.setsMin !== undefined) {
-                    updateData.setsMin = exerciseUpdate.changes.setsMin;
+                    updateData.setsMin =
+                        parseInt(exerciseUpdate.changes.setsMin) || 0;
                 }
                 if (exerciseUpdate.changes.setsMax !== undefined) {
-                    updateData.setsMax = exerciseUpdate.changes.setsMax;
+                    updateData.setsMax =
+                        parseInt(exerciseUpdate.changes.setsMax) || 0;
                 }
                 if (exerciseUpdate.changes.repsMin !== undefined) {
-                    updateData.repsMin = exerciseUpdate.changes.repsMin;
+                    updateData.repsMin =
+                        parseInt(exerciseUpdate.changes.repsMin) || 0;
                 }
                 if (exerciseUpdate.changes.repsMax !== undefined) {
-                    updateData.repsMax = exerciseUpdate.changes.repsMax;
+                    updateData.repsMax =
+                        parseInt(exerciseUpdate.changes.repsMax) || 0;
                 }
                 if (exerciseUpdate.changes.tempo !== undefined) {
                     updateData.tempo = exerciseUpdate.changes.tempo;
                 }
                 if (exerciseUpdate.changes.restMin !== undefined) {
-                    updateData.restMin = exerciseUpdate.changes.restMin;
+                    updateData.restMin =
+                        parseInt(exerciseUpdate.changes.restMin) || 0;
                 }
                 if (exerciseUpdate.changes.restMax !== undefined) {
-                    updateData.restMax = exerciseUpdate.changes.restMax;
+                    updateData.restMax =
+                        parseInt(exerciseUpdate.changes.restMax) || 0;
                 }
                 if (exerciseUpdate.changes.customizations !== undefined) {
                     updateData.customizations =
@@ -200,10 +215,6 @@ export async function applyWorkoutPlanChangesWorker(
                 }
                 if (exerciseUpdate.changes.notes !== undefined) {
                     updateData.notes = exerciseUpdate.changes.notes;
-                }
-                if (exerciseUpdate.changes.exerciseOrder !== undefined) {
-                    updateData.exerciseOrder =
-                        exerciseUpdate.changes.exerciseOrder;
                 }
 
                 if (Object.keys(updateData).length > 0) {
@@ -225,7 +236,7 @@ export async function applyWorkoutPlanChangesWorker(
                     phaseId: phase.id,
                     planId: planId,
                     phaseName: phase.name,
-                    orderNumber: phase.orderNumber,
+                    orderNumber: phase.orderNumber || 0,
                     isActive: phase.isActive,
                 }));
 
@@ -234,12 +245,12 @@ export async function applyWorkoutPlanChangesWorker(
 
             if (changes.created.sessions.length > 0) {
                 const sessionsToInsert = changes.created.sessions.map(
-                    (session) => ({
-                        sessionId: session.id,
-                        phaseId: session.phaseId,
-                        sessionName: session.name,
-                        orderNumber: session.orderNumber,
-                        sessionTime: session.sessionTime || 0,
+                    (sessionData) => ({
+                        sessionId: sessionData.session.id,
+                        phaseId: sessionData.phaseId,
+                        sessionName: sessionData.session.name,
+                        orderNumber: sessionData.session.orderNumber || 0,
+                        sessionTime: sessionData.session.duration || 0,
                     })
                 );
 
@@ -248,23 +259,29 @@ export async function applyWorkoutPlanChangesWorker(
 
             if (changes.created.exercises.length > 0) {
                 const exercisesToInsert = changes.created.exercises.map(
-                    (exercise) => ({
-                        planExerciseId: exercise.id,
-                        sessionId: exercise.sessionId,
-                        exerciseId: exercise.exerciseId,
-                        description: exercise.description,
-                        motion: exercise.motion,
-                        targetArea: exercise.targetArea,
-                        setsMin: exercise.setsMin,
-                        setsMax: exercise.setsMax,
-                        repsMin: exercise.repsMin,
-                        repsMax: exercise.repsMax,
-                        tempo: exercise.tempo,
-                        restMin: exercise.restMin,
-                        restMax: exercise.restMax,
-                        customizations: exercise.customizations,
-                        notes: exercise.notes,
-                        exerciseOrder: exercise.exerciseOrder,
+                    (exerciseData) => ({
+                        planExerciseId: exerciseData.exercise.id,
+                        sessionId: exerciseData.sessionId,
+                        exerciseId: exerciseData.exercise.exerciseId,
+                        description: exerciseData.exercise.description || "",
+                        motion: exerciseData.exercise.motion || "",
+                        targetArea: exerciseData.exercise.targetArea || "",
+                        setsMin:
+                            parseInt(exerciseData.exercise.setsMin || "0") || 0,
+                        setsMax:
+                            parseInt(exerciseData.exercise.setsMax || "0") || 0,
+                        repsMin:
+                            parseInt(exerciseData.exercise.repsMin || "0") || 0,
+                        repsMax:
+                            parseInt(exerciseData.exercise.repsMax || "0") || 0,
+                        tempo: exerciseData.exercise.tempo || "",
+                        restMin:
+                            parseInt(exerciseData.exercise.restMin || "0") || 0,
+                        restMax:
+                            parseInt(exerciseData.exercise.restMax || "0") || 0,
+                        customizations:
+                            exerciseData.exercise.customizations || "",
+                        notes: exerciseData.exercise.notes || "",
                     })
                 );
 
@@ -313,10 +330,16 @@ export async function createWorkoutPlanWorker(
     trainerId: string,
     planData: {
         phases: Phase[];
+        planId?: string; // Optional plan ID - if not provided, generates one
+        planName?: string; // Optional plan name - defaults to "Workout Plan"
+        isActive?: boolean; // Optional active status - defaults to true
     }
 ): Promise<WorkoutPlanActionResponse> {
     try {
-        const planId = uuidv4();
+        const planId = planData.planId || uuidv4(); // Use provided ID or generate new one
+        const planName = planData.planName || "Workout Plan";
+        const isActive =
+            planData.isActive !== undefined ? planData.isActive : true;
         const now = new Date();
 
         // Prepare all data structures before transaction
@@ -343,13 +366,13 @@ export async function createWorkoutPlanWorker(
             description: string;
             motion: string;
             targetArea: string;
-            setsMin?: string;
-            setsMax?: string;
-            repsMin?: string;
-            repsMax?: string;
+            setsMin?: number;
+            setsMax?: number;
+            repsMin?: number;
+            repsMax?: number;
             tempo?: string;
-            restMin?: string;
-            restMax?: string;
+            restMin?: number;
+            restMax?: number;
             customizations?: string;
             notes?: string;
             exerciseOrder?: number;
@@ -361,7 +384,7 @@ export async function createWorkoutPlanWorker(
                 phaseId: phase.id,
                 planId: planId,
                 phaseName: phase.name,
-                orderNumber: phase.orderNumber,
+                orderNumber: phase.orderNumber || 0,
                 isActive: phase.isActive,
             });
 
@@ -379,19 +402,18 @@ export async function createWorkoutPlanWorker(
                         planExerciseId: exercise.id,
                         sessionId: session.id,
                         exerciseId: exercise.exerciseId,
-                        description: exercise.description,
-                        motion: exercise.motion,
-                        targetArea: exercise.targetArea,
-                        setsMin: exercise.setsMin,
-                        setsMax: exercise.setsMax,
-                        repsMin: exercise.repsMin,
-                        repsMax: exercise.repsMax,
-                        tempo: exercise.tempo,
-                        restMin: exercise.restMin,
-                        restMax: exercise.restMax,
-                        customizations: exercise.customizations,
-                        notes: exercise.notes,
-                        exerciseOrder: 0, // Default order
+                        description: exercise.description || "",
+                        motion: exercise.motion || "",
+                        targetArea: exercise.targetArea || "",
+                        setsMin: parseInt(exercise.setsMin || "0", 10) || 0,
+                        setsMax: parseInt(exercise.setsMax || "0", 10) || 0,
+                        repsMin: parseInt(exercise.repsMin || "0", 10) || 0,
+                        repsMax: parseInt(exercise.repsMax || "0", 10) || 0,
+                        tempo: exercise.tempo || "",
+                        restMin: parseInt(exercise.restMin || "0", 10) || 0,
+                        restMax: parseInt(exercise.restMax || "0", 10) || 0,
+                        customizations: exercise.customizations || "",
+                        notes: exercise.notes || "",
                     });
                 }
             }
@@ -401,12 +423,12 @@ export async function createWorkoutPlanWorker(
             // Insert the plan
             await tx.insert(ExercisePlans).values({
                 planId: planId,
-                planName: "Workout Plan",
+                planName: planName,
                 createdByUserId: trainerId,
                 assignedToUserId: clientId,
                 createdDate: now,
                 updatedAt: now,
-                isActive: true,
+                isActive: isActive,
             });
 
             // Insert phases
@@ -530,36 +552,42 @@ export async function updateWorkoutPlanWorker(
                     orderNumber: phase.orderNumber,
                     isActive: phase.isActive,
                     isExpanded: phase.isExpanded,
+                    sessions: phase.sessions,
                 })),
                 sessions: planData.phases.flatMap((phase) =>
                     phase.sessions.map((session) => ({
-                        id: session.id,
-                        name: session.name,
                         phaseId: phase.id,
-                        orderNumber: session.orderNumber || 0,
-                        sessionTime: session.duration || 0,
-                        isExpanded: session.isExpanded,
+                        session: {
+                            id: session.id,
+                            name: session.name,
+                            duration: session.duration || 0,
+                            orderNumber: session.orderNumber || 0,
+                            isExpanded: session.isExpanded,
+                            exercises: session.exercises,
+                        },
                     }))
                 ),
                 exercises: planData.phases.flatMap((phase) =>
                     phase.sessions.flatMap((session) =>
                         session.exercises.map((exercise) => ({
-                            id: exercise.id,
                             sessionId: session.id,
-                            exerciseId: exercise.exerciseId,
-                            description: exercise.description,
-                            motion: exercise.motion,
-                            targetArea: exercise.targetArea,
-                            setsMin: exercise.setsMin,
-                            setsMax: exercise.setsMax,
-                            repsMin: exercise.repsMin,
-                            repsMax: exercise.repsMax,
-                            tempo: exercise.tempo,
-                            restMin: exercise.restMin,
-                            restMax: exercise.restMax,
-                            customizations: exercise.customizations,
-                            notes: exercise.notes,
-                            exerciseOrder: 0,
+                            exercise: {
+                                id: exercise.id,
+                                exerciseId: exercise.exerciseId,
+                                order: exercise.order,
+                                motion: exercise.motion,
+                                targetArea: exercise.targetArea,
+                                description: exercise.description,
+                                setsMin: exercise.setsMin,
+                                setsMax: exercise.setsMax,
+                                repsMin: exercise.repsMin,
+                                repsMax: exercise.repsMax,
+                                tempo: exercise.tempo,
+                                restMin: exercise.restMin,
+                                restMax: exercise.restMax,
+                                customizations: exercise.customizations,
+                                notes: exercise.notes,
+                            },
                         }))
                     )
                 ),

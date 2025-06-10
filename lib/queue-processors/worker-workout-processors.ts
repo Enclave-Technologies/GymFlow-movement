@@ -26,6 +26,9 @@ import {
     createWorkoutPlanWorker,
     updateWorkoutPlanWorker,
 } from "@/lib/database/workout-database-service";
+import { db } from "@/db/xata";
+import { ExercisePlans } from "@/db/schemas";
+import { eq } from "drizzle-orm";
 
 export class WorkerWorkoutProcessors {
     static async processWorkoutPlanCreate(
@@ -39,6 +42,9 @@ export class WorkerWorkoutProcessors {
                 message.data.trainerId,
                 {
                     phases: [], // Empty phases array for new plan
+                    planId: message.data.planId, // Use the plan ID from the message
+                    planName: message.data.planName,
+                    isActive: message.data.isActive,
                 }
             );
 
@@ -114,6 +120,26 @@ export class WorkerWorkoutProcessors {
                 await new Promise((resolve) => setTimeout(resolve, 1000));
             }
 
+            // For new plan scenarios, get the current plan timestamp to avoid concurrency issues
+            let lastKnownUpdatedAt = new Date();
+
+            // Check if plan exists and get its current timestamp
+            const currentPlan = await db
+                .select({ updatedAt: ExercisePlans.updatedAt })
+                .from(ExercisePlans)
+                .where(eq(ExercisePlans.planId, message.data.planId))
+                .limit(1);
+
+            if (currentPlan.length > 0) {
+                lastKnownUpdatedAt = currentPlan[0].updatedAt;
+                console.log(
+                    `Using plan's actual updatedAt: ${lastKnownUpdatedAt.toISOString()}`
+                );
+            } else {
+                console.log("Plan not found, will retry...");
+                throw new Error("Plan not found - retrying phase creation");
+            }
+
             // Create the phase using the worker-compatible database service
             const changes: WorkoutPlanChanges = {
                 created: {
@@ -144,7 +170,7 @@ export class WorkerWorkoutProcessors {
 
             const result = await applyWorkoutPlanChangesWorker(
                 message.data.planId,
-                new Date(), // Use current time as lastKnownUpdatedAt for new phases
+                lastKnownUpdatedAt, // Use the plan's actual timestamp
                 changes
             );
 
@@ -160,33 +186,46 @@ export class WorkerWorkoutProcessors {
                     processedAt: new Date().toISOString(),
                 };
             } else {
-                // If plan not found and this is a dependency scenario, throw retryable error
-                if (
-                    result.error?.includes("Plan not found") &&
-                    isDependencyScenario
-                ) {
+                // Check for retryable errors
+                if (result.error?.includes("Plan not found")) {
                     throw new Error("Plan not found - retrying phase creation");
+                }
+                if (
+                    result.error?.includes(
+                        "Plan has been modified since last fetch"
+                    )
+                ) {
+                    throw new Error("Plan modified - retrying phase creation");
                 }
                 throw new Error(result.error || "Failed to create phase");
             }
         } catch (error) {
             console.error("Failed to process phase creation:", error);
 
-            // For dependency scenarios with plan not found, make it retryable
+            // Make all phase creation errors retryable for new plan scenarios
             const errorMessage =
                 error instanceof Error ? error.message : "Unknown error";
-            const isDependencyScenario =
-                message.metadata?.updateType ===
-                "phase_creation_with_dependency";
 
-            if (
-                isDependencyScenario &&
-                errorMessage.includes("Plan not found")
-            ) {
+            // List of retryable errors
+            const retryableErrors = [
+                "Plan not found",
+                "Plan has been modified since last fetch",
+                "Plan modified",
+            ];
+
+            const isRetryableError = retryableErrors.some((retryableError) =>
+                errorMessage.includes(retryableError)
+            );
+
+            if (isRetryableError) {
+                console.log(
+                    `Retryable error detected: ${errorMessage}. Job will be retried.`
+                );
                 // This will trigger BullMQ's retry mechanism
                 throw error;
             }
 
+            // Non-retryable errors return failure result
             return {
                 success: false,
                 message: "Failed to process phase creation",
@@ -226,9 +265,10 @@ export class WorkerWorkoutProcessors {
                 },
             };
 
+            // For queue operations, skip concurrency control and apply changes unconditionally
             const result = await applyWorkoutPlanChangesWorker(
                 message.data.planId,
-                new Date(message.data.lastKnownUpdatedAt),
+                new Date(0), // Use epoch time to bypass concurrency control
                 changes
             );
 
@@ -282,9 +322,10 @@ export class WorkerWorkoutProcessors {
                 },
             };
 
+            // For queue operations, skip concurrency control and apply changes unconditionally
             const result = await applyWorkoutPlanChangesWorker(
                 message.data.planId,
-                new Date(message.data.lastKnownUpdatedAt),
+                new Date(0), // Use epoch time to bypass concurrency control
                 changes
             );
 
