@@ -11,6 +11,7 @@
         "drizzle:migrate": "drizzle-kit migrate",
         "drizzle:drop": "drizzle-kit drop",
         "worker": "tsx scripts/start-worker.ts",
+        "init-queue": "tsx scripts/init-queue.ts",
         "monitor": "node scripts/monitoring-server.mjs",
         "dev:full": "concurrently \"npm run dev\" \"npm run worker\" \"npm run monitor\""
     },

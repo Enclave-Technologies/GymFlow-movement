@@ -3,14 +3,11 @@
  * Contains custom hooks and effects for the workout planner
  */
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Exercise, Phase } from "./types";
+import { Phase } from "./types";
 import { saveAll } from "./workout-utils/workout-plan-functions";
-import {
-    fetchWorkoutPlan,
-    refetchWorkoutPlan,
-} from "./workout-utils/workout-utils";
+import { fetchWorkoutPlan } from "./workout-utils/workout-utils";
 
 export interface UseWorkoutPlanDataProps {
     client_id: string;
@@ -20,8 +17,6 @@ export interface UseWorkoutPlanDataProps {
     updatePhases: (
         newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
     ) => void;
-    latestPhasesRef: React.MutableRefObject<Phase[]>;
-    savePerformed: number;
 }
 
 export function useWorkoutPlanData({
@@ -30,8 +25,6 @@ export function useWorkoutPlanData({
     setPlanId,
     setLastKnownUpdatedAt,
     updatePhases,
-    latestPhasesRef,
-    savePerformed,
 }: UseWorkoutPlanDataProps) {
     // Initial data fetching
     useEffect(() => {
@@ -50,25 +43,7 @@ export function useWorkoutPlanData({
         updatePhases,
     ]);
 
-    // Refetch data when savePerformed changes (after successful save)
-    useEffect(() => {
-        if (savePerformed > 0) {
-            refetchWorkoutPlan(
-                client_id,
-                setPlanId,
-                setLastKnownUpdatedAt,
-                updatePhases,
-                latestPhasesRef.current
-            );
-        }
-    }, [
-        savePerformed,
-        client_id,
-        setPlanId,
-        setLastKnownUpdatedAt,
-        updatePhases,
-        latestPhasesRef,
-    ]);
+    // Automatic refetch after save removed to prevent circular dependency loop
 }
 
 export interface UseLocalStorageBackupProps {
@@ -113,12 +88,7 @@ export function useLocalStorageBackup({
         [localStorageKey, setSaveStatus]
     );
 
-    // Auto-save to localStorage whenever phases change
-    useEffect(() => {
-        if (phases.length > 0) {
-            saveToLocalStorage(phases);
-        }
-    }, [phases, saveToLocalStorage]);
+    // Automatic localStorage save removed to prevent circular dependency loop
 
     // Restore from localStorage on initial load
     useEffect(() => {
@@ -216,13 +186,18 @@ export interface UseGlobalSaveProps {
     };
     localStorageKey: string;
     invalidateWorkoutPlanCache: (clientId: string) => void;
-    setExerciseUpdateQueue: React.Dispatch<
-        React.SetStateAction<Map<string, Exercise>>
-    >;
 }
 
 export function useGlobalSave(props: UseGlobalSaveProps) {
     const handleSaveAll = useCallback(async () => {
+        console.log(
+            "🚫 Save function called - temporarily disabled to debug continuous save loop"
+        );
+        toast.info("Save functionality temporarily disabled for debugging");
+        return;
+
+        // Original save code commented out for debugging
+        /*
         const currentPhases = props.latestPhasesRef.current;
         console.log("Saving phases:", currentPhases.length);
 
@@ -264,220 +239,20 @@ export function useGlobalSave(props: UseGlobalSaveProps) {
             } catch (error) {
                 console.error("Failed to clear localStorage:", error);
             }
-
-            // Clear the exercise update queue
-            props.setExerciseUpdateQueue(new Map());
-            console.log("Cleared exercise update queue after manual save");
         } catch (error) {
             console.error("Save failed:", error);
             props.setSaveStatus("queued");
         } finally {
             props.setManualSaveInProgress(false);
         }
+        */
     }, [props]);
 
     return { handleSaveAll };
 }
 
-export interface UseBackgroundSyncProps {
-    exerciseUpdateQueue: Map<string, Exercise>;
-    backgroundSyncActive: boolean;
-    manualSaveInProgress: boolean;
-    setBackgroundSyncActive: (value: boolean) => void;
-    setExerciseUpdateQueue: React.Dispatch<
-        React.SetStateAction<Map<string, Exercise>>
-    >;
-    handleSaveAll: () => Promise<void>;
-}
+// Background sync functionality removed - saves will be triggered manually via button clicks
 
-export function useBackgroundSync({
-    exerciseUpdateQueue,
-    backgroundSyncActive,
-    manualSaveInProgress,
-    setBackgroundSyncActive,
-    setExerciseUpdateQueue,
-    handleSaveAll,
-}: UseBackgroundSyncProps) {
-    const processExerciseUpdateQueue = useCallback(async () => {
-        if (
-            exerciseUpdateQueue.size === 0 ||
-            backgroundSyncActive ||
-            manualSaveInProgress
-        ) {
-            return;
-        }
+// Auto-save functionality removed - saves will be triggered manually via button clicks
 
-        setBackgroundSyncActive(true);
-        console.log(
-            `Processing ${exerciseUpdateQueue.size} queued exercise updates (legacy mode)`
-        );
-
-        try {
-            // Fallback to full save for any remaining legacy queue items
-            await handleSaveAll();
-
-            // Clear the queue after successful save
-            setExerciseUpdateQueue(new Map());
-            console.log("Exercise update queue processed successfully");
-        } catch (error) {
-            console.error("Failed to process exercise update queue:", error);
-        } finally {
-            setBackgroundSyncActive(false);
-        }
-    }, [
-        exerciseUpdateQueue,
-        backgroundSyncActive,
-        manualSaveInProgress,
-        handleSaveAll,
-        setBackgroundSyncActive,
-        setExerciseUpdateQueue,
-    ]);
-
-    return { processExerciseUpdateQueue };
-}
-
-export interface UseAutoSaveProps {
-    activeEditingSessions: Set<string>;
-    exerciseUpdateQueue: Map<string, Exercise>;
-    manualSaveInProgress: boolean;
-    backgroundSyncActive: boolean;
-    processExerciseUpdateQueue: () => Promise<void>;
-}
-
-export function useAutoSave({
-    activeEditingSessions,
-    exerciseUpdateQueue,
-    manualSaveInProgress,
-    backgroundSyncActive,
-    processExerciseUpdateQueue,
-}: UseAutoSaveProps) {
-    const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Smart auto-save with editing-aware debouncing
-    const scheduleAutoSave = useCallback(() => {
-        // Clear any existing timer
-        if (autoSaveTimerRef.current) {
-            clearTimeout(autoSaveTimerRef.current);
-        }
-
-        // Determine delay based on whether editing is active
-        const baseDelay = 5000; // 5 seconds
-        const isActivelyEditing = activeEditingSessions.size > 0;
-        const delay = isActivelyEditing ? baseDelay * 2 : baseDelay; // 10 seconds if editing, 5 if not
-
-        console.log(
-            `Scheduling auto-save in ${delay}ms (editing: ${isActivelyEditing})`
-        );
-
-        autoSaveTimerRef.current = setTimeout(() => {
-            if (
-                exerciseUpdateQueue.size > 0 &&
-                !manualSaveInProgress &&
-                !backgroundSyncActive
-            ) {
-                // Double-check if still editing before processing
-                const stillEditing = activeEditingSessions.size > 0;
-                if (stillEditing) {
-                    console.log("Still editing, rescheduling auto-save...");
-                    scheduleAutoSave(); // Reschedule if still editing
-                } else {
-                    console.log("Processing auto-save queue");
-                    processExerciseUpdateQueue();
-                }
-            }
-        }, delay);
-    }, [
-        activeEditingSessions.size,
-        exerciseUpdateQueue.size,
-        manualSaveInProgress,
-        backgroundSyncActive,
-        processExerciseUpdateQueue,
-    ]);
-
-    // Schedule auto-save when queue changes
-    useEffect(() => {
-        if (exerciseUpdateQueue.size > 0) {
-            scheduleAutoSave();
-        }
-
-        // Cleanup timer on unmount
-        return () => {
-            if (autoSaveTimerRef.current) {
-                clearTimeout(autoSaveTimerRef.current);
-            }
-        };
-    }, [exerciseUpdateQueue.size, scheduleAutoSave]);
-
-    return { scheduleAutoSave };
-}
-
-export interface UseEditingSessionTrackingProps {
-    setActiveEditingSessions: React.Dispatch<React.SetStateAction<Set<string>>>;
-    exerciseUpdateQueue: Map<string, Exercise>;
-    scheduleAutoSave: () => void;
-    processExerciseUpdateQueue: () => Promise<void>;
-}
-
-export function useEditingSessionTracking({
-    setActiveEditingSessions,
-    exerciseUpdateQueue,
-    scheduleAutoSave,
-    processExerciseUpdateQueue,
-}: UseEditingSessionTrackingProps) {
-    const handleEditingStart = useCallback(
-        (exerciseId: string) => {
-            setActiveEditingSessions((prev) => {
-                const newSet = new Set(prev);
-                newSet.add(exerciseId);
-                return newSet;
-            });
-            console.log(`Started editing exercise: ${exerciseId}`);
-        },
-        [setActiveEditingSessions]
-    );
-
-    const handleEditingEnd = useCallback(
-        (exerciseId: string) => {
-            setActiveEditingSessions((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(exerciseId);
-                return newSet;
-            });
-            console.log(`Ended editing exercise: ${exerciseId}`);
-
-            // If no more active editing sessions and there are queued updates, process them
-            setTimeout(() => {
-                setActiveEditingSessions((currentSessions) => {
-                    if (
-                        exerciseUpdateQueue.size > 0 &&
-                        currentSessions.size === 0 // Check if no more editing sessions
-                    ) {
-                        console.log(
-                            "No more editing sessions, processing queue"
-                        );
-                        processExerciseUpdateQueue();
-                    }
-                    return currentSessions;
-                });
-            }, 1000); // Small delay to allow for rapid successive edits
-        },
-        [
-            setActiveEditingSessions,
-            exerciseUpdateQueue.size,
-            processExerciseUpdateQueue,
-        ]
-    );
-
-    const handleEditingChange = useCallback(() => {
-        // Reschedule auto-save when user makes changes
-        if (exerciseUpdateQueue.size > 0) {
-            scheduleAutoSave();
-        }
-    }, [exerciseUpdateQueue.size, scheduleAutoSave]);
-
-    return {
-        handleEditingStart,
-        handleEditingEnd,
-        handleEditingChange,
-    };
-}
+// Editing session tracking removed - no longer needed without auto-save

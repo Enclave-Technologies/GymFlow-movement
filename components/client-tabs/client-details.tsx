@@ -85,8 +85,8 @@ const ClientDetails = async ({ client_id, userdata }: ClientDetailsProps) => {
                 >
                     <WorkoutPlanner
                         client_id={client_id}
-                        trainer_id={String(logged_in_user?.userId)}
                         exercises={exercises}
+                        trainer_id={logged_in_user.userId}
                     />
                 </TabsContent>
                 <TabsContent value="goal-list">

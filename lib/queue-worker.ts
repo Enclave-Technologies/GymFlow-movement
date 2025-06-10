@@ -23,6 +23,13 @@ import {
     TestMessage,
 } from "@/types/queue-types";
 
+// Type for our specific Redis connection configuration
+interface RedisConnectionConfig {
+    host: string;
+    port: number;
+    password?: string;
+}
+
 // Message processors bridge class
 // This class serves as a bridge to the separated processor files
 class MessageProcessors {
@@ -163,14 +170,21 @@ async function processJob(job: Job<QueueMessage>): Promise<QueueJobResult> {
     }
 }
 
+// Singleton pattern to prevent multiple workers in development
+let messageWorker: Worker | null = null;
+
 // Get Redis connection options dynamically
 const connectionOptions = getRedisConnectionOptions();
 
-// Create and export the worker
-export const messageWorker = new Worker("messageQueue", processJob, {
-    connection: connectionOptions,
-    concurrency: 5, // Process up to 5 jobs concurrently
-});
+// Create worker only if it doesn't exist
+if (!messageWorker) {
+    messageWorker = new Worker("messageQueue", processJob, {
+        connection: connectionOptions,
+        concurrency: 5, // Process up to 5 jobs concurrently
+    });
+}
+
+export { messageWorker };
 
 // Worker event handlers
 messageWorker.on("completed", (job, result) => {
@@ -202,4 +216,11 @@ messageWorker.on("progress", (job, progress) => {
 });
 
 console.log("🚀 Message queue worker started");
-console.log("🔗 Redis connection:", connectionOptions);
+
+// Type-safe access to connection options
+const redisConfig = connectionOptions as RedisConnectionConfig;
+console.log("🔗 Redis connection:", {
+    host: redisConfig.host || "unknown",
+    port: redisConfig.port || "unknown",
+    password: redisConfig.password ? "***" : "undefined",
+});

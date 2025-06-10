@@ -4,9 +4,7 @@
  */
 
 import { toast } from "sonner";
-import { v4 as uuidv4 } from "uuid";
 import { Exercise, Phase } from "./types";
-import { WorkoutQueueIntegration } from "@/lib/workout-queue-integration";
 import {
     addPhase,
     confirmDeletePhase,
@@ -40,10 +38,6 @@ export interface WorkoutPlanHandlersProps {
     setEditingExercise: (
         value: { sessionId: string; exerciseId: string } | null
     ) => void;
-    setActiveEditingSessions: React.Dispatch<React.SetStateAction<Set<string>>>;
-    setExerciseUpdateQueue: React.Dispatch<
-        React.SetStateAction<Map<string, Exercise>>
-    >;
     setManualSaveInProgress: (value: boolean) => void;
     setSaving: (value: boolean) => void;
     setPlanId: (value: string | null) => void;
@@ -65,8 +59,6 @@ export interface WorkoutPlanHandlersProps {
     editingSession: string | null;
     editSessionValue: string;
     manualSaveInProgress: boolean;
-    exerciseUpdateQueue: Map<string, Exercise>;
-    backgroundSyncActive: boolean;
 
     // Functions
     updatePhases: (
@@ -79,8 +71,6 @@ export interface WorkoutPlanHandlersProps {
     handleSaveAll: () => Promise<void>;
     invalidateWorkoutPlanCache: (clientId: string) => void;
     localStorageKey: string;
-    scheduleAutoSave: () => void;
-    processExerciseUpdateQueue: () => Promise<void>;
 }
 
 export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
@@ -88,16 +78,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
     const handleAddPhase = async () => {
         const currentPhases = props.latestPhasesRef.current;
 
-        const orderNumber = Math.floor(Date.now() / 10000);
-        const newPhase = {
-            id: uuidv4(),
-            name: `Untitled Phase`,
-            isActive: false,
-            isExpanded: true,
-            sessions: [],
-            planId: props.planId || undefined,
-            orderNumber: orderNumber,
-        };
+        // Phase will be created by addPhase function
 
         addPhase(
             currentPhases,
@@ -106,28 +87,9 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             props.planId
         );
 
-        if (props.planId) {
-            try {
-                await WorkoutQueueIntegration.queuePhaseCreate(
-                    props.planId,
-                    props.client_id,
-                    props.trainer_id,
-                    {
-                        id: newPhase.id,
-                        name: newPhase.name,
-                        orderNumber: newPhase.orderNumber,
-                        isActive: newPhase.isActive,
-                    },
-                    props.trainer_id
-                );
-
-                console.log("Phase creation queued successfully");
-                toast.success("Phase queued for creation", { duration: 1000 });
-            } catch (error) {
-                console.error("Failed to queue phase creation:", error);
-                toast.error("Failed to queue phase creation");
-            }
-        }
+        toast.success("Phase added. Click Save to persist changes.", {
+            duration: 2000,
+        });
     };
 
     const handleTogglePhaseExpansion = (phaseId: string) => {
@@ -164,23 +126,9 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             props.setHasUnsavedChanges
         );
 
-        if (props.planId) {
-            try {
-                await WorkoutQueueIntegration.queuePhaseDelete(
-                    props.planId,
-                    phaseId,
-                    props.client_id,
-                    props.lastKnownUpdatedAt || new Date(),
-                    props.trainer_id
-                );
-
-                console.log("Phase deletion queued successfully");
-                toast.success("Phase queued for deletion", { duration: 1000 });
-            } catch (error) {
-                console.error("Failed to queue phase deletion:", error);
-                toast.error("Failed to queue phase deletion");
-            }
-        }
+        toast.success("Phase deleted. Click Save to persist changes.", {
+            duration: 2000,
+        });
     };
 
     const handleDuplicatePhase = async (phaseId: string) => {
@@ -192,15 +140,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             return;
         }
 
-        const newPhaseId = uuidv4();
-        const orderNumber = Math.floor(Date.now() / 10000);
-        const duplicatedPhase = {
-            ...targetPhase,
-            id: newPhaseId,
-            name: `${targetPhase.name} (Copy)`,
-            isActive: false,
-            orderNumber: orderNumber,
-        };
+        // Phase will be duplicated by duplicatePhase function
 
         duplicatePhase(
             phaseId,
@@ -209,26 +149,9 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             props.setHasUnsavedChanges
         );
 
-        if (props.planId) {
-            try {
-                await WorkoutQueueIntegration.queueFullPlanSave(
-                    props.planId,
-                    props.client_id,
-                    props.trainer_id,
-                    [...currentPhases, duplicatedPhase],
-                    props.lastKnownUpdatedAt || undefined,
-                    props.trainer_id
-                );
-
-                console.log("Phase duplication queued successfully");
-                toast.success("Phase duplication queued for save", {
-                    duration: 1000,
-                });
-            } catch (error) {
-                console.error("Failed to queue phase duplication:", error);
-                toast.error("Failed to queue phase duplication");
-            }
-        }
+        toast.success("Phase duplicated. Click Save to persist changes.", {
+            duration: 2000,
+        });
     };
 
     // ===== Session CRUD =====
@@ -241,44 +164,16 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             return;
         }
 
-        const count = targetPhase.sessions.length + 1;
-        const maxOrderNumber =
-            targetPhase.sessions.length > 0
-                ? Math.max(
-                      ...targetPhase.sessions.map((s) => s.orderNumber || 0)
-                  )
-                : -1;
+        // Session will be created by addSession function
 
-        const newSession = {
-            id: uuidv4(),
-            name: `Untitled Session ${count}`,
-            orderNumber: maxOrderNumber + 1,
-            sessionTime: 0,
-        };
+        // Session will be created by addSession function
 
         props.updatePhases(addSession(currentPhases, phaseId));
         props.setHasUnsavedChanges(true);
 
-        if (props.planId) {
-            try {
-                await WorkoutQueueIntegration.queueSessionCreate(
-                    props.planId,
-                    phaseId,
-                    props.client_id,
-                    newSession,
-                    props.lastKnownUpdatedAt || new Date(),
-                    props.trainer_id
-                );
-
-                console.log("Session creation queued successfully");
-                toast.success("Session queued for creation", {
-                    duration: 1000,
-                });
-            } catch (error) {
-                console.error("Failed to queue session creation:", error);
-                toast.error("Failed to queue session creation");
-            }
-        }
+        toast.success("Session added. Click Save to persist changes.", {
+            duration: 2000,
+        });
     };
 
     const toggleSessionExpansionHandler = (
@@ -303,26 +198,9 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         props.updatePhases(duplicateSession(currentPhases, phaseId, sessionId));
         props.setHasUnsavedChanges(true);
 
-        if (props.planId) {
-            try {
-                await WorkoutQueueIntegration.queueFullPlanSave(
-                    props.planId,
-                    props.client_id,
-                    props.trainer_id,
-                    duplicateSession(currentPhases, phaseId, sessionId),
-                    props.lastKnownUpdatedAt || undefined,
-                    props.trainer_id
-                );
-
-                console.log("Session duplication queued successfully");
-                toast.success("Session duplication queued for save", {
-                    duration: 1000,
-                });
-            } catch (error) {
-                console.error("Failed to queue session duplication:", error);
-                toast.error("Failed to queue session duplication");
-            }
-        }
+        toast.success("Session duplicated. Click Save to persist changes.", {
+            duration: 2000,
+        });
     };
 
     const deleteSessionHandler = (phaseId: string, sessionId: string) => {
@@ -343,26 +221,9 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         props.setShowConfirm({ type: null });
         props.setHasUnsavedChanges(true);
 
-        if (props.planId) {
-            try {
-                await WorkoutQueueIntegration.queueSessionDelete(
-                    props.planId,
-                    phaseId,
-                    sessionId,
-                    props.client_id,
-                    props.lastKnownUpdatedAt || new Date(),
-                    props.trainer_id
-                );
-
-                console.log("Session deletion queued successfully");
-                toast.success("Session queued for deletion", {
-                    duration: 1000,
-                });
-            } catch (error) {
-                console.error("Failed to queue session deletion:", error);
-                toast.error("Failed to queue session deletion");
-            }
-        }
+        toast.success("Session deleted. Click Save to persist changes.", {
+            duration: 2000,
+        });
     };
 
     // ===== Exercise CRUD =====
@@ -405,40 +266,11 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         console.log("Session:", session.name, "(", sessionId, ")");
         console.log("Exercise:", JSON.stringify(exercise, null, 2));
 
-        try {
-            await WorkoutQueueIntegration.queueExerciseUpdate(
-                props.planId || "",
-                phaseId,
-                sessionId,
-                exerciseId,
-                exercise.id,
-                props.client_id,
-                {
-                    exerciseId: exercise.exerciseId,
-                    description: exercise.description,
-                    motion: exercise.motion,
-                    targetArea: exercise.targetArea,
-                    setsMin: exercise.setsMin,
-                    setsMax: exercise.setsMax,
-                    repsMin: exercise.repsMin,
-                    repsMax: exercise.repsMax,
-                    tempo: exercise.tempo,
-                    restMin: exercise.restMin,
-                    restMax: exercise.restMax,
-                    customizations: exercise.customizations,
-                    notes: exercise.notes,
-                },
-                props.lastKnownUpdatedAt || new Date(),
-                props.trainer_id
-            );
-
-            toast.success("Exercise queued for save", { duration: 1000 });
-            props.setHasUnsavedChanges(true);
-            props.setSaveStatus("queued");
-        } catch (error) {
-            console.error("Failed to queue exercise update:", error);
-            toast.error("Failed to queue exercise update");
-        }
+        toast.success("Exercise updated. Click Save to persist changes.", {
+            duration: 2000,
+        });
+        props.setHasUnsavedChanges(true);
+        props.setSaveStatus("editing");
     };
 
     const addExerciseHandler = async (phaseId: string, sessionId: string) => {
@@ -453,47 +285,11 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         props.setEditingExercise({ sessionId, exerciseId: newExerciseId });
         props.setHasUnsavedChanges(true);
 
-        const newExercise = updatedPhases
-            .find((p) => p.id === phaseId)
-            ?.sessions.find((s) => s.id === sessionId)
-            ?.exercises.find((e) => e.id === newExerciseId);
+        // Exercise added to local state
 
-        if (newExercise && props.planId) {
-            try {
-                await WorkoutQueueIntegration.queueExerciseCreate(
-                    props.planId,
-                    phaseId,
-                    sessionId,
-                    props.client_id,
-                    {
-                        id: newExercise.id,
-                        exerciseId: newExercise.exerciseId || "",
-                        description: newExercise.description || "",
-                        motion: newExercise.motion || "",
-                        targetArea: newExercise.targetArea || "",
-                        setsMin: newExercise.setsMin,
-                        setsMax: newExercise.setsMax,
-                        repsMin: newExercise.repsMin,
-                        repsMax: newExercise.repsMax,
-                        tempo: newExercise.tempo,
-                        restMin: newExercise.restMin,
-                        restMax: newExercise.restMax,
-                        customizations: newExercise.customizations,
-                        notes: newExercise.notes,
-                    },
-                    props.lastKnownUpdatedAt || new Date(),
-                    props.trainer_id
-                );
-
-                console.log("Exercise creation queued successfully");
-                toast.success("Exercise queued for creation", {
-                    duration: 1000,
-                });
-            } catch (error) {
-                console.error("Failed to queue exercise creation:", error);
-                toast.error("Failed to queue exercise creation");
-            }
-        }
+        toast.success("Exercise added. Click Save to persist changes.", {
+            duration: 2000,
+        });
     };
 
     const deleteExerciseHandler = (
@@ -516,10 +312,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
     ) => {
         const currentPhases = props.latestPhasesRef.current;
 
-        const exercise = currentPhases
-            .find((p) => p.id === phaseId)
-            ?.sessions.find((s) => s.id === sessionId)
-            ?.exercises.find((e) => e.id === exerciseId);
+        // Exercise deleted from local state
 
         props.updatePhases(
             deleteExercise(currentPhases, phaseId, sessionId, exerciseId)
@@ -527,28 +320,9 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         props.setShowConfirm({ type: null });
         props.setHasUnsavedChanges(true);
 
-        if (exercise && props.planId) {
-            try {
-                await WorkoutQueueIntegration.queueExerciseDelete(
-                    props.planId,
-                    phaseId,
-                    sessionId,
-                    exerciseId,
-                    exercise.id,
-                    props.client_id,
-                    props.lastKnownUpdatedAt || new Date(),
-                    props.trainer_id
-                );
-
-                console.log("Exercise deletion queued successfully");
-                toast.success("Exercise queued for deletion", {
-                    duration: 1000,
-                });
-            } catch (error) {
-                console.error("Failed to queue exercise deletion:", error);
-                toast.error("Failed to queue exercise deletion");
-            }
-        }
+        toast.success("Exercise deleted. Click Save to persist changes.", {
+            duration: 2000,
+        });
     };
 
     const handleExerciseEditEnd = () => {

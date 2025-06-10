@@ -147,13 +147,25 @@ class QueueScheduler {
 // Export singleton instance
 export const queueScheduler = new QueueScheduler();
 
-// Auto-start in production or when explicitly enabled
+// Global flag to prevent multiple scheduler instances
+declare global {
+    // eslint-disable-next-line no-var
+    var __QUEUE_SCHEDULER_STARTED__: boolean | undefined;
+}
+
+// Auto-start in production or when explicitly enabled, but only once
 if (
-    process.env.NODE_ENV === "production" ||
-    process.env.ENABLE_QUEUE_SCHEDULER === "true"
+    (process.env.NODE_ENV === "production" ||
+        process.env.ENABLE_QUEUE_SCHEDULER === "true") &&
+    !global.__QUEUE_SCHEDULER_STARTED__
 ) {
     console.log("🚀 Auto-starting queue scheduler...");
+    global.__QUEUE_SCHEDULER_STARTED__ = true;
     queueScheduler.start(15); // Every 15 minutes in production
+} else if (global.__QUEUE_SCHEDULER_STARTED__) {
+    console.log(
+        "🔄 Queue scheduler already running (skipping restart due to hot reload)"
+    );
 } else {
     console.log(
         "💡 Queue scheduler not auto-started. Set ENABLE_QUEUE_SCHEDULER=true to enable."

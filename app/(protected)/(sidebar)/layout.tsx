@@ -10,7 +10,7 @@ import {
 import { ModeToggle } from "@/components/theme/theme-toggle";
 import { QueryProvider } from "@/providers/query-provider";
 import { get_logged_in_user } from "@/actions/logged_in_user_actions";
-import { GlobalSearch } from "@/components/layout-components/GlobalSearch"; // Import the new component
+import { GlobalSearch } from "@/components/layout-components/GlobalSearch";
 
 export const metadata: Metadata = {
     title: "GymFlow | Movement Fitness",
