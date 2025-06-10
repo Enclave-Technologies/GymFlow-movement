@@ -3,6 +3,7 @@
  *
  * This file contains all the message processors for workout-related queue operations.
  * Separated from the main queue worker to maintain file size under 600 lines.
+ * Worker-compatible version without Next.js dependencies.
  */
 
 import {
@@ -21,11 +22,10 @@ import {
 } from "@/types/queue-types";
 import { WorkoutPlanChanges } from "@/components/workout-planning/types";
 import {
-    applyWorkoutPlanChanges,
-    createWorkoutPlan,
-    updateWorkoutPlan,
-} from "@/actions/workout_plan_actions";
-import { revalidatePath } from "next/cache";
+    applyWorkoutPlanChangesWorker,
+    createWorkoutPlanWorker,
+    updateWorkoutPlanWorker,
+} from "@/lib/database/workout-database-service";
 
 export class WorkoutProcessors {
     static async processWorkoutUpdate(
@@ -121,15 +121,14 @@ export class WorkoutProcessors {
                 },
             };
 
-            const result = await applyWorkoutPlanChanges(
+            const result = await applyWorkoutPlanChangesWorker(
                 message.data.planId,
                 new Date(message.data.lastKnownUpdatedAt),
                 changes
             );
 
             if (result.success) {
-                // Revalidate the client page cache
-                revalidatePath(`/clients/${message.data.clientId}`, "layout");
+                // Note: Cache revalidation not available in worker context
 
                 return {
                     success: true,
@@ -180,15 +179,14 @@ export class WorkoutProcessors {
                 },
             };
 
-            const result = await applyWorkoutPlanChanges(
+            const result = await applyWorkoutPlanChangesWorker(
                 message.data.planId,
                 new Date(message.data.lastKnownUpdatedAt),
                 changes
             );
 
             if (result.success) {
-                // Revalidate the client page cache
-                revalidatePath(`/clients/${message.data.clientId}`, "layout");
+                // Note: Cache revalidation not available in worker context
 
                 return {
                     success: true,
@@ -252,15 +250,14 @@ export class WorkoutProcessors {
                 },
             };
 
-            const result = await applyWorkoutPlanChanges(
+            const result = await applyWorkoutPlanChangesWorker(
                 message.data.planId,
                 new Date(message.data.lastKnownUpdatedAt),
                 changes
             );
 
             if (result.success) {
-                // Invalidate cache
-                revalidatePath(`/workout-planning/${message.data.clientId}`);
+                // Note: Cache revalidation not available in worker context
 
                 return {
                     success: true,
@@ -322,7 +319,7 @@ export class WorkoutProcessors {
                 },
             };
 
-            const result = await applyWorkoutPlanChanges(
+            const result = await applyWorkoutPlanChangesWorker(
                 message.data.planId,
                 new Date(message.data.lastKnownUpdatedAt),
                 changes
@@ -330,7 +327,7 @@ export class WorkoutProcessors {
 
             if (result.success) {
                 // Invalidate cache
-                revalidatePath(`/workout-planning/${message.data.clientId}`);
+                // Note: Cache revalidation not available in worker context
 
                 return {
                     success: true,
@@ -387,7 +384,7 @@ export class WorkoutProcessors {
                 },
             };
 
-            const result = await applyWorkoutPlanChanges(
+            const result = await applyWorkoutPlanChangesWorker(
                 message.data.planId,
                 new Date(message.data.lastKnownUpdatedAt),
                 changes
@@ -395,7 +392,7 @@ export class WorkoutProcessors {
 
             if (result.success) {
                 // Invalidate cache
-                revalidatePath(`/workout-planning/${message.data.clientId}`);
+                // Note: Cache revalidation not available in worker context
 
                 return {
                     success: true,
@@ -474,7 +471,7 @@ export class WorkoutProcessors {
                 },
             };
 
-            const result = await applyWorkoutPlanChanges(
+            const result = await applyWorkoutPlanChangesWorker(
                 message.data.planId,
                 new Date(message.data.lastKnownUpdatedAt),
                 changes
@@ -482,7 +479,7 @@ export class WorkoutProcessors {
 
             if (result.success) {
                 // Invalidate cache
-                revalidatePath(`/workout-planning/${message.data.clientId}`);
+                // Note: Cache revalidation not available in worker context
 
                 return {
                     success: true,
@@ -545,7 +542,7 @@ export class WorkoutProcessors {
                 },
             };
 
-            const result = await applyWorkoutPlanChanges(
+            const result = await applyWorkoutPlanChangesWorker(
                 message.data.planId,
                 new Date(message.data.lastKnownUpdatedAt),
                 changes
@@ -553,7 +550,7 @@ export class WorkoutProcessors {
 
             if (result.success) {
                 // Invalidate cache
-                revalidatePath(`/workout-planning/${message.data.clientId}`);
+                // Note: Cache revalidation not available in worker context
 
                 return {
                     success: true,
@@ -612,7 +609,7 @@ export class WorkoutProcessors {
                 },
             };
 
-            const result = await applyWorkoutPlanChanges(
+            const result = await applyWorkoutPlanChangesWorker(
                 message.data.planId,
                 new Date(message.data.lastKnownUpdatedAt),
                 changes
@@ -620,7 +617,7 @@ export class WorkoutProcessors {
 
             if (result.success) {
                 // Invalidate cache
-                revalidatePath(`/workout-planning/${message.data.clientId}`);
+                // Note: Cache revalidation not available in worker context
 
                 return {
                     success: true,
@@ -665,14 +662,14 @@ export class WorkoutProcessors {
 
             if (!message.data.planId || !message.data.lastKnownUpdatedAt) {
                 // Create new plan
-                result = await createWorkoutPlan(
+                result = await createWorkoutPlanWorker(
                     message.data.clientId,
                     message.data.trainerId,
                     { phases: message.data.phases }
                 );
             } else {
                 // Update existing plan
-                result = await updateWorkoutPlan(
+                result = await updateWorkoutPlanWorker(
                     message.data.planId,
                     new Date(message.data.lastKnownUpdatedAt),
                     { phases: message.data.phases }
@@ -681,7 +678,7 @@ export class WorkoutProcessors {
 
             if (result.success) {
                 // Revalidate the client page cache
-                revalidatePath(`/clients/${message.data.clientId}`, "layout");
+                // Note: Cache revalidation not available in worker context
 
                 return {
                     success: true,

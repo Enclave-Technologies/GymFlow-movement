@@ -8,7 +8,7 @@ import { PhaseList } from "./UI-components/PhaseList";
 import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
 import { fetchWorkoutPlan } from "./workout-utils/workout-utils";
 import { createWorkoutPlanHandlers } from "./workout-plan-handlers";
-import { useGlobalSave, useWorkoutPlanValidation } from "./workout-plan-hooks";
+import { useWorkoutPlanValidation } from "./workout-plan-hooks";
 import { useWorkoutPlanCacheInvalidation } from "./hooks/use-workout-plan-cache";
 
 type WorkoutPlannerProps = {
@@ -31,13 +31,6 @@ export default function WorkoutPlanner({
     );
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isSaving, setSaving] = useState(false);
-    const [saveStatus, setSaveStatus] = useState<
-        "editing" | "queued" | "saving" | "saved"
-    >("saved");
-    const [conflictError, setConflictError] = useState<{
-        message: string;
-        serverTime: Date;
-    } | null>(null);
     const [manualSaveInProgress, setManualSaveInProgress] = useState(false);
 
     // ===== Edit State =====
@@ -107,27 +100,6 @@ export default function WorkoutPlanner({
         loadData();
     }, [client_id]);
 
-    // ===== Global Save Hook =====
-    const { handleSaveAll } = useGlobalSave({
-        latestPhasesRef,
-        planId,
-        lastKnownUpdatedAt,
-        client_id,
-        trainer_id,
-        setSaving,
-        setPlanId,
-        setLastKnownUpdatedAt,
-        setHasUnsavedChanges,
-        setConflictError,
-        setSavePerformed: () => {}, // Dummy function since we don't use savePerformed
-        setManualSaveInProgress,
-        setSaveStatus,
-        updatePhases,
-        validateWorkoutPlan,
-        localStorageKey,
-        invalidateWorkoutPlanCache,
-    });
-
     // ===== Create Handlers =====
     const handlers = createWorkoutPlanHandlers({
         // State setters
@@ -138,11 +110,9 @@ export default function WorkoutPlanner({
         setEditingExercise: () => {}, // Dummy function since we don't use editingExercise
         setShowConfirm,
         setHasUnsavedChanges,
-        setSaveStatus,
         setSaving,
         setPlanId,
         setLastKnownUpdatedAt,
-        setConflictError,
         setSavePerformed: () => {}, // Dummy function since we don't use savePerformed
         setManualSaveInProgress,
         setIsReorderingSessions: () => {}, // Dummy function since we don't use isReorderingSessions
@@ -162,7 +132,6 @@ export default function WorkoutPlanner({
         // Functions
         updatePhases,
         validateWorkoutPlan,
-        handleSaveAll,
         invalidateWorkoutPlanCache,
         localStorageKey,
     });
@@ -187,11 +156,6 @@ export default function WorkoutPlanner({
                 {/* Toolbar */}
                 <WorkoutToolbar
                     onAddPhase={handlers.handleAddPhase}
-                    onSaveAll={handleSaveAll}
-                    hasUnsavedChanges={hasUnsavedChanges}
-                    isSaving={isSaving}
-                    saveStatus={saveStatus}
-                    conflictError={conflictError}
                     client_id={client_id}
                     trainer_id={trainer_id}
                     planId={planId}

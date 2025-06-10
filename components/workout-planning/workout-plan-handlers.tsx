@@ -25,7 +25,6 @@ import { WorkoutQueueIntegration } from "@/lib/workout-queue-integration";
 export interface WorkoutPlanHandlersProps {
     // State setters
     setHasUnsavedChanges: (value: boolean) => void;
-    setSaveStatus: (status: "editing" | "queued" | "saving" | "saved") => void;
     setShowConfirm: (value: {
         type: "phase" | "session" | "exercise" | null;
         phaseId?: string;
@@ -43,9 +42,6 @@ export interface WorkoutPlanHandlersProps {
     setSaving: (value: boolean) => void;
     setPlanId: (value: string | null) => void;
     setLastKnownUpdatedAt: (value: Date | null) => void;
-    setConflictError: (
-        value: { message: string; serverTime: Date } | null
-    ) => void;
     setSavePerformed: (value: number) => void;
     setIsReorderingSessions: (value: boolean) => void;
 
@@ -69,7 +65,6 @@ export interface WorkoutPlanHandlersProps {
         isValid: boolean;
         errors: string[];
     };
-    handleSaveAll: () => Promise<void>;
     invalidateWorkoutPlanCache: (clientId: string) => void;
     localStorageKey: string;
 }
@@ -111,7 +106,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Phase added. Click Save to persist changes.", {
+        toast.success("Phase added and queued for processing.", {
             duration: 2000,
         });
     };
@@ -131,7 +126,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             props.setLastKnownUpdatedAt,
             props.setSaving,
             props.setHasUnsavedChanges,
-            props.setConflictError
+            () => {} // Dummy function for setConflictError
         );
     };
 
@@ -168,7 +163,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Phase deleted. Click Save to persist changes.", {
+        toast.success("Phase deleted and queued for processing.", {
             duration: 2000,
         });
     };
@@ -214,7 +209,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Phase duplicated. Click Save to persist changes.", {
+        toast.success("Phase duplicated and queued for processing.", {
             duration: 2000,
         });
     };
@@ -263,7 +258,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Session added. Click Save to persist changes.", {
+        toast.success("Session added and queued for processing.", {
             duration: 2000,
         });
     };
@@ -334,7 +329,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Session duplicated. Click Save to persist changes.", {
+        toast.success("Session duplicated and queued for processing.", {
             duration: 2000,
         });
     };
@@ -378,7 +373,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Session deleted. Click Save to persist changes.", {
+        toast.success("Session deleted and queued for processing.", {
             duration: 2000,
         });
     };
@@ -442,11 +437,10 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Exercise updated. Click Save to persist changes.", {
+        toast.success("Exercise updated and queued for processing.", {
             duration: 2000,
         });
         props.setHasUnsavedChanges(true);
-        props.setSaveStatus("editing");
     };
 
     const addExerciseHandler = async (phaseId: string, sessionId: string) => {
@@ -507,7 +501,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Exercise added. Click Save to persist changes.", {
+        toast.success("Exercise added and queued for processing.", {
             duration: 2000,
         });
     };
@@ -562,7 +556,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Exercise deleted. Click Save to persist changes.", {
+        toast.success("Exercise deleted and queued for processing.", {
             duration: 2000,
         });
     };
@@ -616,7 +610,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Phase renamed. Click Save to persist changes.", {
+        toast.success("Phase renamed and queued for processing.", {
             duration: 2000,
         });
     };
@@ -687,7 +681,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             // Don't show error to user as the operation succeeded locally
         }
 
-        toast.success("Session renamed. Click Save to persist changes.", {
+        toast.success("Session renamed and queued for processing.", {
             duration: 2000,
         });
     };

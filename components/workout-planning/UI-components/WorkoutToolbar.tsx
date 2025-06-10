@@ -7,16 +7,11 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import WorkoutPlanCsvImportExport from "./workout-plan-csv-import-export";
-import { Check, Loader2, Plus, SaveAllIcon } from "lucide-react";
+import { Plus } from "lucide-react";
 import { WorkoutQueueIntegration } from "@/lib/workout-queue-integration";
 
 type WorkoutToolbarProps = {
     onAddPhase: () => void;
-    onSaveAll: () => void;
-    hasUnsavedChanges: boolean;
-    isSaving: boolean;
-    saveStatus?: "editing" | "queued" | "saving" | "saved";
-    conflictError: { message: string } | null;
     client_id: string;
     trainer_id: string;
     planId?: string | null;
@@ -30,11 +25,6 @@ type WorkoutToolbarProps = {
 
 export function WorkoutToolbar({
     onAddPhase,
-    onSaveAll,
-    hasUnsavedChanges,
-    isSaving,
-    saveStatus = "saved",
-    conflictError,
     client_id,
     trainer_id,
     planId,
@@ -59,30 +49,6 @@ export function WorkoutToolbar({
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent>Add a new phase</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button
-                        onClick={onSaveAll}
-                        className="cursor-pointer h-10"
-                        disabled={
-                            !hasUnsavedChanges || isAnyOperationInProgress
-                        }
-                        variant={hasUnsavedChanges ? "default" : "outline"}
-                    >
-                        {isSaving ? (
-                            <>
-                                <Loader2 className="animate-spin" /> Saving...
-                            </>
-                        ) : (
-                            <>
-                                <SaveAllIcon /> Save All
-                            </>
-                        )}
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent>Save all changes</TooltipContent>
             </Tooltip>
 
             <WorkoutPlanCsvImportExport
@@ -124,30 +90,6 @@ export function WorkoutToolbar({
                 exercises={exercises}
                 disabled={isAnyOperationInProgress}
             />
-
-            {/* Simple Status Indicators */}
-            {hasUnsavedChanges && !isSaving && (
-                <span className="ml-2 text-yellow-600 font-medium text-sm">
-                    * You have unsaved changes
-                </span>
-            )}
-            {isSaving && (
-                <span className="ml-2 text-blue-600 font-medium text-sm flex items-center">
-                    <Loader2 className="animate-spin h-4 w-4 mr-1" />
-                    Saving...
-                </span>
-            )}
-            {saveStatus === "saved" && !hasUnsavedChanges && !isSaving && (
-                <span className="ml-2 text-green-600 font-medium text-sm flex items-center">
-                    <Check className="h-4 w-4 mr-1" />
-                    Saved successfully
-                </span>
-            )}
-            {conflictError && (
-                <span className="ml-2 text-red-600 font-medium text-sm">
-                    * {conflictError.message}
-                </span>
-            )}
         </div>
     );
 }
