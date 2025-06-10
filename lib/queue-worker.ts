@@ -6,6 +6,7 @@ import {
     QueueMessage,
     QueueJobResult,
     WorkoutUpdateMessage,
+    WorkoutPlanCreateMessage,
     WorkoutPhaseCreateMessage,
     WorkoutPhaseUpdateMessage,
     WorkoutPhaseDeleteMessage,
@@ -35,6 +36,8 @@ interface RedisConnectionConfig {
 class MessageProcessors {
     // Workout-related processors (using worker-compatible versions)
     static processWorkoutUpdate = WorkerWorkoutProcessors.processWorkoutUpdate;
+    static processWorkoutPlanCreate =
+        WorkerWorkoutProcessors.processWorkoutPlanCreate;
     static processWorkoutPhaseCreate =
         WorkerWorkoutProcessors.processWorkoutPhaseCreate;
     static processWorkoutPhaseUpdate =
@@ -77,6 +80,11 @@ async function processJob(job: Job<QueueMessage>): Promise<QueueJobResult> {
             case "WORKOUT_UPDATE":
                 result = await MessageProcessors.processWorkoutUpdate(
                     message as WorkoutUpdateMessage
+                );
+                break;
+            case "WORKOUT_PLAN_CREATE":
+                result = await MessageProcessors.processWorkoutPlanCreate(
+                    message as WorkoutPlanCreateMessage
                 );
                 break;
             case "WORKOUT_PHASE_CREATE":

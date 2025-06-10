@@ -7,6 +7,7 @@
 
 import { addJobToQueue } from "@/actions/queue_actions";
 import {
+    WorkoutPlanCreateMessage,
     WorkoutPhaseCreateMessage,
     WorkoutPhaseUpdateMessage,
     WorkoutPhaseDeleteMessage,
@@ -21,6 +22,41 @@ import {
 import type { Phase } from "@/components/workout-planning/types";
 
 export class WorkoutQueueIntegration {
+    /**
+     * Queue a plan creation for background processing
+     */
+    static async queuePlanCreate(
+        planId: string,
+        planName: string,
+        clientId: string,
+        trainerId: string,
+        isActive: boolean = true,
+        userId?: string
+    ) {
+        const message: WorkoutPlanCreateMessage = {
+            messageType: "WORKOUT_PLAN_CREATE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "plan_creation",
+            },
+            data: {
+                planId,
+                planName,
+                clientId,
+                trainerId,
+                isActive,
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 8, // High priority for plan creation
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
     /**
      * Queue a phase creation for background processing
      */
@@ -57,6 +93,60 @@ export class WorkoutQueueIntegration {
             attempts: 3,
             delay: 0,
         });
+    }
+
+    /**
+     * Queue a phase creation with dependency on another job
+     */
+    static async queuePhaseCreateWithDependency(
+        planId: string,
+        clientId: string,
+        trainerId: string,
+        phase: {
+            id: string;
+            name: string;
+            orderNumber: number;
+            isActive: boolean;
+        },
+        dependsOnJobId?: string,
+        userId?: string
+    ) {
+        const message: WorkoutPhaseCreateMessage = {
+            messageType: "WORKOUT_PHASE_CREATE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "phase_creation_with_dependency",
+            },
+            data: {
+                planId,
+                clientId,
+                trainerId,
+                phase,
+            },
+        };
+
+        // Add dependency and retry options for race condition handling
+        const jobOptions: any = {
+            priority: 5,
+            attempts: 5, // Increased attempts for dependency scenarios
+            delay: 0,
+            backoff: {
+                type: "exponential",
+                delay: 2000, // Start with 2 second delay
+            },
+        };
+
+        // Add dependency if provided
+        if (dependsOnJobId) {
+            jobOptions.parent = {
+                id: dependsOnJobId,
+                queue: "messageQueue", // Same queue name
+            };
+        }
+
+        return addJobToQueue(message, jobOptions);
     }
 
     /**

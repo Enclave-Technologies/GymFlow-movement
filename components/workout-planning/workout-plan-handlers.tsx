@@ -6,7 +6,6 @@
 import { toast } from "sonner";
 import { Exercise, Phase } from "./types";
 import {
-    addPhase,
     confirmDeletePhase,
     deletePhase,
     duplicatePhase,
@@ -21,6 +20,7 @@ import {
 } from "./workout-utils/session-utils";
 import { addExercise, deleteExercise } from "./workout-utils/exercise-utils";
 import { WorkoutQueueIntegration } from "@/lib/workout-queue-integration";
+import { v4 as uuidv4 } from "uuid";
 
 export interface WorkoutPlanHandlersProps {
     // State setters
@@ -74,41 +74,89 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
     const handleAddPhase = async () => {
         const currentPhases = props.latestPhasesRef.current;
 
-        // Phase will be created by addPhase function
-        addPhase(
-            currentPhases,
-            props.updatePhases,
-            props.setHasUnsavedChanges,
-            props.planId
-        );
+        // Use timestamp divided by 10K for order number (same logic as addPhase function)
+        const orderNumber = Math.floor(Date.now() / 10000);
 
-        // Queue the phase creation event
+        const newPhase: Phase = {
+            id: uuidv4(),
+            name: `Untitled Phase`,
+            isActive: false,
+            isExpanded: true,
+            sessions: [],
+            planId: props.planId || undefined,
+            orderNumber: orderNumber,
+        };
+
+        // Update phases with the new phase
+        const updatedPhases = [...currentPhases, newPhase];
+        props.updatePhases(updatedPhases);
+        props.setHasUnsavedChanges(true);
+
+        // Queue the appropriate event based on whether a plan exists
         try {
             if (props.planId) {
-                // Get the newly created phase (last one in the array)
-                const newPhase = [...currentPhases].pop();
-                if (newPhase) {
-                    await WorkoutQueueIntegration.queuePhaseCreate(
-                        props.planId,
+                // Plan exists - just create the phase
+                await WorkoutQueueIntegration.queuePhaseCreate(
+                    props.planId,
+                    props.client_id,
+                    props.trainer_id,
+                    {
+                        id: newPhase.id,
+                        name: newPhase.name,
+                        orderNumber: newPhase.orderNumber || 0,
+                        isActive: newPhase.isActive,
+                    }
+                );
+                toast.success("Phase added and queued for processing.", {
+                    duration: 2000,
+                });
+            } else {
+                // No plan exists - issue two separate events with dependency:
+                // 1. Create plan
+                // 2. Create phase (depends on plan creation)
+
+                const newPlanId = uuidv4(); // Generate plan ID in frontend
+
+                // First: Create the plan and get the job ID
+                const planJobResult =
+                    await WorkoutQueueIntegration.queuePlanCreate(
+                        newPlanId,
+                        "Workout Plan", // Default plan name
                         props.client_id,
                         props.trainer_id,
-                        {
-                            id: newPhase.id,
-                            name: newPhase.name,
-                            orderNumber: newPhase.orderNumber || 0,
-                            isActive: newPhase.isActive,
-                        }
+                        true // isActive
                     );
-                }
+
+                // Second: Create the phase with dependency on plan creation
+                await WorkoutQueueIntegration.queuePhaseCreateWithDependency(
+                    newPlanId,
+                    props.client_id,
+                    props.trainer_id,
+                    {
+                        id: newPhase.id,
+                        name: newPhase.name,
+                        orderNumber: newPhase.orderNumber || 0,
+                        isActive: newPhase.isActive,
+                    },
+                    planJobResult.success
+                        ? planJobResult.data?.jobId
+                        : undefined // Depend on the plan creation job
+                );
+
+                // Update local state with the new plan ID immediately
+                props.setPlanId(newPlanId);
+
+                toast.success(
+                    "Workout plan and phase created and queued for processing.",
+                    {
+                        duration: 3000,
+                    }
+                );
             }
         } catch (error) {
-            console.error("Failed to queue phase creation:", error);
+            console.error("Failed to queue phase/plan creation:", error);
             // Don't show error to user as the operation succeeded locally
         }
-
-        toast.success("Phase added and queued for processing.", {
-            duration: 2000,
-        });
     };
 
     const handleTogglePhaseExpansion = (phaseId: string) => {

@@ -62,6 +62,17 @@ export interface WorkoutUpdateMessage extends BaseQueueMessage {
 }
 
 // New granular workout operation message types
+export interface WorkoutPlanCreateMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_PLAN_CREATE";
+    data: {
+        planId: string; // Generated in frontend
+        planName: string;
+        clientId: string;
+        trainerId: string;
+        isActive: boolean;
+    };
+}
+
 export interface WorkoutPhaseCreateMessage extends BaseQueueMessage {
     messageType: "WORKOUT_PHASE_CREATE";
     data: {
@@ -282,6 +293,7 @@ export interface TestMessage extends BaseQueueMessage {
 // Union type for all possible messages
 export type QueueMessage =
     | WorkoutUpdateMessage
+    | WorkoutPlanCreateMessage
     | WorkoutPhaseCreateMessage
     | WorkoutPhaseUpdateMessage
     | WorkoutPhaseDeleteMessage

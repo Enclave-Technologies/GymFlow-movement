@@ -6,12 +6,15 @@ This document explains how to set up and use the Redis queue system in the Movem
 
 The Redis queue system provides a robust way to handle background processing of various tasks like:
 
--   Workout plan updates
--   User action tracking
--   Notifications
--   Email sending
--   Data synchronization
--   Custom test messages
+-   **Workout Operations**: Plan creation, phase/session/exercise CRUD operations
+-   **Event-driven Architecture**: Granular workout planner updates with queue events
+-   **Job Dependencies**: Ensuring proper execution order (e.g., plan creation before phase creation)
+-   **Retry Logic**: Automatic retry with exponential backoff for failed operations
+-   **User action tracking**
+-   **Notifications**
+-   **Email sending**
+-   **Data synchronization**
+-   **Custom test messages**
 
 ## Architecture
 
@@ -37,12 +40,22 @@ The Redis queue system provides a robust way to handle background processing of 
 
 4. **Server Actions** (`actions/queue_actions.ts`)
 
-    - `addJobToQueue` - Add jobs to queue
+    - `addJobToQueue` - Add jobs to queue with dependency support
     - `getQueueStats` - Get queue statistics
     - `clearQueue` - Clear queue (development only)
     - Specific message senders for each type
 
-5. **Test Interface** (`/queue-test`)
+5. **Workout Queue Integration** (`lib/workout-queue-integration.ts`)
+
+    - `queuePlanCreate` - Queue workout plan creation
+    - `queuePhaseCreate` - Queue phase creation
+    - `queuePhaseCreateWithDependency` - Queue phase creation with job dependencies
+    - `queuePhaseUpdate/Delete` - Phase management operations
+    - `queueSessionCreate/Update/Delete` - Session management operations
+    - `queueExerciseCreate/Update/Delete` - Exercise management operations
+    - `queueFullPlanSave` - Bulk plan operations (CSV uploads, etc.)
+
+6. **Test Interface** (`/queue-test`)
     - Interactive testing page
     - Real-time queue monitoring
     - Sample message generators
@@ -134,14 +147,112 @@ interface BaseQueueMessage {
 
 ### Supported Message Types
 
+#### Core System Messages
+
 1. **TEST** - Basic test messages
-2. **WORKOUT_UPDATE** - Exercise plan modifications
-3. **USER_ACTION** - User activity tracking
-4. **NOTIFICATION** - Push notifications
-5. **EMAIL** - Email sending
-6. **DATA_SYNC** - Data backup/sync operations
+2. **USER_ACTION** - User activity tracking
+3. **NOTIFICATION** - Push notifications
+4. **EMAIL** - Email sending
+5. **DATA_SYNC** - Data backup/sync operations
+
+#### Workout System Messages (Event-Driven Architecture)
+
+6. **WORKOUT_UPDATE** - Legacy exercise plan modifications
+7. **WORKOUT_PLAN_CREATE** - Create new workout plans
+8. **WORKOUT_PHASE_CREATE** - Create phases (with dependency support)
+9. **WORKOUT_PHASE_UPDATE** - Update phase properties
+10. **WORKOUT_PHASE_DELETE** - Delete phases
+11. **WORKOUT_SESSION_CREATE** - Create sessions within phases
+12. **WORKOUT_SESSION_UPDATE** - Update session properties
+13. **WORKOUT_SESSION_DELETE** - Delete sessions
+14. **WORKOUT_EXERCISE_CREATE** - Create exercises within sessions
+15. **WORKOUT_EXERCISE_UPDATE** - Update exercise properties
+16. **WORKOUT_EXERCISE_DELETE** - Delete exercises
+17. **WORKOUT_PLAN_FULL_SAVE** - Bulk operations (CSV uploads, full plan saves)
 
 ## Usage Examples
+
+### Workout Queue Integration (Recommended)
+
+For workout-related operations, use the specialized integration class:
+
+```typescript
+import { WorkoutQueueIntegration } from "@/lib/workout-queue-integration";
+
+// Create a new workout plan
+await WorkoutQueueIntegration.queuePlanCreate(
+    "plan-123",
+    "My Workout Plan",
+    "client-456",
+    "trainer-789",
+    true // isActive
+);
+
+// Create a phase (for existing plan)
+await WorkoutQueueIntegration.queuePhaseCreate(
+    "plan-123",
+    "client-456",
+    "trainer-789",
+    {
+        id: "phase-456",
+        name: "Strength Phase",
+        orderNumber: 1,
+        isActive: true,
+    }
+);
+
+// Create a phase with dependency (for new plan)
+const planResult = await WorkoutQueueIntegration.queuePlanCreate(/*...*/);
+await WorkoutQueueIntegration.queuePhaseCreateWithDependency(
+    "plan-123",
+    "client-456",
+    "trainer-789",
+    {
+        /* phase data */
+    },
+    planResult.success ? planResult.data?.jobId : undefined
+);
+```
+
+### Job Dependencies and Race Condition Handling
+
+The system automatically handles race conditions when creating plans and phases:
+
+```typescript
+// This sequence ensures proper order:
+// 1. Plan creation job
+// 2. Phase creation job (waits for plan completion)
+
+if (!planExists) {
+    // Generate IDs in frontend
+    const newPlanId = uuidv4();
+
+    // Create plan job
+    const planJob = await WorkoutQueueIntegration.queuePlanCreate(
+        newPlanId,
+        "Workout Plan",
+        clientId,
+        trainerId,
+        true
+    );
+
+    // Create phase job with dependency
+    await WorkoutQueueIntegration.queuePhaseCreateWithDependency(
+        newPlanId,
+        clientId,
+        trainerId,
+        phaseData,
+        planJob.success ? planJob.data?.jobId : undefined
+    );
+}
+```
+
+**Features:**
+
+-   **Job Dependencies**: Phase creation waits for plan creation
+-   **Automatic Retry**: Failed jobs retry with exponential backoff (2s, 4s, 8s...)
+-   **Race Condition Protection**: Multiple layers of protection
+-   **Non-blocking**: Worker continues processing other jobs during retries
 
 ### Adding a Job via Server Action
 
@@ -286,6 +397,60 @@ Worker logs show:
 -   Processing time and performance
 -   Error details and stack traces
 
+## Event-Driven Architecture Pattern
+
+The workout system implements an event-driven architecture where UI operations immediately update the local state, then emit queue events for background database persistence.
+
+### Pattern Benefits
+
+1. **Immediate UI Response**: Users see changes instantly
+2. **Reliable Persistence**: Background jobs ensure data is saved
+3. **Scalability**: Queue handles high-frequency operations
+4. **Resilience**: Automatic retry for failed operations
+5. **Auditability**: All changes are tracked as events
+
+### Implementation Pattern
+
+```typescript
+// 1. Update UI immediately (optimistic update)
+const updatedPhases = [...currentPhases, newPhase];
+updatePhases(updatedPhases);
+setHasUnsavedChanges(true);
+
+// 2. Emit queue event for background persistence
+try {
+    await WorkoutQueueIntegration.queuePhaseCreate(
+        planId,
+        clientId,
+        trainerId,
+        phaseData
+    );
+    toast.success("Phase added and queued for processing.");
+} catch (error) {
+    console.error("Failed to queue phase creation:", error);
+    // Don't show error to user as operation succeeded locally
+}
+```
+
+### Event Granularity
+
+The system uses **exercise-level granularity** for maximum flexibility:
+
+-   **Plan Level**: Create/update entire plans
+-   **Phase Level**: Create/update/delete phases
+-   **Session Level**: Create/update/delete sessions
+-   **Exercise Level**: Create/update/delete individual exercises
+
+### Sequence for New Clients
+
+When creating the first phase for a new client:
+
+```
+Click "Add Phase" → Check if plan exists
+├─ YES: Queue WORKOUT_PHASE_CREATE
+└─ NO:  Queue WORKOUT_PLAN_CREATE → Queue WORKOUT_PHASE_CREATE (with dependency)
+```
+
 ## Development
 
 ### Adding New Message Types
@@ -329,9 +494,24 @@ Use the `/queue-test` page to:
     - Check database connections
 
 3. **Queue growing too large**
+
     - Increase worker concurrency
     - Add more worker instances
     - Check for processing bottlenecks
+
+4. **Race condition errors (Plan not found)**
+
+    - Check if using `queuePhaseCreateWithDependency` for new plans
+    - Verify job dependencies are properly set
+    - Monitor retry attempts in worker logs
+    - Ensure plan creation completes before phase creation
+
+5. **Workout operations not persisting to database**
+
+    - Restart the worker to pick up code changes
+    - Check if worker is using updated processor code
+    - Verify database connection in worker environment
+    - Check for TypeScript compilation errors
 
 ### Debug Commands
 
