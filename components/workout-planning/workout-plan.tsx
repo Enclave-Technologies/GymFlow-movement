@@ -6,6 +6,7 @@ import type { SelectExercise } from "@/db/schemas";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
 import { PhaseList } from "./UI-components/PhaseList";
 import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
+import ExerciseTableInline from "./UI-components/ExerciseTableInline";
 import { fetchWorkoutPlan } from "./workout-utils/workout-utils";
 import { createWorkoutPlanHandlers } from "./workout-plan-handlers";
 import { useWorkoutPlanValidation } from "./workout-plan-hooks";
@@ -38,6 +39,10 @@ export default function WorkoutPlanner({
     const [editPhaseValue, setEditPhaseValue] = useState("");
     const [editingSession, setEditingSession] = useState<string | null>(null);
     const [editSessionValue, setEditSessionValue] = useState("");
+    const [editingExercise, setEditingExercise] = useState<{
+        sessionId: string;
+        exerciseId: string;
+    } | null>(null);
 
     // ===== Confirmation Dialog State =====
     const [showConfirm, setShowConfirm] = useState<{
@@ -107,7 +112,7 @@ export default function WorkoutPlanner({
         setEditPhaseValue,
         setEditingSession,
         setEditSessionValue,
-        setEditingExercise: () => {}, // Dummy function since we don't use editingExercise
+        setEditingExercise,
         setShowConfirm,
         setHasUnsavedChanges,
         setSaving,
@@ -145,6 +150,51 @@ export default function WorkoutPlanner({
     const handleStartEditSession = (id: string, name: string) => {
         setEditingSession(id);
         setEditSessionValue(name);
+    };
+
+    // ===== Exercise Handlers =====
+    const handleEditExercise = (exerciseId: string, sessionId: string) => {
+        setEditingExercise({ sessionId, exerciseId });
+    };
+
+    const handleExerciseEditEnd = () => {
+        setEditingExercise(null);
+    };
+
+    // Calculate session duration helper
+    const calculateSessionDuration = (exercises: any[]) => {
+        // Simple calculation - you can enhance this based on your needs
+        return exercises.length * 8; // 8 minutes per exercise as default
+    };
+
+    // Render exercises table function
+    const renderExercises = (phase: Phase, session: any) => {
+        const editingExerciseId =
+            editingExercise?.sessionId === session.id
+                ? editingExercise.exerciseId
+                : null;
+
+        return (
+            <ExerciseTableInline
+                key={`${phase.id}-${session.id}`}
+                phase={phase}
+                session={session}
+                updatePhases={updatePhases}
+                phases={phases}
+                deleteExercise={handlers.deleteExerciseHandler}
+                calculateSessionDuration={calculateSessionDuration}
+                editingExerciseId={editingExerciseId}
+                onEditEnd={handleExerciseEditEnd}
+                onEditExercise={(exerciseId: string) =>
+                    handleEditExercise(exerciseId, session.id)
+                }
+                exercises={exercises}
+                setHasUnsavedChanges={setHasUnsavedChanges}
+                onSaveExercise={handlers.handleSaveExercise}
+                isSaving={isSaving}
+                isAnyOperationInProgress={manualSaveInProgress || isSaving}
+            />
+        );
     };
 
     return (
@@ -201,7 +251,7 @@ export default function WorkoutPlanner({
                         onStartEditSession={handleStartEditSession}
                         onMoveSession={() => {}} // TODO: Implement session move
                         onDragVisual={() => {}} // TODO: Implement drag visual
-                        onRenderExercises={() => null} // TODO: Implement exercise rendering
+                        onRenderExercises={renderExercises}
                         editingSession={editingSession}
                         editSessionValue={editSessionValue}
                         onSaveSessionEdit={handlers.handleSaveSessionEdit}

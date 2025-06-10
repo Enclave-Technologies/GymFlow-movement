@@ -240,7 +240,6 @@ export async function applyWorkoutPlanChangesWorker(
                         planExerciseId: exerciseData.exercise.id,
                         sessionId: exerciseData.sessionId,
                         exerciseId: exerciseData.exercise.exerciseId,
-                        description: exerciseData.exercise.description || "",
                         motion: exerciseData.exercise.motion || "",
                         targetArea: exerciseData.exercise.targetArea || "",
                         setsMin:
@@ -259,6 +258,8 @@ export async function applyWorkoutPlanChangesWorker(
                         customizations:
                             exerciseData.exercise.customizations || "",
                         notes: exerciseData.exercise.notes || "",
+                        exerciseOrder: 0, // Redundant field for future use
+                        setOrderMarker: exerciseData.exercise.order || "",
                     })
                 );
 
@@ -340,7 +341,6 @@ export async function createWorkoutPlanWorker(
             planExerciseId: string;
             sessionId: string;
             exerciseId: string;
-            description: string;
             motion: string;
             targetArea: string;
             setsMin?: number;
@@ -353,6 +353,7 @@ export async function createWorkoutPlanWorker(
             customizations?: string;
             notes?: string;
             exerciseOrder?: number;
+            setOrderMarker?: string;
         }[] = [];
 
         // Process phases, sessions, and exercises
@@ -379,7 +380,6 @@ export async function createWorkoutPlanWorker(
                         planExerciseId: exercise.id,
                         sessionId: session.id,
                         exerciseId: exercise.exerciseId,
-                        description: exercise.description || "",
                         motion: exercise.motion || "",
                         targetArea: exercise.targetArea || "",
                         setsMin: parseInt(exercise.setsMin || "0", 10) || 0,
@@ -391,6 +391,8 @@ export async function createWorkoutPlanWorker(
                         restMax: parseInt(exercise.restMax || "0", 10) || 0,
                         customizations: exercise.customizations || "",
                         notes: exercise.notes || "",
+                        exerciseOrder: 0, // Redundant field for future use
+                        setOrderMarker: exercise.order || "",
                     });
                 }
             }
