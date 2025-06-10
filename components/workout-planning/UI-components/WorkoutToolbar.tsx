@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import WorkoutPlanCsvImportExport from "./workout-plan-csv-import-export";
 import { Check, Loader2, Plus, SaveAllIcon } from "lucide-react";
+import { WorkoutQueueIntegration } from "@/lib/workout-queue-integration";
 
 type WorkoutToolbarProps = {
     onAddPhase: () => void;
@@ -17,6 +18,9 @@ type WorkoutToolbarProps = {
     saveStatus?: "editing" | "queued" | "saving" | "saved";
     conflictError: { message: string } | null;
     client_id: string;
+    trainer_id: string;
+    planId?: string | null;
+    lastKnownUpdatedAt?: Date | null;
     phases: Phase[];
     exercises: SelectExercise[];
     updatePhases: (phases: Phase[]) => void;
@@ -32,6 +36,9 @@ export function WorkoutToolbar({
     saveStatus = "saved",
     conflictError,
     client_id,
+    trainer_id,
+    planId,
+    lastKnownUpdatedAt,
     phases,
     exercises,
     updatePhases,
@@ -80,7 +87,7 @@ export function WorkoutToolbar({
 
             <WorkoutPlanCsvImportExport
                 phases={phases}
-                onImport={(importedPhases) => {
+                onImport={async (importedPhases) => {
                     // Use timestamp-based order numbers to avoid conflicts (future-proof for 100+ years)
                     const baseTimestamp = Math.floor(Date.now() / 10000);
 
@@ -96,6 +103,22 @@ export function WorkoutToolbar({
                     // Append to existing phases instead of replacing
                     updatePhases([...phases, ...phasesWithCorrectOrder]);
                     setHasUnsavedChanges(true);
+
+                    // Queue the CSV import event using full plan save
+                    try {
+                        if (planId) {
+                            await WorkoutQueueIntegration.queueFullPlanSave(
+                                planId,
+                                client_id,
+                                trainer_id,
+                                [...phases, ...phasesWithCorrectOrder],
+                                lastKnownUpdatedAt || undefined
+                            );
+                        }
+                    } catch (error) {
+                        console.error("Failed to queue CSV import:", error);
+                        // Don't show error to user as the operation succeeded locally
+                    }
                 }}
                 clientId={client_id}
                 exercises={exercises}
