@@ -43,19 +43,23 @@ COPY --from=builder /app/.next/static ./.next/static
 # Based on your redis-queue-setup.md, your worker needs the following files.
 # We copy them into the final image so "npm run worker" has everything it needs.
 
-# 1. Copy package.json to be able to use "npm run" commands.
+# 1. Copy package.json and package-lock.json to be able to use "npm run" commands and install dependencies.
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
 
-# 2. Copy the tsconfig.json file, which tsx uses to run your TypeScript files.
+# 2. Install production dependencies needed for the worker (tsx, bullmq, ioredis, etc.)
+RUN npm ci --omit=dev --legacy-peer-deps
+
+# 3. Copy the tsconfig.json file, which tsx uses to run your TypeScript files.
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
-# 3. Copy the scripts folder, which contains your worker entry point.
+# 4. Copy the scripts folder, which contains your worker entry point.
 COPY --from=builder /app/scripts ./scripts
 
-# 4. Copy the lib folder, containing your queue manager, worker logic, etc.
+# 5. Copy the lib folder, containing your queue manager, worker logic, etc.
 COPY --from=builder /app/lib ./lib
 
-# 5. Copy the types folder for your message definitions.
+# 6. Copy the types folder for your message definitions.
 COPY --from=builder /app/types ./types
 
 # ========= END OF WORKER ADDITIONS =========

@@ -44,21 +44,19 @@ export class QueueManager {
 
     static async getQueueStats() {
         try {
-            const waiting = await messageQueue.getWaiting();
-            const active = await messageQueue.getActive();
-            const completed = await messageQueue.getCompleted();
-            const failed = await messageQueue.getFailed();
+            // Use getJobCounts() for efficient counting without loading all jobs into memory
+            const jobCounts = await messageQueue.getJobCounts();
 
             return {
-                waiting: waiting.length,
-                active: active.length,
-                completed: completed.length,
-                failed: failed.length,
+                waiting: jobCounts.waiting,
+                active: jobCounts.active,
+                completed: jobCounts.completed,
+                failed: jobCounts.failed,
                 total:
-                    waiting.length +
-                    active.length +
-                    completed.length +
-                    failed.length,
+                    jobCounts.waiting +
+                    jobCounts.active +
+                    jobCounts.completed +
+                    jobCounts.failed,
             };
         } catch (error) {
             console.error("Failed to get queue stats:", error);

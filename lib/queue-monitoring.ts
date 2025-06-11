@@ -41,28 +41,28 @@ export class QueueMonitoring {
         alerts: string[];
     }> {
         try {
-            const [waiting, active, completed, failed] = await Promise.all([
-                messageQueue.getWaiting(),
-                messageQueue.getActive(),
-                messageQueue.getCompleted(),
-                messageQueue.getFailed(),
-            ]);
+            // Get job counts efficiently without loading all jobs into memory
+            const jobCounts = await messageQueue.getJobCounts();
 
-            const queueLength = waiting.length + active.length;
+            const queueLength = jobCounts.waiting + jobCounts.active;
             const total =
-                waiting.length +
-                active.length +
-                completed.length +
-                failed.length;
-            const errorRate = total > 0 ? (failed.length / total) * 100 : 0;
+                jobCounts.waiting +
+                jobCounts.active +
+                jobCounts.completed +
+                jobCounts.failed;
+            const errorRate = total > 0 ? (jobCounts.failed / total) * 100 : 0;
 
-            // Calculate processing rate (jobs per minute)
-            const recentCompleted = completed.filter(
-                (job) => job.finishedOn && Date.now() - job.finishedOn < 60000
+            // Get limited recent completed jobs for processing rate and time calculations
+            const recentCompletedJobs = await messageQueue.getCompleted(0, 99); // Last 100 jobs max
+
+            // Calculate processing rate (jobs per minute) from recent jobs
+            const oneMinuteAgo = Date.now() - 60000;
+            const recentCompleted = recentCompletedJobs.filter(
+                (job) => job.finishedOn && job.finishedOn > oneMinuteAgo
             );
             const processingRate = recentCompleted.length;
 
-            // Calculate average processing time
+            // Calculate average processing time from recent completed jobs
             const avgProcessingTime =
                 recentCompleted.length > 0
                     ? recentCompleted.reduce((sum, job) => {
@@ -72,17 +72,20 @@ export class QueueMonitoring {
                       }, 0) / recentCompleted.length
                     : 0;
 
-            // Find oldest waiting job
-            const oldestWaitingJob =
-                waiting.length > 0
-                    ? Math.min(...waiting.map((job) => job.timestamp))
-                    : undefined;
+            // Get oldest waiting job efficiently (just the first one)
+            let oldestWaitingJob: number | undefined;
+            if (jobCounts.waiting > 0) {
+                const oldestWaitingJobs = await messageQueue.getWaiting(0, 0); // Get just the first waiting job
+                if (oldestWaitingJobs.length > 0) {
+                    oldestWaitingJob = oldestWaitingJobs[0].timestamp;
+                }
+            }
 
             const metrics = {
-                waiting: waiting.length,
-                active: active.length,
-                completed: completed.length,
-                failed: failed.length,
+                waiting: jobCounts.waiting,
+                active: jobCounts.active,
+                completed: jobCounts.completed,
+                failed: jobCounts.failed,
                 total,
                 processingRate,
                 avgProcessingTime,
@@ -170,9 +173,13 @@ export class QueueMonitoring {
         try {
             const cutoffTime = Date.now() - timeRangeMinutes * 60 * 1000;
 
+            // Get limited recent jobs instead of all jobs to reduce memory usage
+            // For longer time ranges, we might miss some jobs, but this is a reasonable trade-off
+            const maxJobsToFetch = Math.min(1000, timeRangeMinutes * 10); // Estimate ~10 jobs per minute max
+
             const [completed, failed] = await Promise.all([
-                messageQueue.getCompleted(),
-                messageQueue.getFailed(),
+                messageQueue.getCompleted(0, maxJobsToFetch - 1),
+                messageQueue.getFailed(0, maxJobsToFetch - 1),
             ]);
 
             const recentCompleted = completed.filter(
@@ -249,44 +256,86 @@ export class QueueMonitoring {
         try {
             const errors: string[] = [];
             let cleaned = 0;
+            const graceTime = 24 * 60 * 60 * 1000; // 24 hours
 
             // Get current counts before cleanup
             const beforeStats = await messageQueue.getJobCounts();
             console.log("Before cleanup:", beforeStats);
 
             try {
-                // Clean completed jobs older than 24 hours
-                const completedCleaned = await messageQueue.clean(
-                    24 * 60 * 60 * 1000, // 24 hours
-                    keepCompleted,
-                    "completed"
+                // For completed jobs: calculate how many to remove
+                // Get a sample of recent completed jobs to estimate old vs new
+                const recentCompleted = await messageQueue.getCompleted(
+                    0,
+                    Math.min(beforeStats.completed, 1000)
                 );
-                cleaned += completedCleaned.length || 0;
-                console.log(
-                    `Cleaned ${completedCleaned.length || 0} completed jobs`
+                const cutoffTime = Date.now() - graceTime;
+                const oldCompletedCount = recentCompleted.filter(
+                    (job) => job.finishedOn && job.finishedOn < cutoffTime
+                ).length;
+
+                // If we have more old jobs than we want to keep, calculate removal count
+                const completedToRemove = Math.max(
+                    oldCompletedCount - keepCompleted,
+                    0
                 );
+
+                if (completedToRemove > 0) {
+                    const completedCleaned = await messageQueue.clean(
+                        graceTime, // 24 hours
+                        completedToRemove, // Number to remove, not keep
+                        "completed"
+                    );
+                    cleaned += completedCleaned.length || 0;
+                    console.log(
+                        `Cleaned ${
+                            completedCleaned.length || 0
+                        } completed jobs (wanted to remove ${completedToRemove})`
+                    );
+                } else {
+                    console.log("No old completed jobs to clean");
+                }
             } catch (error) {
                 errors.push(`Failed to clean completed jobs: ${error}`);
             }
 
             try {
-                // Clean failed jobs older than 24 hours
-                const failedCleaned = await messageQueue.clean(
-                    24 * 60 * 60 * 1000, // 24 hours
-                    keepFailed,
-                    "failed"
+                // For failed jobs: calculate how many to remove
+                const recentFailed = await messageQueue.getFailed(
+                    0,
+                    Math.min(beforeStats.failed, 1000)
                 );
-                cleaned += failedCleaned.length || 0;
-                console.log(`Cleaned ${failedCleaned.length || 0} failed jobs`);
+                const cutoffTime = Date.now() - graceTime;
+                const oldFailedCount = recentFailed.filter(
+                    (job) => job.finishedOn && job.finishedOn < cutoffTime
+                ).length;
+
+                const failedToRemove = Math.max(oldFailedCount - keepFailed, 0);
+
+                if (failedToRemove > 0) {
+                    const failedCleaned = await messageQueue.clean(
+                        graceTime, // 24 hours
+                        failedToRemove, // Number to remove, not keep
+                        "failed"
+                    );
+                    cleaned += failedCleaned.length || 0;
+                    console.log(
+                        `Cleaned ${
+                            failedCleaned.length || 0
+                        } failed jobs (wanted to remove ${failedToRemove})`
+                    );
+                } else {
+                    console.log("No old failed jobs to clean");
+                }
             } catch (error) {
                 errors.push(`Failed to clean failed jobs: ${error}`);
             }
 
-            // Also clean active jobs that might be stalled (older than 24 hours)
+            // For active jobs: remove ALL old ones (stalled jobs should not remain active)
             try {
                 const activeCleaned = await messageQueue.clean(
-                    24 * 60 * 60 * 1000, // 24 hours
-                    0, // Keep 0 old active jobs
+                    graceTime, // 24 hours
+                    1000, // Remove up to 1000 old active jobs (should be very few)
                     "active"
                 );
                 cleaned += activeCleaned.length || 0;

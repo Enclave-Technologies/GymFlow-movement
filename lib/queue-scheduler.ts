@@ -102,22 +102,31 @@ class QueueScheduler {
      */
     private async performUltraAggressiveCleanup() {
         try {
-            // Clean everything older than 12 hours (more reasonable)
+            const graceTime = 12 * 60 * 60 * 1000; // 12 hours
+
+            // Get current job counts to calculate proper removal limits
+            const jobCounts = await messageQueue.getJobCounts();
+
+            // For completed jobs: remove old ones but keep 50 recent ones
+            const completedToRemove = Math.max(jobCounts.completed - 50, 0);
             const completedCleaned = await messageQueue.clean(
-                12 * 60 * 60 * 1000, // 12 hours
-                50, // Keep 50 completed jobs
+                graceTime, // 12 hours
+                completedToRemove, // Number to remove (not keep)
                 "completed"
             );
 
+            // For failed jobs: remove old ones but keep 25 recent ones
+            const failedToRemove = Math.max(jobCounts.failed - 25, 0);
             const failedCleaned = await messageQueue.clean(
-                12 * 60 * 60 * 1000, // 12 hours
-                25, // Keep 25 failed jobs
+                graceTime, // 12 hours
+                failedToRemove, // Number to remove (not keep)
                 "failed"
             );
 
+            // For active jobs: remove ALL old ones (stalled jobs)
             const activeCleaned = await messageQueue.clean(
-                12 * 60 * 60 * 1000, // 12 hours
-                0, // Keep 0 old active jobs
+                graceTime, // 12 hours
+                1000, // Remove up to 1000 old active jobs
                 "active"
             );
 
@@ -126,7 +135,7 @@ class QueueScheduler {
                     completedCleaned.length +
                     failedCleaned.length +
                     activeCleaned.length
-                } jobs cleaned`
+                } jobs cleaned (wanted to remove: ${completedToRemove} completed, ${failedToRemove} failed)`
             );
         } catch (error) {
             console.error("❌ More aggressive cleanup failed:", error);
