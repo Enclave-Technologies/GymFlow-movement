@@ -14,8 +14,7 @@ import {
     WorkoutSessionCreateMessage,
     WorkoutSessionUpdateMessage,
     WorkoutSessionDeleteMessage,
-    WorkoutExerciseCreateMessage,
-    WorkoutExerciseUpdateMessage,
+    WorkoutExerciseSaveMessage,
     WorkoutExerciseDeleteMessage,
     WorkoutPlanFullSaveMessage,
 } from "@/types/queue-types";
@@ -206,7 +205,7 @@ export class SimpleWorkoutProcessors {
     }
 
     static async processWorkoutExerciseCreate(
-        message: WorkoutExerciseCreateMessage
+        message: WorkoutExerciseSaveMessage
     ): Promise<QueueJobResult> {
         console.log("Processing exercise creation:", message.data);
 
@@ -230,7 +229,7 @@ export class SimpleWorkoutProcessors {
     }
 
     static async processWorkoutExerciseUpdate(
-        message: WorkoutExerciseUpdateMessage
+        message: WorkoutExerciseSaveMessage
     ): Promise<QueueJobResult> {
         console.log("Processing exercise update:", message.data);
 

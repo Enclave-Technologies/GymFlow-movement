@@ -483,14 +483,32 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             return;
         }
 
-        // Determine if this is a new exercise or existing exercise based on edit state
+        // Determine if this is a new exercise or existing exercise
+        // Strategy: Check if the exercise exists in the current database state
+        // If it exists in our local phases data and has been saved before, it's an update
         const currentEditState = props.exerciseEditState.getCurrentEditState();
-        const isNewExercise = currentEditState?.isNew ?? true; // Default to true for safety
+
+        // More robust logic: Check if exercise was just created locally vs exists in DB
+        const isNewExercise = (() => {
+            // If we have explicit state, use it
+            if (currentEditState?.isNew !== undefined) {
+                return currentEditState.isNew;
+            }
+
+            // Fallback: Check if exercise has minimal data (likely just created)
+            const hasMinimalData =
+                !exercise.exerciseId || exercise.exerciseId === "";
+            console.log(
+                `🔍 Exercise ${exercise.id}: exerciseId="${exercise.exerciseId}", hasMinimalData=${hasMinimalData}`
+            );
+
+            return hasMinimalData;
+        })();
 
         console.log(
             `💾 Saving exercise as ${
                 isNewExercise ? "NEW" : "EXISTING"
-            } exercise`
+            } exercise (ID: ${exercise.id})`
         );
 
         try {
@@ -527,10 +545,14 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
                             exerciseData.customizations ||
                             exercise.customizations,
                         notes: exerciseData.notes || exercise.notes,
-                        exerciseOrder:
-                            parseInt(
-                                exerciseData.order || exercise.order || "0"
-                            ) || 0,
+                        order: (() => {
+                            const orderValue =
+                                exerciseData.order || exercise.order || "";
+                            console.log(
+                                `🔢 Order mapping: "${orderValue}" (keeping as string)`
+                            );
+                            return orderValue;
+                        })(),
                     },
                     isNewExercise, // Use the state to determine create vs update
                     props.lastKnownUpdatedAt || new Date()
@@ -543,6 +565,14 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
                         duration: 2000,
                     }
                 );
+
+                // Mark exercise as saved if it was new (convert to existing for future edits)
+                if (isNewExercise) {
+                    props.exerciseEditState.markExerciseAsSaved(
+                        sessionId,
+                        exerciseId
+                    );
+                }
             }
         } catch (error) {
             console.error("Failed to queue exercise save:", error);

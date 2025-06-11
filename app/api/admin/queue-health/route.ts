@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
 
         let middlewareError = null;
         const mockRes = {
-            status: (_code: number) => mockRes,
-            json: (_data: unknown) => _data,
+            status: () => mockRes,
+            json: (data: unknown) => data,
         };
 
         await new Promise<void>((resolve) => {
@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
 
         let middlewareError = null;
         const mockRes = {
-            status: (_code: number) => mockRes,
-            json: (_data: unknown) => _data,
+            status: () => mockRes,
+            json: (data: unknown) => data,
         };
 
         await new Promise<void>((resolve) => {

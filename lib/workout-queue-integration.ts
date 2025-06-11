@@ -361,7 +361,7 @@ export class WorkoutQueueIntegration {
             restMax?: string;
             customizations?: string;
             notes?: string;
-            exerciseOrder?: number;
+            order?: string;
         },
         isNew: boolean,
         lastKnownUpdatedAt: Date,

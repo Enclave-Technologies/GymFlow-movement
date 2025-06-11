@@ -64,9 +64,7 @@ export class ExerciseProcessors {
                                         message.data.exercise.customizations ||
                                         "",
                                     notes: message.data.exercise.notes || "",
-                                    order: String(
-                                        message.data.exercise.exerciseOrder || 0
-                                    ),
+                                    order: message.data.exercise.order || "",
                                 },
                             },
                         ],
@@ -98,7 +96,7 @@ export class ExerciseProcessors {
                     restMax: message.data.exercise.restMax || "",
                     customizations: message.data.exercise.customizations || "",
                     notes: message.data.exercise.notes || "",
-                    order: String(message.data.exercise.exerciseOrder || 0),
+                    order: message.data.exercise.order || "",
                 };
 
                 changes = {

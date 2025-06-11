@@ -63,21 +63,21 @@ async function handleDashboardRequest(
         const responseHeaders: Record<string, string> = {};
 
         const mockRes = {
-            status: (_code: number) => {
+            status: () => {
                 return mockRes;
             },
-            json: (_data: unknown) => {
+            json: () => {
                 responseHeaders["content-type"] = "application/json";
                 return mockRes;
             },
-            send: (_data: unknown) => {
+            send: () => {
                 return mockRes;
             },
             setHeader: (name: string, value: string) => {
                 responseHeaders[name.toLowerCase()] = value;
                 return mockRes;
             },
-            end: (_data?: unknown) => {
+            end: () => {
                 return mockRes;
             },
         };

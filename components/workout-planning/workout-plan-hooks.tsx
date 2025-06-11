@@ -6,7 +6,7 @@
 import { useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Phase } from "./types";
-import { saveAll } from "./workout-utils/workout-plan-functions";
+
 import { fetchWorkoutPlan } from "./workout-utils/workout-utils";
 
 export interface UseWorkoutPlanDataProps {
@@ -188,7 +188,7 @@ export interface UseGlobalSaveProps {
     invalidateWorkoutPlanCache: (clientId: string) => void;
 }
 
-export function useGlobalSave(props: UseGlobalSaveProps) {
+export function useGlobalSave() {
     const handleSaveAll = useCallback(async () => {
         console.log(
             "🚫 Save function called - temporarily disabled to debug continuous save loop"
@@ -246,7 +246,7 @@ export function useGlobalSave(props: UseGlobalSaveProps) {
             props.setManualSaveInProgress(false);
         }
         */
-    }, [props]);
+    }, []);
 
     return { handleSaveAll };
 }

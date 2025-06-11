@@ -33,8 +33,6 @@ export function addExercise(
         notes: "",
         // Add sessionId to ensure parent-child relationship
         sessionId: sessionId,
-        // Flag to track if this is a newly created exercise
-        isNewlyCreated: true,
     };
 
     // Find the session to get its current exercises
