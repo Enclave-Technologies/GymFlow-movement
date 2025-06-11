@@ -11,6 +11,7 @@ import {
     WorkoutPhaseUpdateMessage,
     WorkoutPhaseDeleteMessage,
     WorkoutPhaseDuplicateMessage,
+    WorkoutPhaseActivateMessage,
     WorkoutSessionCreateMessage,
     WorkoutSessionUpdateMessage,
     WorkoutSessionDeleteMessage,
@@ -47,6 +48,8 @@ class MessageProcessors {
         WorkoutProcessorsMain.processWorkoutPhaseDelete;
     static processWorkoutPhaseDuplicate =
         WorkoutProcessorsMain.processWorkoutPhaseDuplicate;
+    static processWorkoutPhaseActivate =
+        WorkoutProcessorsMain.processWorkoutPhaseActivate;
     static processWorkoutSessionCreate =
         WorkoutProcessorsMain.processWorkoutSessionCreate;
     static processWorkoutSessionUpdate =
@@ -108,6 +111,11 @@ async function processJob(job: Job<QueueMessage>): Promise<QueueJobResult> {
             case "WORKOUT_PHASE_DUPLICATE":
                 result = await MessageProcessors.processWorkoutPhaseDuplicate(
                     message as WorkoutPhaseDuplicateMessage
+                );
+                break;
+            case "WORKOUT_PHASE_ACTIVATE":
+                result = await MessageProcessors.processWorkoutPhaseActivate(
+                    message as WorkoutPhaseActivateMessage
                 );
                 break;
             case "WORKOUT_SESSION_CREATE":

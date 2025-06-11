@@ -9,7 +9,6 @@ import {
     confirmDeletePhase,
     deletePhase,
     duplicatePhase,
-    togglePhaseActivation,
     togglePhaseExpansion,
 } from "./workout-utils/phase-utils";
 import {
@@ -173,16 +172,59 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
 
     const handleTogglePhaseActivation = async (phaseId: string) => {
         const currentPhases = props.latestPhasesRef.current;
-        await togglePhaseActivation(
-            phaseId,
-            currentPhases,
-            props.updatePhases,
-            props.lastKnownUpdatedAt,
-            props.setLastKnownUpdatedAt,
-            props.setSaving,
-            props.setHasUnsavedChanges,
-            () => {} // Dummy function for setConflictError
+
+        // Get the current activation state
+        const targetPhase = currentPhases.find((p) => p.id === phaseId);
+        if (!targetPhase) {
+            console.error(`Phase with ID ${phaseId} not found`);
+            return;
+        }
+
+        const isActivating = !targetPhase.isActive;
+
+        // Optimistically update the UI
+        const updatedPhases = currentPhases.map(
+            (phase) =>
+                phase.id === phaseId
+                    ? { ...phase, isActive: isActivating }
+                    : { ...phase, isActive: false } // Deactivate all other phases
         );
+
+        props.updatePhases(updatedPhases);
+        props.setHasUnsavedChanges(true);
+
+        // Get all phase IDs for the queue message
+        const allPhaseIds = currentPhases.map((p) => p.id);
+
+        // Queue the phase activation event
+        try {
+            if (props.planId) {
+                await WorkoutQueueIntegration.queuePhaseActivate(
+                    props.planId,
+                    phaseId,
+                    props.client_id,
+                    isActivating,
+                    allPhaseIds,
+                    props.lastKnownUpdatedAt || new Date()
+                );
+
+                toast.success(
+                    `Phase ${
+                        isActivating ? "activated" : "deactivated"
+                    } and queued for processing.`,
+                    {
+                        duration: 2000,
+                    }
+                );
+            }
+        } catch (error) {
+            console.error("Failed to queue phase activation:", error);
+
+            // Revert the optimistic update on error
+            props.updatePhases(currentPhases);
+
+            toast.error("Failed to update phase activation");
+        }
     };
 
     const handleDeletePhase = (phaseId: string) => {

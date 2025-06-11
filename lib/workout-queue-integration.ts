@@ -12,6 +12,7 @@ import {
     WorkoutPhaseUpdateMessage,
     WorkoutPhaseDeleteMessage,
     WorkoutPhaseDuplicateMessage,
+    WorkoutPhaseActivateMessage,
     WorkoutSessionCreateMessage,
     WorkoutSessionUpdateMessage,
     WorkoutSessionDeleteMessage,
@@ -288,6 +289,44 @@ export class WorkoutQueueIntegration {
 
         return addJobToQueue(message, {
             priority: 4, // Medium priority for duplication operations
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
+     * Queue a phase activation/deactivation for background processing
+     * Ensures only one phase is active at a time
+     */
+    static async queuePhaseActivate(
+        planId: string,
+        phaseId: string,
+        clientId: string,
+        isActivating: boolean,
+        allPhaseIds: string[],
+        lastKnownUpdatedAt: Date,
+        userId?: string
+    ) {
+        const message: WorkoutPhaseActivateMessage = {
+            messageType: "WORKOUT_PHASE_ACTIVATE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "phase_activation",
+            },
+            data: {
+                planId,
+                phaseId,
+                clientId,
+                isActivating,
+                allPhaseIds,
+                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 3, // High priority for activation operations
             attempts: 3,
             delay: 0,
         });

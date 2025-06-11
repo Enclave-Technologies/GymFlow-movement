@@ -10,6 +10,7 @@ import {
     WorkoutPhaseUpdateMessage,
     WorkoutPhaseDeleteMessage,
     WorkoutPhaseDuplicateMessage,
+    WorkoutPhaseActivateMessage,
 } from "@/types/queue-types";
 import { WorkoutPlanChanges } from "@/components/workout-planning/types";
 import { applyWorkoutPlanChangesWorker } from "@/lib/database/workout-database-service";
@@ -465,6 +466,114 @@ export class PhaseProcessors {
             return {
                 success: false,
                 message: "Failed to process phase duplication",
+                error: error instanceof Error ? error.message : "Unknown error",
+                processedAt: new Date().toISOString(),
+            };
+        }
+    }
+
+    static async processWorkoutPhaseActivate(
+        message: WorkoutPhaseActivateMessage
+    ): Promise<QueueJobResult> {
+        console.log("Processing phase activation:", message.data);
+
+        try {
+            // Create WorkoutPlanChanges object for phase activation
+            // When activating a phase, we need to:
+            // 1. Set the target phase as active
+            // 2. Set all other phases in the plan as inactive
+
+            const phaseUpdates = [];
+
+            // Add the target phase activation/deactivation
+            phaseUpdates.push({
+                id: message.data.phaseId,
+                changes: {
+                    isActive: message.data.isActivating,
+                },
+            });
+
+            // If activating this phase, deactivate all other phases
+            if (message.data.isActivating) {
+                for (const otherPhaseId of message.data.allPhaseIds) {
+                    if (otherPhaseId !== message.data.phaseId) {
+                        phaseUpdates.push({
+                            id: otherPhaseId,
+                            changes: {
+                                isActive: false,
+                            },
+                        });
+                    }
+                }
+            }
+
+            const changes: WorkoutPlanChanges = {
+                created: {
+                    phases: [],
+                    sessions: [],
+                    exercises: [],
+                },
+                updated: {
+                    phases: phaseUpdates,
+                    sessions: [],
+                    exercises: [],
+                },
+                deleted: {
+                    phases: [],
+                    sessions: [],
+                    exercises: [],
+                },
+            };
+
+            console.log(
+                `${
+                    message.data.isActivating ? "Activating" : "Deactivating"
+                } phase ${message.data.phaseId} and updating ${
+                    phaseUpdates.length - 1
+                } other phases`
+            );
+
+            // Apply the changes using the simplified service (no concurrency control)
+            const result = await applyWorkoutPlanChangesWorker(
+                message.data.planId,
+                changes
+            );
+
+            if (result.success) {
+                return {
+                    success: true,
+                    message: `Phase ${
+                        message.data.isActivating ? "activated" : "deactivated"
+                    } successfully`,
+                    data: {
+                        planId: message.data.planId,
+                        phaseId: message.data.phaseId,
+                        isActivating: message.data.isActivating,
+                        phasesUpdated: phaseUpdates.length,
+                        updatedAt:
+                            result.updatedAt?.toISOString() ||
+                            new Date().toISOString(),
+                    },
+                    processedAt: new Date().toISOString(),
+                };
+            } else {
+                return {
+                    success: false,
+                    message:
+                        result.error ||
+                        `Failed to ${
+                            message.data.isActivating
+                                ? "activate"
+                                : "deactivate"
+                        } phase`,
+                    error: result.error,
+                    processedAt: new Date().toISOString(),
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: "Failed to process phase activation",
                 error: error instanceof Error ? error.message : "Unknown error",
                 processedAt: new Date().toISOString(),
             };

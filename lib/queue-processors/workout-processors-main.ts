@@ -141,6 +141,8 @@ export class WorkoutProcessorsMain {
         PhaseProcessors.processWorkoutPhaseDelete;
     static processWorkoutPhaseDuplicate =
         PhaseProcessors.processWorkoutPhaseDuplicate;
+    static processWorkoutPhaseActivate =
+        PhaseProcessors.processWorkoutPhaseActivate;
 
     static processWorkoutSessionCreate =
         SessionProcessors.processWorkoutSessionCreate;
