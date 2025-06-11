@@ -34,6 +34,11 @@ const ExerciseDropdown: React.FC<ExerciseDropdownProps> = ({
     const [open, setOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
 
+    console.log(
+        "🎨 ExerciseDropdown render - selectedDescription:",
+        selectedDescription
+    );
+
     // Memoize filtered exercises based on search term
     const filteredExercises = useMemo(
         () =>
@@ -44,9 +49,14 @@ const ExerciseDropdown: React.FC<ExerciseDropdownProps> = ({
     );
 
     const handleExerciseSelect = (exercise: SelectExercise) => {
+        console.log(
+            "🔥 ExerciseDropdown handleExerciseSelect called with:",
+            exercise
+        );
         onExerciseSelect(exercise);
         setOpen(false);
         setSearchTerm(""); // Reset search term
+        console.log("✅ ExerciseDropdown selection complete");
     };
 
     return (
@@ -68,15 +78,20 @@ const ExerciseDropdown: React.FC<ExerciseDropdownProps> = ({
                         value={searchTerm}
                         onValueChange={setSearchTerm}
                     />
-                    <CommandEmpty>
-                        No exercise found.
-                    </CommandEmpty>
+                    <CommandEmpty>No exercise found.</CommandEmpty>
                     <CommandGroup className="max-h-[350px] overflow-auto">
                         {filteredExercises.map((ex) => (
                             <CommandItem
                                 key={ex.exerciseId}
                                 value={ex.exerciseName}
-                                onSelect={() => handleExerciseSelect(ex)}
+                                onSelect={(value) => {
+                                    console.log(
+                                        "🎯 CommandItem onSelect triggered with value:",
+                                        value
+                                    );
+                                    console.log("🎯 Exercise object:", ex);
+                                    handleExerciseSelect(ex);
+                                }}
                                 className="cursor-pointer"
                             >
                                 <div className="flex flex-col">

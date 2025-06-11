@@ -43,10 +43,17 @@ const ExerciseEditRow: React.FC<ExerciseEditRowProps> = ({
 }) => {
     const handleExerciseSelect = (exercise: SelectExercise) => {
         // Update multiple fields when exercise is selected
+        console.log(
+            "🔍 Exercise selected:",
+            exercise.exerciseName,
+            "ID:",
+            exercise.exerciseId
+        );
         onFieldChange("description", exercise.exerciseName);
         onFieldChange("exerciseId", exercise.exerciseId);
         onFieldChange("motion", exercise.motion || "");
         onFieldChange("targetArea", exercise.targetArea || "");
+        console.log("✅ Fields updated for exercise:", exercise.exerciseName);
     };
 
     return (
@@ -64,6 +71,10 @@ const ExerciseEditRow: React.FC<ExerciseEditRowProps> = ({
 
             {/* Description (Exercise Name) */}
             <TableCell className="min-w-[350px]">
+                {console.log(
+                    "🎨 ExerciseEditRow render - editingExerciseRow.description:",
+                    editingExerciseRow.description
+                )}
                 <ExerciseDropdown
                     exercises={exercises}
                     selectedDescription={editingExerciseRow.description || ""}

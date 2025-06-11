@@ -86,13 +86,21 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
     const firstInputRef = useRef<HTMLInputElement>(null);
     const [shouldFocusFirstCell, setShouldFocusFirstCell] = useState(false);
 
+    // Store session exercises in a ref to avoid dependency issues
+    const sessionExercisesRef = useRef(session.exercises);
+    sessionExercisesRef.current = session.exercises;
+
     // When editingExerciseId changes, set editingExerciseRow to the matching exercise
     useEffect(() => {
         if (editingExerciseId) {
-            const exercise = session.exercises.find(
+            const exercise = sessionExercisesRef.current.find(
                 (e) => e.id === editingExerciseId
             );
             if (exercise) {
+                console.log(
+                    "🔄 useEffect: Setting editingExerciseRow from session.exercises:",
+                    exercise
+                );
                 setEditingExerciseRow({ ...exercise });
                 setShouldFocusFirstCell(true);
                 // Notify parent that editing has started
@@ -101,9 +109,10 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
                 }
             }
         } else {
+            console.log("🔄 useEffect: Clearing editingExerciseRow");
             setEditingExerciseRow(null);
         }
-    }, [editingExerciseId, session.exercises, onEditingStart]);
+    }, [editingExerciseId, onEditingStart]); // Removed session.exercises to prevent state reset
 
     // Focus the first input when shouldFocusFirstCell is true
     useEffect(() => {
@@ -116,18 +125,30 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
     // Handle field changes in editing row
     const handleInlineExerciseChange = useCallback(
         (field: keyof ExerciseRow, value: string) => {
-            if (!editingExerciseRow) return;
+            console.log(`🔄 Field change: ${field} = ${value}`);
+            if (field === "exerciseId") {
+                console.log("🆔 ExerciseId being set to:", value);
+            }
 
-            setEditingExerciseRow({
-                ...editingExerciseRow,
-                [field]: value,
+            // Use functional state update to avoid stale closure issues
+            setEditingExerciseRow((prevRow) => {
+                if (!prevRow) return null;
+
+                const newEditingRow = {
+                    ...prevRow,
+                    [field]: value,
+                };
+
+                console.log("🔄 Setting new editing row:", newEditingRow);
+                return newEditingRow;
             });
+
             // Notify parent that a change was made
             if (onEditingChange) {
                 onEditingChange();
             }
         },
-        [editingExerciseRow, onEditingChange]
+        [onEditingChange] // Removed editingExerciseRow dependency to avoid stale closure
     );
 
     const saveInlineExercise = useCallback(() => {
@@ -137,6 +158,14 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
             return;
         }
 
+        console.log("💾 Saving exercise with data:", {
+            id: editingExerciseRow.id,
+            description: editingExerciseRow.description,
+            exerciseId: editingExerciseRow.exerciseId,
+            motion: editingExerciseRow.motion,
+            targetArea: editingExerciseRow.targetArea,
+        });
+
         // Normalize description for matching
         const normalizedDescription = editingExerciseRow.description
             .trim()
@@ -144,6 +173,10 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
 
         // Make sure exerciseId is set - this is critical for backend updates
         if (!editingExerciseRow.exerciseId) {
+            console.log(
+                "⚠️ No exerciseId found, attempting to find by description:",
+                normalizedDescription
+            );
             // Find the exercise in the exercises list by normalized description
             const matchingExercise = exercises.find(
                 (ex) =>
