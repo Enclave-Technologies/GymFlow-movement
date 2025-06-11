@@ -4,20 +4,20 @@
  * for use in queue workers and other non-Next.js contexts
  */
 
-import { db } from "@/db/xata";
+import { db } from "../../db/xata";
 import {
     ExercisePlans,
     Phases,
     Sessions,
     ExercisePlanExercises,
-} from "@/db/schemas";
+} from "../../db/schemas";
 import { eq, inArray } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import {
     WorkoutPlanActionResponse,
     WorkoutPlanChanges,
     Phase,
-} from "@/components/workout-planning/types";
+} from "../../components/workout-planning/types";
 
 /**
  * Apply changes to a workout plan without concurrency control

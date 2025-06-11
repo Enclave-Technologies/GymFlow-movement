@@ -19,12 +19,35 @@ import { Button } from "@/components/ui/button";
 import ClientTabs from "@/components/client-tabs/client-tabs";
 import { safeImageUrl } from "@/lib/utils";
 import Link from "next/link";
+import { Metadata } from "next";
 
 type PageProps = {
     params: Promise<{
         id: string;
     }>;
 };
+
+export async function generateMetadata({
+    params,
+}: PageProps): Promise<Metadata> {
+    const resolvedParams = await params;
+
+    try {
+        const client = await getClientById(resolvedParams.id);
+
+        return {
+            title: client
+                ? `${client.fullName} - Client Profile | GymFlow`
+                : "Client Profile | GymFlow",
+        };
+    } catch (error) {
+        console.error("Error fetching client for metadata:", error);
+
+        return {
+            title: "Client Profile | GymFlow",
+        };
+    }
+}
 
 export default async function ClientProfilePage({ params }: PageProps) {
     const resolvedParams = await params;

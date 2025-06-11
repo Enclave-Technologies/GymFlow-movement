@@ -8,8 +8,8 @@ import {
     QueueJobResult,
     WorkoutPlanCreateMessage,
     WorkoutPlanFullSaveMessage,
-} from "@/types/queue-types";
-import { createWorkoutPlanWorker } from "@/lib/database/workout-database-service";
+} from "../../types/queue-types";
+import { createWorkoutPlanWorker } from "../database/workout-database-service";
 
 export class PlanProcessors {
     static async processWorkoutPlanCreate(

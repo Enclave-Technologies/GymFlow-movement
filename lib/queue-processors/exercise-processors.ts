@@ -8,12 +8,12 @@ import {
     QueueJobResult,
     WorkoutExerciseSaveMessage,
     WorkoutExerciseDeleteMessage,
-} from "@/types/queue-types";
+} from "../../types/queue-types";
 import {
     WorkoutPlanChanges,
     Exercise,
-} from "@/components/workout-planning/types";
-import { applyWorkoutPlanChangesWorker } from "@/lib/database/workout-database-service";
+} from "../../components/workout-planning/types";
+import { applyWorkoutPlanChangesWorker } from "../database/workout-database-service";
 
 export class ExerciseProcessors {
     static async processWorkoutExerciseSave(

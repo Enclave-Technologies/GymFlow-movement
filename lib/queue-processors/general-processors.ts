@@ -12,7 +12,7 @@ import {
     EmailMessage,
     DataSyncMessage,
     TestMessage,
-} from "@/types/queue-types";
+} from "../../types/queue-types";
 
 export class GeneralProcessors {
     static async processUserAction(

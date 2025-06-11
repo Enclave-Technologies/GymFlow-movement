@@ -10,11 +10,11 @@ import {
     WorkoutSessionUpdateMessage,
     WorkoutSessionDeleteMessage,
     WorkoutSessionDuplicateMessage,
-} from "@/types/queue-types";
-import { WorkoutPlanChanges } from "@/components/workout-planning/types";
-import { applyWorkoutPlanChangesWorker } from "@/lib/database/workout-database-service";
-import { db } from "@/db/xata";
-import { ExercisePlanExercises } from "@/db/schemas";
+} from "../../types/queue-types";
+import { WorkoutPlanChanges } from "../../components/workout-planning/types";
+import { applyWorkoutPlanChangesWorker } from "../database/workout-database-service";
+import { db } from "../../db/xata";
+import { ExercisePlanExercises } from "../../db/schemas";
 import { eq } from "drizzle-orm";
 
 export class SessionProcessors {
