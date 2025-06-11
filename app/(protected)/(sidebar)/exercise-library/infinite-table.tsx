@@ -232,7 +232,7 @@ export function InfiniteTable({
             .rows.map((r) => r.original as Exercise);
 
         setSelectedRows(selectedRowsData);
-    }, [rowSelection, flatData]);
+    }, [rowSelection, flatData, table]);
 
     // Create row virtualizer
     const rowVirtualizer = useVirtualizer({

@@ -464,6 +464,8 @@ export default function RecordWorkoutClient({
         clientId,
         initialWorkoutData,
         initialWorkoutSessionDetails,
+        initialWorkoutSessionLogId,
+        pastSessions.length,
     ]);
 
     // Add event listener for beforeunload to warn user before leaving the page
@@ -1224,9 +1226,18 @@ export default function RecordWorkoutClient({
                                             }))
                                             .sort((a, b) => {
                                                 // Sort by order, supporting alphanumeric
-                                                const orderA = a.order.toString();
-                                                const orderB = b.order.toString();
-                                                return orderA.localeCompare(orderB, undefined, { numeric: true, sensitivity: 'base' });
+                                                const orderA =
+                                                    a.order.toString();
+                                                const orderB =
+                                                    b.order.toString();
+                                                return orderA.localeCompare(
+                                                    orderB,
+                                                    undefined,
+                                                    {
+                                                        numeric: true,
+                                                        sensitivity: "base",
+                                                    }
+                                                );
                                             });
 
                                         return sortedDetails.map(

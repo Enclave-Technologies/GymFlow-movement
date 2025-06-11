@@ -7,42 +7,50 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import WorkoutPlanCsvImportExport from "./workout-plan-csv-import-export";
-import { Loader2, Plus, SaveAllIcon } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
+import { WorkoutQueueIntegration } from "@/lib/workout-queue-integration";
+import { toast } from "sonner";
 
 type WorkoutToolbarProps = {
     onAddPhase: () => void;
-    onSaveAll: () => void;
-    hasUnsavedChanges: boolean;
-    isSaving: boolean;
-    conflictError: { message: string } | null;
+    onReload: () => void;
     client_id: string;
+    trainer_id: string;
+    planId?: string | null;
+    setPlanId: (planId: string | null) => void;
+    lastKnownUpdatedAt?: Date | null;
     phases: Phase[];
     exercises: SelectExercise[];
     updatePhases: (phases: Phase[]) => void;
     setHasUnsavedChanges: (value: boolean) => void;
+    isAnyOperationInProgress?: boolean;
+    isReloading?: boolean;
 };
 
 export function WorkoutToolbar({
     onAddPhase,
-    onSaveAll,
-    hasUnsavedChanges,
-    isSaving,
-    conflictError,
+    onReload,
     client_id,
+    trainer_id,
+    planId,
+    setPlanId: _setPlanId, // eslint-disable-line @typescript-eslint/no-unused-vars
+    lastKnownUpdatedAt,
     phases,
     exercises,
     updatePhases,
     setHasUnsavedChanges,
+    isAnyOperationInProgress = false,
+    isReloading = false,
 }: WorkoutToolbarProps) {
     return (
-        <div className="mb-2 flex items-center gap-2">
+        <div className="flex items-center gap-2">
             {/* Toolbar buttons and indicators */}
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button
                         onClick={onAddPhase}
                         className="cursor-pointer h-10"
-                        disabled={isSaving}
+                        disabled={isAnyOperationInProgress}
                     >
                         <Plus className="h-4 w-4 mr-2" /> Add Phase
                     </Button>
@@ -53,52 +61,78 @@ export function WorkoutToolbar({
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button
-                        onClick={onSaveAll}
+                        variant="outline"
+                        onClick={onReload}
                         className="cursor-pointer h-10"
-                        disabled={!hasUnsavedChanges || isSaving}
-                        variant={hasUnsavedChanges ? "default" : "outline"}
+                        disabled={isAnyOperationInProgress || isReloading}
                     >
-                        {isSaving ? (
-                            <>
-                                <Loader2 className="animate-spin" /> Saving...
-                            </>
-                        ) : (
-                            <>
-                                <SaveAllIcon /> Save All
-                            </>
-                        )}
+                        <RefreshCw
+                            className={`h-4 w-4 mr-2 ${
+                                isReloading ? "animate-spin" : ""
+                            }`}
+                        />
+                        Reload
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent>Save all changes</TooltipContent>
+                <TooltipContent>
+                    Refresh workout plan from database
+                </TooltipContent>
             </Tooltip>
 
             <WorkoutPlanCsvImportExport
                 phases={phases}
-                onImport={(importedPhases) => {
-                    updatePhases(importedPhases);
+                onImport={async (importedPhases) => {
+                    // The CSV import already generates correct timestamp-based order numbers
+                    // Just ensure all imported phases are deactivated
+                    const phasesWithCorrectOrder = importedPhases.map(
+                        (phase) => ({
+                            ...phase,
+                            isActive: false, // Ensure all imported phases are deactivated
+                        })
+                    );
+
+                    // Append to existing phases instead of replacing
+                    updatePhases([...phases, ...phasesWithCorrectOrder]);
                     setHasUnsavedChanges(true);
+
+                    // Queue individual phase creation events for each imported phase
+                    try {
+                        if (planId) {
+                            // Plan exists - queue each phase creation individually
+                            for (const phase of phasesWithCorrectOrder) {
+                                await WorkoutQueueIntegration.queuePhaseDuplicate(
+                                    planId,
+                                    client_id,
+                                    trainer_id,
+                                    "", // No original phase ID for CSV imports
+                                    phase,
+                                    lastKnownUpdatedAt || new Date()
+                                );
+                            }
+                            toast.success(
+                                "CSV phases imported and queued for processing.",
+                                {
+                                    duration: 3000,
+                                }
+                            );
+                        } else {
+                            // This should never happen since ensurePlanExists() guarantees a plan exists
+                            toast.error(
+                                "No workout plan found. Please reload the page."
+                            );
+                            return;
+                        }
+                    } catch (error) {
+                        console.error("Failed to queue CSV import:", error);
+                        toast.error(
+                            "Failed to import CSV phases. Please try again."
+                        );
+                    }
                 }}
                 clientId={client_id}
                 exercises={exercises}
-                disabled={isSaving}
+                disabled={isAnyOperationInProgress}
             />
-
-            {hasUnsavedChanges && (
-                <span className="ml-2 text-yellow-600 font-medium text-sm">
-                    * You have unsaved changes
-                </span>
-            )}
-            {/* {isSaving && (
-                <span className="ml-2 text-blue-600 font-medium text-sm flex items-center">
-                    <Loader2 className="animate-spin h-4 w-4 mr-1" />
-                    Saving...
-                </span>
-            )} */}
-            {conflictError && (
-                <span className="ml-2 text-red-600 font-medium text-sm">
-                    * {conflictError.message}
-                </span>
-            )}
         </div>
     );
 }

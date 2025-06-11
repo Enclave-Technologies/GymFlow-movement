@@ -10,6 +10,7 @@ interface PhaseListProps {
     phases: Phase[];
     isLoading: boolean;
     isSaving: boolean;
+    isAnyOperationInProgress?: boolean;
 
     // Phase handlers
     onToggleExpand: (phaseId: string) => void;
@@ -80,6 +81,7 @@ export function PhaseList({
     phases,
     isLoading,
     isSaving,
+    isAnyOperationInProgress = false,
     // Phase handlers
     onToggleExpand,
     onAddSession,
@@ -123,6 +125,7 @@ export function PhaseList({
                     key={phase.id}
                     phase={phase}
                     isSaving={isSaving}
+                    isAnyOperationInProgress={isAnyOperationInProgress}
                     // Phase handlers
                     onToggleExpand={onToggleExpand}
                     onAddSession={onAddSession}

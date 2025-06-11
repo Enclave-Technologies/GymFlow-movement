@@ -14,8 +14,8 @@ export const addPhase = (
     setHasUnsavedChanges: (value: boolean) => void,
     planId?: string | null
 ) => {
-    // Calculate the order number based on existing phases
-    const orderNumber = phases.length;
+    // Use timestamp divided by 10K for order number (future-proof for 100+ years, fits in integer range)
+    const orderNumber = Math.floor(Date.now() / 10000);
 
     const newPhase: Phase = {
         id: uuidv4(),
@@ -238,8 +238,8 @@ export const duplicatePhase = (
         };
     });
 
-    // Calculate the order number for the new phase
-    const orderNumber = phases.length;
+    // Use timestamp divided by 10K for order number (future-proof for 100+ years, fits in integer range)
+    const orderNumber = Math.floor(Date.now() / 10000);
 
     // Create the copied phase with new sessions
     const copy: Phase = {
@@ -290,3 +290,21 @@ export const startEditPhase = (
 //     setEditingPhase(null);
 //     setHasUnsavedChanges(true);
 // };
+
+/**
+ * Sorts phases to show the active phase first, then inactive phases in descending order (newest first)
+ * @param phases Array of phases to sort
+ * @returns Sorted array with active phase first, then newest phases first
+ */
+export const sortPhasesByActiveStatus = (phases: Phase[]): Phase[] => {
+    return [...phases].sort((a, b) => {
+        // Active phases come first (true > false in boolean comparison)
+        if (a.isActive && !b.isActive) return -1;
+        if (!a.isActive && b.isActive) return 1;
+
+        // If both have same active status, sort by orderNumber in descending order (newest first)
+        const orderA = a.orderNumber ?? 0;
+        const orderB = b.orderNumber ?? 0;
+        return orderB - orderA; // Descending order (newest first)
+    });
+};

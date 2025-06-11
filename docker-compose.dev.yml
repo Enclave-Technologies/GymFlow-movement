@@ -10,12 +10,15 @@ services:
         environment:
             - NODE_ENV=development
             - DATABASE_URL=postgresql://postgres:postgres@db:5432/movement-db
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379
             # Add other environment variables as needed from .env.local
         volumes:
             - .:/app
             - /app/node_modules
         depends_on:
             - db
+            - redis
         restart: unless-stopped
         command: npm run dev
 
@@ -32,6 +35,17 @@ services:
         restart: unless-stopped
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    redis:
+        image: redis:7-alpine
+        ports:
+            - "6379:6379"
+        restart: unless-stopped
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
             interval: 10s
             timeout: 5s
             retries: 5
