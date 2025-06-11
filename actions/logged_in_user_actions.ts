@@ -77,7 +77,7 @@ export async function get_logged_in_user() {
         const baseUser = db_user_with_role[0];
 
         return {
-            id: baseUser.id,
+            userId: baseUser.id,
             appwrite_id: baseUser.appwrite_id,
             name: baseUser.name,
             email: baseUser.email || "No email provided",

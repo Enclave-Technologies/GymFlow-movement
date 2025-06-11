@@ -1,52 +1,80 @@
-# Build stage
+# Stage 1: Build the application
+# Using a specific LTS version like node:22-alpine is often recommended for stability.
 FROM node:23-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install dependencies
+# Install ALL dependencies (including devDependencies needed for the build)
 RUN npm ci --legacy-peer-deps
 
-# Copy application files
+# Copy all application source code
 COPY . .
 
-# Build the application
+# Build the Next.js application.
+# This generates the .next folder, including the .next/standalone subdirectory.
 RUN npm run build
 
-# Production stage
+# ---
+
+# Stage 2: Production image (lean and secure)
 FROM node:23-alpine AS runner
 
-# Set working directory
 WORKDIR /app
 
-# Create a non-root user
+# Create a non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Set environment variables
+# Set environment variables for production
 ENV NODE_ENV=production \
     PORT=3000
 
-# Copy built application from builder stage
+# Copy the minimal Next.js server from the standalone output
+COPY --from=builder /app/.next/standalone ./
+
+# Copy public assets and static files for the Next.js server
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/static ./.next/static
 
-# Copy necessary files for running the application
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/server ./.next/server
+# ========= ADDITIONS FOR WORKER PROCESS =========
+# Based on your redis-queue-setup.md, your worker needs the following files.
+# We copy them into the final image so "npm run worker" has everything it needs.
 
-# Expose the port the app runs on
+# 1. Copy package.json and package-lock.json to be able to use "npm run" commands and install dependencies.
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
+
+# 2. Install production dependencies needed for the worker (tsx, bullmq, ioredis, etc.)
+RUN npm ci --omit=dev --legacy-peer-deps
+
+# 3. Copy the tsconfig.json file, which tsx uses to run your TypeScript files.
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+
+# 4. Copy the scripts folder, which contains your worker entry point.
+COPY --from=builder /app/scripts ./scripts
+
+# 5. Copy the lib folder, containing your queue manager, worker logic, etc.
+COPY --from=builder /app/lib ./lib
+
+# 6. Copy the types folder for your message definitions.
+COPY --from=builder /app/types ./types
+
+# ========= END OF WORKER ADDITIONS =========
+
+# Expose the port the Next.js app runs on
 EXPOSE 3000
 
-# Switch to non-root user
+# Switch to the non-root user.
+# NOTE: We do this *after* all file operations.
 USER nextjs
 
-# Add healthcheck
+# Healthcheck for the web process (no changes needed here)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-# Start the application
+# Start the application. This is the default command for the 'web' process.
+# Sevalla will use "npm run worker" to start your other process.
 CMD ["node", "server.js"]

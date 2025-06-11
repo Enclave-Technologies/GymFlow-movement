@@ -7,7 +7,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getClientById } from "@/actions/client_actions";
-import { getAllExercisesForWorkoutPlanning } from "@/actions/exercise_actions";
+
 import { formatDate } from "@/lib/utils";
 import { checkGuestApproval } from "@/lib/auth-utils";
 import { cookies } from "next/headers";
@@ -95,9 +95,6 @@ export default async function ClientProfilePage({ params }: PageProps) {
         );
     };
 
-    // Fetch exercises for the workout plan with complete data
-    const exercises = await getAllExercisesForWorkoutPlanning();
-
     return (
         <div className="container mx-auto py-2 md:py-6">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
@@ -176,8 +173,8 @@ export default async function ClientProfilePage({ params }: PageProps) {
                             </div>
                         </div>
 
-                        {/* Edit button - positioned at bottom right */}
-                        <div className="flex justify-end mt-auto pt-2">
+                        {/* Action buttons - positioned at bottom right */}
+                        <div className="flex justify-end gap-2 mt-auto pt-2">
                             <Link href={`/edit-client?id=${client.userId}`}>
                                 <Button
                                     variant="outline"
@@ -266,7 +263,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
                                 </TooltipProvider>
                             </div>
                         </div>
-                        <div className="flex justify-center mt-2">
+                        <div className="flex justify-center gap-2 mt-2">
                             <Link href={`/edit-client?id=${client.userId}`}>
                                 <Button
                                     variant="outline"
@@ -283,10 +280,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
 
                 <Card className="flex flex-col p-4 h-full min-h-[800px] md:col-span-5">
                     <CardContent className="h-full p-0">
-                        <ClientTabs
-                            params={{ userdata: client }}
-                            exercises={exercises}
-                        />
+                        <ClientTabs params={{ userdata: client }} />
                     </CardContent>
                 </Card>
             </div>

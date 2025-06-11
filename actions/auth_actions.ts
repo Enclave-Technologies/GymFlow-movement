@@ -33,7 +33,7 @@ export async function get_user_account() {
         const { account } = await createSessionClient(session);
         const appwriteUser = await account.get();
 
-        const user = await getUserById(appwriteUser.$id);
+        const user = await getUserByAppwriteId(appwriteUser.$id);
 
         return {
             ...user,
@@ -126,7 +126,8 @@ export async function login(previousState: string, formData: unknown) {
 
     // 2. Convert FormData to a plain object for Zod validation
     const formDataObj = Object.fromEntries(formData.entries());
-    console.log("[LOGIN] Form data converted to object:", formDataObj);
+    // SECURITY: Never log form data as it contains sensitive information like passwords
+    console.log("[LOGIN] Form data received and converted to object");
 
     // 3. Validate using Zod (throws if invalid)
     const result = LoginFormSchema.safeParse(formDataObj);
@@ -335,9 +336,9 @@ export async function updateUser(
         const { account } = await createSessionClient(session);
         const appwriteUser = await account.get();
 
-        for (const [key, value] of formData.entries()) {
-            console.log(`${key}: ${value}`);
-        }
+        // SECURITY: Log form data keys only, never values (which may contain passwords)
+        const formKeys = Array.from(formData.keys());
+        console.log(`[UPDATE_USER] Form data keys received:`, formKeys);
 
         // Retrieve user from DB
         const dbUser = await getUserByAppwriteId(appwriteUser.$id);
@@ -554,7 +555,7 @@ export async function uploadUserImage(
 
         // Create a new File object with the WebP data
         const webpFile = new File(
-            [webpBuffer],
+            [new Uint8Array(webpBuffer)],
             `${file.name.split(".")[0]}.webp`,
             {
                 type: "image/webp",

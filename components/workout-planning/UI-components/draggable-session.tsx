@@ -9,7 +9,7 @@ import {
     ChevronUp,
     Copy,
     Edit,
-    GripVertical,
+    // GripVertical,
     Loader,
     Plus,
     Trash2,
@@ -19,20 +19,22 @@ export const ItemTypes = {
     SESSION: "session",
 };
 
-type DragItem = {
-    id: string;
-    index: number;
-    phaseId: string;
-    type: string;
-};
+// type DragItem = {
+//     id: string;
+//     index: number;
+//     phaseId: string;
+//     type: string;
+// };
 
 import { Phase, Session } from "../types";
 import { TooltipContent, Tooltip, TooltipTrigger } from "../../ui/tooltip";
+import { toast } from "sonner";
 
 type DraggableSessionProps = {
     phase: Phase;
     session: Session;
     isSaving: boolean;
+    isAnyOperationInProgress?: boolean;
     index: number;
     toggleSessionExpansion: (phaseId: string, sessionId: string) => void;
     deleteSession: (phaseId: string, sessionId: string) => void;
@@ -62,6 +64,7 @@ const DraggableSession = ({
     phase,
     session,
     isSaving,
+    isAnyOperationInProgress = false,
     index,
     toggleSessionExpansion,
     deleteSession,
@@ -70,13 +73,11 @@ const DraggableSession = ({
     startSession,
     startingSessionId,
     startEditSession,
-    moveSession,
     renderExercisesTable,
     editingSession,
     editSessionValue,
     saveSessionEdit,
     setEditSessionValue,
-    handleDragVisual,
 }: DraggableSessionProps) => {
     const ref = useRef<HTMLDivElement>(null);
 
@@ -91,7 +92,7 @@ const DraggableSession = ({
         }
     }, [editingSession, session.id]);
 
-    // Set up drag
+    // Set up drag - DISABLED: Drag and drop is not necessary as trainers can start any workout routine
     const [{ isDragging }, drag] = useDrag({
         type: ItemTypes.SESSION,
         item: {
@@ -103,37 +104,20 @@ const DraggableSession = ({
         collect: (monitor) => ({
             isDragging: monitor.isDragging(),
         }),
-        canDrag: !isSaving, // Make sure this is added to disable dragging
+        canDrag: false, // Disabled: Drag and drop is not necessary for workout planning
     });
 
-    // Set up drop
+    // Set up drop - DISABLED: Drag and drop is not necessary as trainers can start any workout routine
     const [, drop] = useDrop({
         accept: ItemTypes.SESSION,
-        hover(item: DragItem) {
-            if (!ref.current) {
-                return;
-            }
-
-            const dragIndex = item.index;
-            const hoverIndex = index;
-
-            // Don't replace items with themselves
-            if (dragIndex === hoverIndex) {
-                return;
-            }
-
-            // Call handleDragVisual for visual feedback during hover if it exists
-            if (handleDragVisual) {
-                handleDragVisual(item.phaseId, dragIndex, hoverIndex);
-            }
-
-            // Update the item's index for the next hover
-            item.index = hoverIndex;
+        canDrop: () => false, // Disabled: Drag and drop is not necessary for workout planning
+        hover() {
+            // Disabled - no hover functionality needed
+            return;
         },
-        drop(item: DragItem) {
-            // Always call moveSession when the drop is completed
-            // This ensures the unsaved changes UI is triggered and the order is saved
-            moveSession(item.phaseId, item.index, index);
+        drop() {
+            // Disabled - no drop functionality needed
+            return;
         },
     });
 
@@ -144,19 +128,15 @@ const DraggableSession = ({
     return (
         <div
             ref={ref}
-            className={`mb-4 ${index > 0 ? "mt-6" : ""} ${
-                isDragging ? "opacity-50" : ""
-            }`}
+            className={`mb-4 min-w-0 overflow-hidden ${
+                index > 0 ? "mt-6" : ""
+            } ${isDragging ? "opacity-50" : ""}`}
         >
-            <div className="flex items-center justify-between p-2 bg-muted rounded-md">
-                <div className="flex items-center">
-                    <span
-                        className={`mr-2 ${
-                            isSaving ? "cursor-not-allowed" : "cursor-move"
-                        }`}
-                    >
-                        <GripVertical className="h-4 w-4 text-muted-foreground" />
-                    </span>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 bg-muted rounded-md gap-2 w-full overflow-hidden">
+                <div className="flex items-center min-w-0 flex-1">
+                    {/* <span className="mr-2 cursor-default">
+                        <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+                    </span> */}
                     <Button
                         variant="ghost"
                         size="sm"
@@ -179,10 +159,17 @@ const DraggableSession = ({
                                 onChange={(e) =>
                                     setEditSessionValue(e.target.value)
                                 }
-                                className="h-8 w-48"
+                                className="h-8 w-32 sm:w-48"
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter") {
-                                        saveSessionEdit();
+                                        if (isSaving) {
+                                            // Provide feedback that save is already in progress
+                                            toast.info(
+                                                "Save already in progress..."
+                                            );
+                                        } else {
+                                            saveSessionEdit();
+                                        }
                                     }
                                 }}
                             />
@@ -191,6 +178,7 @@ const DraggableSession = ({
                                 size="sm"
                                 onClick={saveSessionEdit}
                                 className="ml-2 cursor-pointer"
+                                disabled={isSaving}
                             >
                                 Save
                             </Button>
@@ -199,7 +187,7 @@ const DraggableSession = ({
                         <span className="font-medium">{session.name}</span>
                     )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
                     {/* Edit Session */}
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -209,9 +197,9 @@ const DraggableSession = ({
                                 onClick={() =>
                                     startEditSession(session.id, session.name)
                                 }
-                                disabled={isSaving}
+                                disabled={isAnyOperationInProgress}
                                 className={`h-8 w-8 ${
-                                    isSaving
+                                    isAnyOperationInProgress
                                         ? "cursor-not-allowed"
                                         : "cursor-pointer"
                                 }`}
@@ -230,9 +218,9 @@ const DraggableSession = ({
                                 onClick={() =>
                                     deleteSession(phase.id, session.id)
                                 }
-                                disabled={isSaving}
+                                disabled={isAnyOperationInProgress}
                                 className={`h-8 w-8 ${
-                                    isSaving
+                                    isAnyOperationInProgress
                                         ? "cursor-not-allowed"
                                         : "cursor-pointer"
                                 }`}
@@ -251,9 +239,9 @@ const DraggableSession = ({
                                 onClick={() =>
                                     duplicateSession(phase.id, session.id)
                                 }
-                                disabled={isSaving}
+                                disabled={isAnyOperationInProgress}
                                 className={`h-8 w-8 ${
-                                    isSaving
+                                    isAnyOperationInProgress
                                         ? "cursor-not-allowed"
                                         : "cursor-pointer"
                                 }`}
@@ -272,9 +260,9 @@ const DraggableSession = ({
                                 onClick={() =>
                                     addExercise(phase.id, session.id)
                                 }
-                                disabled={isSaving}
+                                disabled={isAnyOperationInProgress}
                                 className={`h-8 w-8 ${
-                                    isSaving
+                                    isAnyOperationInProgress
                                         ? "cursor-not-allowed"
                                         : "cursor-pointer"
                                 }`}
@@ -287,22 +275,32 @@ const DraggableSession = ({
                     {/* Save button removed */}
                     <Button
                         variant="default"
-                        className="ml-4 cursor-pointer"
+                        className="ml-0 sm:ml-4 cursor-pointer text-sm"
                         disabled={
                             !phase.isActive ||
                             session.exercises.length === 0 ||
                             startingSessionId === session.id ||
-                            isSaving
+                            isAnyOperationInProgress
                         }
                         onClick={() => startSession(session.id, phase.id)}
                     >
                         {startingSessionId === session.id ? (
                             <>
                                 <Loader className="animate-spin h-4 w-4 mr-2" />
-                                Please wait...
+                                <span className="hidden sm:inline">
+                                    Please wait...
+                                </span>
+                                <span className="sm:hidden">Wait...</span>
                             </>
                         ) : (
-                            <>Start Session ({session.duration} mins)</>
+                            <>
+                                <span className="hidden sm:inline">
+                                    Start Session ({session.duration} mins)
+                                </span>
+                                <span className="sm:hidden">
+                                    Start ({session.duration}m)
+                                </span>
+                            </>
                         )}
                     </Button>
                 </div>

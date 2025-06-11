@@ -1,4 +1,3 @@
-import { SelectExercise } from "@/db/schemas";
 import ClientDetails from "./client-details";
 
 export type ClientType = {
@@ -16,10 +15,9 @@ export type ClientType = {
 
 type ClientTabsProps = {
     params: { userdata: ClientType };
-    exercises: Array<SelectExercise>;
 };
 
-const ClientTabs = ({ params, exercises }: ClientTabsProps) => {
+const ClientTabs = ({ params }: ClientTabsProps) => {
     const { userdata } = params;
 
     return (
@@ -28,7 +26,6 @@ const ClientTabs = ({ params, exercises }: ClientTabsProps) => {
                 <ClientDetails
                     client_id={userdata.userId}
                     userdata={userdata}
-                    exercises={exercises}
                 />
             </div>
         </div>

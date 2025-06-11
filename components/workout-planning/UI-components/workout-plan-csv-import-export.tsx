@@ -79,14 +79,8 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
                 setImportedPhases(parsedPhases);
                 setError(null);
 
-                // Show confirmation dialog if there's an existing workout plan
-                if (phases.length > 0) {
-                    setShowConfirmDialog(true);
-                } else {
-                    // If no existing plan, import directly
-                    onImport(parsedPhases);
-                    toast.success("Workout plan imported successfully");
-                }
+                // Always show confirmation dialog to inform user about appending
+                setShowConfirmDialog(true);
             } catch (err) {
                 console.error("Error importing workout plan:", err);
                 setError(
@@ -107,7 +101,7 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
         if (importedPhases) {
             onImport(importedPhases);
             setShowConfirmDialog(false);
-            toast.success("Workout plan imported successfully");
+            toast.success("Workout plan phases appended successfully");
         }
     };
 
@@ -202,12 +196,11 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
             >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>
-                            Replace Existing Workout Plan?
-                        </DialogTitle>
+                        <DialogTitle>Add Phases from CSV Import</DialogTitle>
                         <DialogDescription>
-                            This will replace the current workout plan with the
-                            imported one. This action cannot be undone.
+                            {phases.length > 0
+                                ? "The imported phases will be added as new phases to your existing workout plan. Your current phases will not be replaced or deleted. All imported phases will be deactivated by default."
+                                : "The imported phases will be added to create your workout plan. All phases will be deactivated by default."}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -245,7 +238,7 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
                             Cancel
                         </Button>
                         <Button variant="default" onClick={confirmImport}>
-                            Replace
+                            Add Phases
                         </Button>
                     </DialogFooter>
                 </DialogContent>
