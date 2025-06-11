@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
         };
 
         await new Promise<void>((resolve) => {
-            middleware(mockReq, mockRes, (error?: unknown) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            middleware(mockReq as any, mockRes as any, (error?: unknown) => {
                 middlewareError = error;
                 resolve();
             });
@@ -95,7 +96,8 @@ export async function POST(request: NextRequest) {
         };
 
         await new Promise<void>((resolve) => {
-            middleware(mockReq, mockRes, (error?: unknown) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            middleware(mockReq as any, mockRes as any, (error?: unknown) => {
                 middlewareError = error;
                 resolve();
             });

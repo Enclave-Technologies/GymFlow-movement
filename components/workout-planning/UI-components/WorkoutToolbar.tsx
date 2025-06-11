@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import WorkoutPlanCsvImportExport from "./workout-plan-csv-import-export";
 import { Plus, RefreshCw } from "lucide-react";
 import { WorkoutQueueIntegration } from "@/lib/workout-queue-integration";
-import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
 
 type WorkoutToolbarProps = {
@@ -34,7 +33,7 @@ export function WorkoutToolbar({
     client_id,
     trainer_id,
     planId,
-    setPlanId,
+    setPlanId: _setPlanId, // eslint-disable-line @typescript-eslint/no-unused-vars
     lastKnownUpdatedAt,
     phases,
     exercises,

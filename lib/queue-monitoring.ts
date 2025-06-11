@@ -8,6 +8,7 @@
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ExpressAdapter } from "@bull-board/express";
+import { Request, Response, NextFunction } from "express";
 import { messageQueue } from "./queue";
 import { QueueStats } from "@/types/queue-types";
 
@@ -311,21 +312,8 @@ export class QueueMonitoring {
 /**
  * Monitoring middleware for access control
  */
-interface MockRequest {
-    headers: { authorization?: string };
-}
-
-interface MockResponse {
-    status: (code: number) => MockResponse;
-    json: (data: unknown) => unknown;
-}
-
 export function createMonitoringMiddleware() {
-    return (
-        req: MockRequest,
-        res: MockResponse,
-        next: (error?: unknown) => void
-    ) => {
+    return (req: Request, res: Response, next: NextFunction) => {
         // In production, add authentication/authorization here
         if (process.env.NODE_ENV === "production") {
             // Example: Check for admin role or API key

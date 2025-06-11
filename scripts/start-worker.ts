@@ -13,24 +13,25 @@
  */
 
 // Import the worker (this will start it automatically)
-import "../lib/queue-worker";
+import { worker } from "../lib/queue-worker"; // export the Worker instance
 
 console.log("🚀 Redis Queue Worker started successfully!");
 console.log("📊 Worker is now processing jobs from the messageQueue");
 console.log("🔄 Press Ctrl+C to stop the worker");
 
 // Keep the process alive
-process.on("SIGINT", () => {
-    console.log("\n🛑 Shutting down worker...");
+process.on("SIGINT", async () => {
+    console.log("\n🛑 Shutting down worker gracefully...");
+    if (worker) {
+        await worker.close(); // drains & closes Redis connections
+    }
     process.exit(0);
 });
 
-process.on("SIGTERM", () => {
-    console.log("\n🛑 Shutting down worker...");
+process.on("SIGTERM", async () => {
+    console.log("\n🛑 Shutting down worker gracefully...");
+    if (worker) {
+        await worker.close();
+    }
     process.exit(0);
 });
-
-// Prevent the script from exiting
-setInterval(() => {
-    // Keep alive
-}, 1000);

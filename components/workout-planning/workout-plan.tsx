@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Phase, Session, Exercise } from "./types";
 import type { SelectExercise } from "@/db/schemas";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
@@ -72,42 +72,28 @@ export default function WorkoutPlanner({
     const localStorageKey = `workout-plan-${client_id}`;
 
     // ===== Update Phases Function =====
-    const updatePhases = (
-        newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])
-    ) => {
-        if (typeof newPhases === "function") {
-            setPhases((prevPhases) => {
-                const updated = newPhases(prevPhases);
-                latestPhasesRef.current = updated;
-                return updated;
-            });
-        } else {
-            setPhases(newPhases);
-            latestPhasesRef.current = newPhases;
-        }
-    };
+    const updatePhases = useCallback(
+        (newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])) => {
+            if (typeof newPhases === "function") {
+                setPhases((prevPhases) => {
+                    const updated = newPhases(prevPhases);
+                    latestPhasesRef.current = updated;
+                    return updated;
+                });
+            } else {
+                setPhases(newPhases);
+                latestPhasesRef.current = newPhases;
+            }
+        },
+        []
+    );
 
     // ===== Data Loading =====
-    const loadData = async () => {
-        setIsLoading(true);
-        try {
-            await fetchWorkoutPlan(
-                client_id,
-                setIsLoading,
-                setPlanId,
-                setLastKnownUpdatedAt,
-                updatePhases
-            );
-        } catch (error) {
-            console.error("Error loading workout plan:", error);
-            setPhases([]);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    // Note: loadData function removed as it was unused.
+    // Data loading is now handled by ensurePlanExists function.
 
     // ===== Ensure Plan Exists =====
-    const ensurePlanExists = async () => {
+    const ensurePlanExists = useCallback(async () => {
         setIsLoading(true);
         try {
             // First try to load existing plan
@@ -185,11 +171,11 @@ export default function WorkoutPlanner({
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [client_id, trainer_id, isCreatingPlan, updatePhases]);
 
     useEffect(() => {
         ensurePlanExists();
-    }, [client_id]);
+    }, [ensurePlanExists]);
 
     // ===== Reload Function =====
     const handleReload = async () => {

@@ -14,30 +14,34 @@ const middleware = createMonitoringMiddleware();
 // Handle all HTTP methods for the dashboard
 export async function GET(
     request: NextRequest,
-    { params }: { params: { path?: string[] } }
+    { params }: { params: Promise<{ path?: string[] }> }
 ) {
-    return handleDashboardRequest(request, params);
+    const resolvedParams = await params;
+    return handleDashboardRequest(request, resolvedParams);
 }
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { path?: string[] } }
+    { params }: { params: Promise<{ path?: string[] }> }
 ) {
-    return handleDashboardRequest(request, params);
+    const resolvedParams = await params;
+    return handleDashboardRequest(request, resolvedParams);
 }
 
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { path?: string[] } }
+    { params }: { params: Promise<{ path?: string[] }> }
 ) {
-    return handleDashboardRequest(request, params);
+    const resolvedParams = await params;
+    return handleDashboardRequest(request, resolvedParams);
 }
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { path?: string[] } }
+    { params }: { params: Promise<{ path?: string[] }> }
 ) {
-    return handleDashboardRequest(request, params);
+    const resolvedParams = await params;
+    return handleDashboardRequest(request, resolvedParams);
 }
 
 async function handleDashboardRequest(
@@ -85,7 +89,8 @@ async function handleDashboardRequest(
         // Apply authentication middleware
         let middlewareError = null;
         await new Promise<void>((resolve) => {
-            middleware(mockReq, mockRes, (error?: unknown) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            middleware(mockReq as any, mockRes as any, (error?: unknown) => {
                 middlewareError = error;
                 resolve();
             });

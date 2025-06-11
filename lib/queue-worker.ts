@@ -15,7 +15,6 @@ import {
     WorkoutSessionCreateMessage,
     WorkoutSessionUpdateMessage,
     WorkoutSessionDeleteMessage,
-    WorkoutSessionDuplicateMessage,
     WorkoutExerciseSaveMessage,
     WorkoutExerciseDeleteMessage,
     WorkoutPlanFullSaveMessage,
@@ -56,8 +55,6 @@ class MessageProcessors {
         WorkoutProcessorsMain.processWorkoutSessionUpdate;
     static processWorkoutSessionDelete =
         WorkoutProcessorsMain.processWorkoutSessionDelete;
-    static processWorkoutSessionDuplicate =
-        WorkoutProcessorsMain.processWorkoutSessionDuplicate;
     static processWorkoutExerciseSave =
         WorkoutProcessorsMain.processWorkoutExerciseSave;
     static processWorkoutExerciseDelete =
@@ -133,11 +130,6 @@ async function processJob(job: Job<QueueMessage>): Promise<QueueJobResult> {
                     message as WorkoutSessionDeleteMessage
                 );
                 break;
-            case "WORKOUT_SESSION_DUPLICATE":
-                result = await MessageProcessors.processWorkoutSessionDuplicate(
-                    message as WorkoutSessionDuplicateMessage
-                );
-                break;
             case "WORKOUT_EXERCISE_SAVE":
                 result = await MessageProcessors.processWorkoutExerciseSave(
                     message as WorkoutExerciseSaveMessage
@@ -209,6 +201,7 @@ if (!messageWorker) {
 }
 
 export { messageWorker };
+export { messageWorker as worker }; // Export with more descriptive name for graceful shutdown
 
 // Worker event handlers
 messageWorker.on("completed", (job, result) => {
