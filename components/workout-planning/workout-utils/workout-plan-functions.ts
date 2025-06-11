@@ -48,7 +48,7 @@ export async function saveAll(
             }
         } else {
             // Use full update
-            console.log("Using full update");
+
             result = await updateWorkoutPlan(planId, lastKnownUpdatedAt, {
                 phases: phasesWithOrder,
             });

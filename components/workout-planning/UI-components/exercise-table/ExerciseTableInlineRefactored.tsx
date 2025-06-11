@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import React, {
+    useEffect,
+    useState,
+    useMemo,
+    useCallback,
+    useRef,
+} from "react";
 import { Table, TableBody } from "@/components/ui/table";
 import { Phase, Session, Exercise } from "../../types";
 import { toast } from "sonner";
@@ -73,7 +79,8 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
         [exercises]
     );
 
-    const [editingExerciseRow, setEditingExerciseRow] = useState<ExerciseRow | null>(null);
+    const [editingExerciseRow, setEditingExerciseRow] =
+        useState<ExerciseRow | null>(null);
 
     // Focus management for first cell
     const firstInputRef = useRef<HTMLInputElement>(null);
@@ -110,7 +117,7 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
     const handleInlineExerciseChange = useCallback(
         (field: keyof ExerciseRow, value: string) => {
             if (!editingExerciseRow) return;
-            console.log(`Setting ${field} to:`, value);
+
             setEditingExerciseRow({
                 ...editingExerciseRow,
                 [field]: value,
@@ -329,8 +336,12 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
                                     key={exercise.id}
                                     editingExerciseRow={editingExerciseRow}
                                     exercises={exercises}
-                                    exerciseMotionOptions={exerciseMotionOptions}
-                                    exerciseTargetAreaOptions={exerciseTargetAreaOptions}
+                                    exerciseMotionOptions={
+                                        exerciseMotionOptions
+                                    }
+                                    exerciseTargetAreaOptions={
+                                        exerciseTargetAreaOptions
+                                    }
                                     isSaving={isSaving}
                                     onFieldChange={handleInlineExerciseChange}
                                     onSave={saveInlineExercise}
