@@ -336,8 +336,9 @@ function convertCsvRowsToPhases(
     });
 
     // Assign timestamp-based order numbers to phases based on their appearance in CSV
+    // Use the same pattern as the rest of the codebase: timestamp/10000 + index
     phases.forEach((phase, index) => {
-        phase.orderNumber = baseTimestamp + index;
+        phase.orderNumber = baseTimestamp + index; // baseTimestamp is already divided by 10000
     });
 
     // Sort sessions within each phase by orderNumber

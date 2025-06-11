@@ -1,6 +1,6 @@
 /**
  * Plan-related Queue Processors
- * 
+ *
  * Handles workout plan creation and full save operations
  */
 
@@ -9,10 +9,7 @@ import {
     WorkoutPlanCreateMessage,
     WorkoutPlanFullSaveMessage,
 } from "@/types/queue-types";
-import {
-    createWorkoutPlanWorker,
-    updateWorkoutPlanWorker,
-} from "@/lib/database/workout-database-service";
+import { createWorkoutPlanWorker } from "@/lib/database/workout-database-service";
 
 export class PlanProcessors {
     static async processWorkoutPlanCreate(
@@ -73,11 +70,9 @@ export class PlanProcessors {
                     { phases: message.data.phases }
                 );
             } else {
-                // Update existing plan
-                result = await updateWorkoutPlanWorker(
-                    message.data.planId,
-                    new Date(message.data.lastKnownUpdatedAt),
-                    { phases: message.data.phases }
+                // Full plan updates are deprecated - use individual phase operations instead
+                throw new Error(
+                    "Full plan updates are deprecated. Use individual phase operations for better efficiency."
                 );
             }
 

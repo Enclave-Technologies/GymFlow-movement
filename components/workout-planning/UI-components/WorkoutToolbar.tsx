@@ -7,11 +7,12 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import WorkoutPlanCsvImportExport from "./workout-plan-csv-import-export";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { WorkoutQueueIntegration } from "@/lib/workout-queue-integration";
 
 type WorkoutToolbarProps = {
     onAddPhase: () => void;
+    onReload: () => void;
     client_id: string;
     trainer_id: string;
     planId?: string | null;
@@ -21,10 +22,12 @@ type WorkoutToolbarProps = {
     updatePhases: (phases: Phase[]) => void;
     setHasUnsavedChanges: (value: boolean) => void;
     isAnyOperationInProgress?: boolean;
+    isReloading?: boolean;
 };
 
 export function WorkoutToolbar({
     onAddPhase,
+    onReload,
     client_id,
     trainer_id,
     planId,
@@ -34,6 +37,7 @@ export function WorkoutToolbar({
     updatePhases,
     setHasUnsavedChanges,
     isAnyOperationInProgress = false,
+    isReloading = false,
 }: WorkoutToolbarProps) {
     return (
         <div className="flex items-center gap-2">
@@ -51,17 +55,35 @@ export function WorkoutToolbar({
                 <TooltipContent>Add a new phase</TooltipContent>
             </Tooltip>
 
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        variant="outline"
+                        onClick={onReload}
+                        className="cursor-pointer h-10"
+                        disabled={isAnyOperationInProgress || isReloading}
+                    >
+                        <RefreshCw
+                            className={`h-4 w-4 mr-2 ${
+                                isReloading ? "animate-spin" : ""
+                            }`}
+                        />
+                        Reload
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    Refresh workout plan from database
+                </TooltipContent>
+            </Tooltip>
+
             <WorkoutPlanCsvImportExport
                 phases={phases}
                 onImport={async (importedPhases) => {
-                    // Use timestamp-based order numbers to avoid conflicts (future-proof for 100+ years)
-                    const baseTimestamp = Math.floor(Date.now() / 10000);
-
-                    // Update imported phases with timestamp-based order numbers and deactivate them
+                    // The CSV import already generates correct timestamp-based order numbers
+                    // Just ensure all imported phases are deactivated
                     const phasesWithCorrectOrder = importedPhases.map(
-                        (phase, index) => ({
+                        (phase) => ({
                             ...phase,
-                            orderNumber: baseTimestamp + index, // Use timestamp + index for unique ordering
                             isActive: false, // Ensure all imported phases are deactivated
                         })
                     );
@@ -70,16 +92,20 @@ export function WorkoutToolbar({
                     updatePhases([...phases, ...phasesWithCorrectOrder]);
                     setHasUnsavedChanges(true);
 
-                    // Queue the CSV import event using full plan save
+                    // Queue individual phase creation events for each imported phase
                     try {
                         if (planId) {
-                            await WorkoutQueueIntegration.queueFullPlanSave(
-                                planId,
-                                client_id,
-                                trainer_id,
-                                [...phases, ...phasesWithCorrectOrder],
-                                lastKnownUpdatedAt || undefined
-                            );
+                            // Queue each phase creation individually - much more efficient than full plan save
+                            for (const phase of phasesWithCorrectOrder) {
+                                await WorkoutQueueIntegration.queuePhaseDuplicate(
+                                    planId,
+                                    client_id,
+                                    trainer_id,
+                                    "", // No original phase ID for CSV imports
+                                    phase,
+                                    lastKnownUpdatedAt || new Date()
+                                );
+                            }
                         }
                     } catch (error) {
                         console.error("Failed to queue CSV import:", error);

@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
 import { mapWorkoutPlanResponseToPhase } from "../workout-utils/workout-utils";
 import type { Phase, WorkoutPlanResponse } from "../types";
+import { sortPhasesByActiveStatus } from "../workout-utils/phase-utils";
 
 export interface UseWorkoutPlanResult {
     phases: Phase[];
@@ -35,12 +36,12 @@ export function useWorkoutPlan(clientId: string): UseWorkoutPlanResult {
         }
 
         // Map the phases from the response
-        const mapped = mapWorkoutPlanResponseToPhase(response as WorkoutPlanResponse);
-
-        // Ensure phases are sorted by orderNumber
-        const sortedPhases = [...mapped].sort(
-            (a, b) => (a.orderNumber || 0) - (b.orderNumber || 0)
+        const mapped = mapWorkoutPlanResponseToPhase(
+            response as WorkoutPlanResponse
         );
+
+        // Sort phases by active status first, then by orderNumber descending (newest first)
+        const sortedPhases = sortPhasesByActiveStatus(mapped);
 
         // For each phase, ensure sessions are sorted by orderNumber
         return sortedPhases.map((phase) => ({
