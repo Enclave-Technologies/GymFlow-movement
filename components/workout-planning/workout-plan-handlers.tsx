@@ -21,6 +21,7 @@ import {
 import { addExercise, deleteExercise } from "./workout-utils/exercise-utils";
 import { WorkoutQueueIntegration } from "@/lib/workout-queue-integration";
 import { v4 as uuidv4 } from "uuid";
+import { UseExerciseEditStateReturn } from "./hooks/use-exercise-edit-state";
 
 export interface WorkoutPlanHandlersProps {
     // State setters
@@ -35,15 +36,15 @@ export interface WorkoutPlanHandlersProps {
     setEditPhaseValue: (value: string) => void;
     setEditingSession: (value: string | null) => void;
     setEditSessionValue: (value: string) => void;
-    setEditingExercise: (
-        value: { sessionId: string; exerciseId: string } | null
-    ) => void;
     setManualSaveInProgress: (value: boolean) => void;
     setSaving: (value: boolean) => void;
     setPlanId: (value: string | null) => void;
     setLastKnownUpdatedAt: (value: Date | null) => void;
     setSavePerformed: (value: number) => void;
     setIsReorderingSessions: (value: boolean) => void;
+
+    // Exercise edit state
+    exerciseEditState: UseExerciseEditStateReturn;
 
     // State values
     planId: string | null;
@@ -472,93 +473,79 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         console.log("Session:", session.name, "(", sessionId, ")");
         console.log("Exercise:", JSON.stringify(exercise, null, 2));
 
-        // Determine if this is a new exercise creation or an update
-        // New exercises have empty exerciseId until they are properly saved
-        const isNewExercise =
-            !exercise.exerciseId || exercise.exerciseId === "";
-
-        // Validate that exerciseId is set for new exercises
+        // Validate that exerciseId is set (coach must select an exercise from dropdown)
         if (
-            isNewExercise &&
             exerciseData &&
             (!exerciseData.exerciseId || exerciseData.exerciseId === "")
         ) {
-            console.error("Cannot save new exercise without valid exerciseId");
+            console.error("Cannot save exercise without valid exerciseId");
             toast.error("Please select a valid exercise from the dropdown");
             return;
         }
 
-        // Queue the appropriate event based on whether this is new or existing
+        // Determine if this is a new exercise or existing exercise based on edit state
+        const currentEditState = props.exerciseEditState.getCurrentEditState();
+        const isNewExercise = currentEditState?.isNew ?? true; // Default to true for safety
+
+        console.log(
+            `💾 Saving exercise as ${
+                isNewExercise ? "NEW" : "EXISTING"
+            } exercise`
+        );
+
         try {
             if (props.planId && exerciseData) {
-                if (isNewExercise) {
-                    // This is a new exercise creation
-                    await WorkoutQueueIntegration.queueExerciseCreate(
-                        props.planId,
-                        phaseId,
-                        sessionId,
-                        props.client_id,
-                        {
-                            id: exercise.id,
-                            exerciseId: exerciseData.exerciseId || "",
-                            description:
-                                exerciseData.description ||
-                                exercise.description ||
-                                "New Exercise",
-                            motion:
-                                exerciseData.motion ||
-                                exercise.motion ||
-                                "Unspecified",
-                            targetArea:
-                                exerciseData.targetArea ||
-                                exercise.targetArea ||
-                                "Unspecified",
-                            setsMin: exerciseData.setsMin || exercise.setsMin,
-                            setsMax: exerciseData.setsMax || exercise.setsMax,
-                            repsMin: exerciseData.repsMin || exercise.repsMin,
-                            repsMax: exerciseData.repsMax || exercise.repsMax,
-                            tempo: exerciseData.tempo || exercise.tempo,
-                            restMin: exerciseData.restMin || exercise.restMin,
-                            restMax: exerciseData.restMax || exercise.restMax,
-                            customizations:
-                                exerciseData.customizations ||
-                                exercise.customizations,
-                            notes: exerciseData.notes || exercise.notes,
-                            exerciseOrder:
-                                parseInt(
-                                    exerciseData.order || exercise.order || "0"
-                                ) || 0,
-                        },
-                        props.lastKnownUpdatedAt || new Date()
-                    );
-                    toast.success(
-                        "Exercise created and queued for processing.",
-                        {
-                            duration: 2000,
-                        }
-                    );
-                } else {
-                    // This is an existing exercise update
-                    await WorkoutQueueIntegration.queueExerciseUpdate(
-                        props.planId,
-                        phaseId,
-                        sessionId,
-                        exerciseId,
-                        exercise.id, // Use exercise.id as planExerciseId
-                        props.client_id,
-                        exerciseData,
-                        props.lastKnownUpdatedAt || new Date()
-                    );
-                    toast.success(
-                        "Exercise updated and queued for processing.",
-                        {
-                            duration: 2000,
-                        }
-                    );
-                }
+                await WorkoutQueueIntegration.queueExerciseSave(
+                    props.planId,
+                    phaseId,
+                    sessionId,
+                    exercise.id, // planExerciseId
+                    props.client_id,
+                    {
+                        id: exercise.id,
+                        exerciseId: exerciseData.exerciseId || "",
+                        description:
+                            exerciseData.description ||
+                            exercise.description ||
+                            "New Exercise",
+                        motion:
+                            exerciseData.motion ||
+                            exercise.motion ||
+                            "Unspecified",
+                        targetArea:
+                            exerciseData.targetArea ||
+                            exercise.targetArea ||
+                            "Unspecified",
+                        setsMin: exerciseData.setsMin || exercise.setsMin,
+                        setsMax: exerciseData.setsMax || exercise.setsMax,
+                        repsMin: exerciseData.repsMin || exercise.repsMin,
+                        repsMax: exerciseData.repsMax || exercise.repsMax,
+                        tempo: exerciseData.tempo || exercise.tempo,
+                        restMin: exerciseData.restMin || exercise.restMin,
+                        restMax: exerciseData.restMax || exercise.restMax,
+                        customizations:
+                            exerciseData.customizations ||
+                            exercise.customizations,
+                        notes: exerciseData.notes || exercise.notes,
+                        exerciseOrder:
+                            parseInt(
+                                exerciseData.order || exercise.order || "0"
+                            ) || 0,
+                    },
+                    isNewExercise, // Use the state to determine create vs update
+                    props.lastKnownUpdatedAt || new Date()
+                );
+
+                const actionText = isNewExercise ? "created" : "updated";
+                toast.success(
+                    `Exercise ${actionText} and queued for processing.`,
+                    {
+                        duration: 2000,
+                    }
+                );
             }
         } catch (error) {
-            console.error("Failed to queue exercise operation:", error);
+            console.error("Failed to queue exercise save:", error);
             // Don't show error to user as the operation succeeded locally
         }
 
@@ -574,7 +561,10 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         );
 
         props.updatePhases(updatedPhases);
-        props.setEditingExercise({ sessionId, exerciseId: newExerciseId });
+
+        // Set the exercise edit state to indicate this is a NEW exercise
+        props.exerciseEditState.startCreatingExercise(sessionId, newExerciseId);
+
         props.setHasUnsavedChanges(true);
 
         // Note: Queue event will be triggered when user clicks the checkmark button
@@ -619,6 +609,14 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         props.setShowConfirm({ type: null });
         props.setHasUnsavedChanges(true);
 
+        // Clear exercise edit state if this exercise was being edited
+        if (
+            props.exerciseEditState.isEditingExercise(sessionId, exerciseId) ||
+            props.exerciseEditState.isCreatingExercise(sessionId, exerciseId)
+        ) {
+            props.exerciseEditState.clearExerciseEditState();
+        }
+
         // Queue the exercise deletion event
         try {
             if (props.planId && exerciseToDelete) {
@@ -643,7 +641,7 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
     };
 
     const handleExerciseEditEnd = () => {
-        props.setEditingExercise(null);
+        props.exerciseEditState.clearExerciseEditState();
     };
 
     // ===== Phase and Session Rename Handlers =====

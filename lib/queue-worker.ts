@@ -2,6 +2,7 @@ import { Worker, Job } from "bullmq";
 import { getRedisConnectionOptions } from "./redis-utils";
 import { WorkoutProcessorsMain } from "./queue-processors/workout-processors-main";
 import { GeneralProcessors } from "./queue-processors/general-processors";
+import { ExerciseProcessors } from "./queue-processors/exercise-processors";
 import {
     QueueMessage,
     QueueJobResult,
@@ -13,8 +14,7 @@ import {
     WorkoutSessionCreateMessage,
     WorkoutSessionUpdateMessage,
     WorkoutSessionDeleteMessage,
-    WorkoutExerciseCreateMessage,
-    WorkoutExerciseUpdateMessage,
+    WorkoutExerciseSaveMessage,
     WorkoutExerciseDeleteMessage,
     WorkoutPlanFullSaveMessage,
     UserActionMessage,
@@ -34,7 +34,7 @@ interface RedisConnectionConfig {
 // Message processors bridge class
 // This class serves as a bridge to the separated processor files
 class MessageProcessors {
-    // Workout-related processors (using modular worker-compatible versions)
+    // Workout-related processors (using worker-compatible versions)
     static processWorkoutUpdate = WorkoutProcessorsMain.processWorkoutUpdate;
     static processWorkoutPlanCreate =
         WorkoutProcessorsMain.processWorkoutPlanCreate;
@@ -50,12 +50,10 @@ class MessageProcessors {
         WorkoutProcessorsMain.processWorkoutSessionUpdate;
     static processWorkoutSessionDelete =
         WorkoutProcessorsMain.processWorkoutSessionDelete;
-    static processWorkoutExerciseCreate =
-        WorkoutProcessorsMain.processWorkoutExerciseCreate;
-    static processWorkoutExerciseUpdate =
-        WorkoutProcessorsMain.processWorkoutExerciseUpdate;
+    static processWorkoutExerciseSave =
+        ExerciseProcessors.processWorkoutExerciseSave;
     static processWorkoutExerciseDelete =
-        WorkoutProcessorsMain.processWorkoutExerciseDelete;
+        ExerciseProcessors.processWorkoutExerciseDelete;
     static processWorkoutPlanFullSave =
         WorkoutProcessorsMain.processWorkoutPlanFullSave;
 
@@ -117,14 +115,9 @@ async function processJob(job: Job<QueueMessage>): Promise<QueueJobResult> {
                     message as WorkoutSessionDeleteMessage
                 );
                 break;
-            case "WORKOUT_EXERCISE_CREATE":
-                result = await MessageProcessors.processWorkoutExerciseCreate(
-                    message as WorkoutExerciseCreateMessage
-                );
-                break;
-            case "WORKOUT_EXERCISE_UPDATE":
-                result = await MessageProcessors.processWorkoutExerciseUpdate(
-                    message as WorkoutExerciseUpdateMessage
+            case "WORKOUT_EXERCISE_SAVE":
+                result = await MessageProcessors.processWorkoutExerciseSave(
+                    message as WorkoutExerciseSaveMessage
                 );
                 break;
             case "WORKOUT_EXERCISE_DELETE":

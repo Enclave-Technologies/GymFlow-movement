@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Phase } from "./types";
+import { Phase, Session, Exercise } from "./types";
 import type { SelectExercise } from "@/db/schemas";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
 import { PhaseList } from "./UI-components/PhaseList";
@@ -11,6 +11,7 @@ import { fetchWorkoutPlan } from "./workout-utils/workout-utils";
 import { createWorkoutPlanHandlers } from "./workout-plan-handlers";
 import { useWorkoutPlanValidation } from "./workout-plan-hooks";
 import { useWorkoutPlanCacheInvalidation } from "./hooks/use-workout-plan-cache";
+import { useExerciseEditState } from "./hooks/use-exercise-edit-state";
 
 type WorkoutPlannerProps = {
     client_id: string;
@@ -39,10 +40,9 @@ export default function WorkoutPlanner({
     const [editPhaseValue, setEditPhaseValue] = useState("");
     const [editingSession, setEditingSession] = useState<string | null>(null);
     const [editSessionValue, setEditSessionValue] = useState("");
-    const [editingExercise, setEditingExercise] = useState<{
-        sessionId: string;
-        exerciseId: string;
-    } | null>(null);
+
+    // ===== Exercise Edit State (New) =====
+    const exerciseEditState = useExerciseEditState();
 
     // ===== Confirmation Dialog State =====
     const [showConfirm, setShowConfirm] = useState<{
@@ -112,7 +112,6 @@ export default function WorkoutPlanner({
         setEditPhaseValue,
         setEditingSession,
         setEditSessionValue,
-        setEditingExercise,
         setShowConfirm,
         setHasUnsavedChanges,
         setSaving,
@@ -121,6 +120,9 @@ export default function WorkoutPlanner({
         setSavePerformed: () => {}, // Dummy function since we don't use savePerformed
         setManualSaveInProgress,
         setIsReorderingSessions: () => {}, // Dummy function since we don't use isReorderingSessions
+
+        // Exercise edit state
+        exerciseEditState,
 
         // State values
         planId,
@@ -154,24 +156,36 @@ export default function WorkoutPlanner({
 
     // ===== Exercise Handlers =====
     const handleEditExercise = (exerciseId: string, sessionId: string) => {
-        setEditingExercise({ sessionId, exerciseId });
+        // Find the exercise data for editing
+        const exercise = phases
+            .find((p) => p.sessions.some((s) => s.id === sessionId))
+            ?.sessions.find((s) => s.id === sessionId)
+            ?.exercises.find((e) => e.id === exerciseId);
+
+        if (exercise) {
+            exerciseEditState.startEditingExercise(
+                sessionId,
+                exerciseId,
+                exercise
+            );
+        }
     };
 
     const handleExerciseEditEnd = () => {
-        setEditingExercise(null);
+        exerciseEditState.clearExerciseEditState();
     };
 
     // Calculate session duration helper
-    const calculateSessionDuration = (exercises: any[]) => {
+    const calculateSessionDuration = (exercises: Exercise[]) => {
         // Simple calculation - you can enhance this based on your needs
         return exercises.length * 8; // 8 minutes per exercise as default
     };
 
     // Render exercises table function
-    const renderExercises = (phase: Phase, session: any) => {
+    const renderExercises = (phase: Phase, session: Session) => {
         const editingExerciseId =
-            editingExercise?.sessionId === session.id
-                ? editingExercise.exerciseId
+            exerciseEditState.exerciseEditState?.sessionId === session.id
+                ? exerciseEditState.exerciseEditState.exerciseId
                 : null;
 
         return (

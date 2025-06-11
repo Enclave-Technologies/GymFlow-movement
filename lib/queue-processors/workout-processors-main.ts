@@ -147,10 +147,8 @@ export class WorkoutProcessorsMain {
     static processWorkoutSessionDelete =
         SessionProcessors.processWorkoutSessionDelete;
 
-    static processWorkoutExerciseCreate =
-        ExerciseProcessors.processWorkoutExerciseCreate;
-    static processWorkoutExerciseUpdate =
-        ExerciseProcessors.processWorkoutExerciseUpdate;
+    static processWorkoutExerciseSave =
+        ExerciseProcessors.processWorkoutExerciseSave;
     static processWorkoutExerciseDelete =
         ExerciseProcessors.processWorkoutExerciseDelete;
 }

@@ -156,12 +156,14 @@ export interface WorkoutSessionDeleteMessage extends BaseQueueMessage {
     };
 }
 
-export interface WorkoutExerciseCreateMessage extends BaseQueueMessage {
-    messageType: "WORKOUT_EXERCISE_CREATE";
+export interface WorkoutExerciseSaveMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_EXERCISE_SAVE";
     data: {
         planId: string;
         phaseId: string;
         sessionId: string;
+        exerciseId: string; // The plan exercise ID (exercise.id)
+        planExerciseId: string; // Same as exerciseId for consistency
         clientId: string;
         exercise: {
             id: string;
@@ -180,35 +182,7 @@ export interface WorkoutExerciseCreateMessage extends BaseQueueMessage {
             notes?: string;
             exerciseOrder?: number;
         };
-        lastKnownUpdatedAt: string; // ISO string
-    };
-}
-
-export interface WorkoutExerciseUpdateMessage extends BaseQueueMessage {
-    messageType: "WORKOUT_EXERCISE_UPDATE";
-    data: {
-        planId: string;
-        phaseId: string;
-        sessionId: string;
-        exerciseId: string;
-        planExerciseId: string;
-        clientId: string;
-        changes: {
-            exerciseId?: string;
-            description?: string;
-            motion?: string;
-            targetArea?: string;
-            setsMin?: string;
-            setsMax?: string;
-            repsMin?: string;
-            repsMax?: string;
-            tempo?: string;
-            restMin?: string;
-            restMax?: string;
-            customizations?: string;
-            notes?: string;
-            exerciseOrder?: number;
-        };
+        isNew: boolean; // Flag to indicate if this is a new exercise or update
         lastKnownUpdatedAt: string; // ISO string
     };
 }
@@ -300,8 +274,7 @@ export type QueueMessage =
     | WorkoutSessionCreateMessage
     | WorkoutSessionUpdateMessage
     | WorkoutSessionDeleteMessage
-    | WorkoutExerciseCreateMessage
-    | WorkoutExerciseUpdateMessage
+    | WorkoutExerciseSaveMessage
     | WorkoutExerciseDeleteMessage
     | WorkoutPlanFullSaveMessage
     | UserActionMessage

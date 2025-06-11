@@ -14,10 +14,10 @@ import {
     WorkoutSessionCreateMessage,
     WorkoutSessionUpdateMessage,
     WorkoutSessionDeleteMessage,
-    WorkoutExerciseCreateMessage,
-    WorkoutExerciseUpdateMessage,
+    WorkoutExerciseSaveMessage,
     WorkoutExerciseDeleteMessage,
     WorkoutPlanFullSaveMessage,
+    QueueJobOptions,
 } from "@/types/queue-types";
 import type { Phase } from "@/components/workout-planning/types";
 
@@ -128,7 +128,7 @@ export class WorkoutQueueIntegration {
         };
 
         // Add dependency and retry options for race condition handling
-        const jobOptions: any = {
+        const jobOptions: QueueJobOptions = {
             priority: 5,
             attempts: 5, // Increased attempts for dependency scenarios
             delay: 0,
@@ -138,12 +138,12 @@ export class WorkoutQueueIntegration {
             },
         };
 
-        // Add dependency if provided
+        // Note: BullMQ job dependencies are not supported in the current QueueJobOptions interface
+        // If job dependencies are needed, they would need to be implemented at the application level
         if (dependsOnJobId) {
-            jobOptions.parent = {
-                id: dependsOnJobId,
-                queue: "messageQueue", // Same queue name
-            };
+            console.log(
+                `Phase creation depends on job: ${dependsOnJobId} (dependency tracking not implemented)`
+            );
         }
 
         return addJobToQueue(message, jobOptions);
@@ -338,12 +338,13 @@ export class WorkoutQueueIntegration {
     }
 
     /**
-     * Queue an exercise creation for background processing
+     * Queue an exercise save (create or update) for background processing
      */
-    static async queueExerciseCreate(
+    static async queueExerciseSave(
         planId: string,
         phaseId: string,
         sessionId: string,
+        planExerciseId: string,
         clientId: string,
         exercise: {
             id: string;
@@ -362,79 +363,27 @@ export class WorkoutQueueIntegration {
             notes?: string;
             exerciseOrder?: number;
         },
+        isNew: boolean,
         lastKnownUpdatedAt: Date,
         userId?: string
     ) {
-        const message: WorkoutExerciseCreateMessage = {
-            messageType: "WORKOUT_EXERCISE_CREATE",
+        const message: WorkoutExerciseSaveMessage = {
+            messageType: "WORKOUT_EXERCISE_SAVE",
             timestamp: new Date().toISOString(),
             userId,
             metadata: {
                 source: "workout-planner",
-                updateType: "exercise_creation",
+                updateType: isNew ? "exercise_creation" : "exercise_update",
             },
             data: {
                 planId,
                 phaseId,
                 sessionId,
-                clientId,
-                exercise,
-                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
-            },
-        };
-
-        return addJobToQueue(message, {
-            priority: 5,
-            attempts: 3,
-            delay: 0,
-        });
-    }
-
-    /**
-     * Queue an exercise update for background processing
-     */
-    static async queueExerciseUpdate(
-        planId: string,
-        phaseId: string,
-        sessionId: string,
-        exerciseId: string,
-        planExerciseId: string,
-        clientId: string,
-        changes: {
-            exerciseId?: string;
-            description?: string;
-            motion?: string;
-            targetArea?: string;
-            setsMin?: string;
-            setsMax?: string;
-            repsMin?: string;
-            repsMax?: string;
-            tempo?: string;
-            restMin?: string;
-            restMax?: string;
-            customizations?: string;
-            notes?: string;
-            exerciseOrder?: number;
-        },
-        lastKnownUpdatedAt: Date,
-        userId?: string
-    ) {
-        const message: WorkoutExerciseUpdateMessage = {
-            messageType: "WORKOUT_EXERCISE_UPDATE",
-            timestamp: new Date().toISOString(),
-            userId,
-            metadata: {
-                source: "workout-planner",
-                updateType: "exercise_update",
-            },
-            data: {
-                planId,
-                phaseId,
-                sessionId,
-                exerciseId,
+                exerciseId: planExerciseId,
                 planExerciseId,
                 clientId,
-                changes,
+                exercise,
+                isNew,
                 lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
             },
         };
