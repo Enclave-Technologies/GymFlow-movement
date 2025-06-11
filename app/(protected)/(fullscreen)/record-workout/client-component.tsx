@@ -4,7 +4,10 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { endWorkoutSession } from "@/actions/workout_tracker_actions";
+import {
+    endWorkoutSession,
+    deleteEmptyWorkoutSession,
+} from "@/actions/workout_tracker_actions";
 
 // Types
 import { RecordWorkoutClientProps } from "@/types/workout-tracker-types";
@@ -25,8 +28,7 @@ export default function RecordWorkoutClient({
     sessionId: _sessionId,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     phaseId: _phaseId,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    clientId: _clientId,
+    clientId,
     workoutSessionLogId: initialWorkoutSessionLogId,
     pastSessions: initialPastSessions = [],
     workoutSessionDetails: initialWorkoutSessionDetails = [],
@@ -148,8 +150,36 @@ export default function RecordWorkoutClient({
         }
     };
 
-    const handleQuitWithoutSaving = () => {
-        router.push("/dashboard");
+    const handleQuitWithoutSaving = async () => {
+        try {
+            // Delete the empty workout session if it exists
+            if (workoutSessionLogId) {
+                console.log(
+                    "Deleting empty workout session:",
+                    workoutSessionLogId
+                );
+                const deleted = await deleteEmptyWorkoutSession(
+                    workoutSessionLogId
+                );
+                if (deleted) {
+                    console.log("Empty workout session deleted successfully");
+                } else {
+                    console.log(
+                        "Workout session was not empty or could not be deleted"
+                    );
+                }
+            }
+        } catch (error) {
+            console.error("Error deleting empty workout session:", error);
+            // Don't block navigation if deletion fails
+        }
+
+        // Use replace instead of push to avoid navigation issues between layouts
+        if (clientId) {
+            router.replace(`/clients/${clientId}`);
+        } else {
+            router.replace("/all-clients");
+        }
     };
 
     const handleEndWorkout = async () => {
@@ -159,12 +189,29 @@ export default function RecordWorkoutClient({
         }
 
         try {
+            // First save any unsaved workout data
+            console.log("Saving workout data before ending session...");
+            const savedCount = await saveUnsavedSets();
+
+            if (savedCount > 0) {
+                console.log(
+                    `Successfully saved ${savedCount} sets before ending workout`
+                );
+            }
+
+            // Then end the workout session
             await endWorkoutSession(workoutSessionLogId);
-            toast.success("Workout session ended successfully");
-            router.push("/dashboard");
+            toast.success("Workout saved and session ended successfully");
+
+            // Use replace instead of push to avoid navigation issues between layouts
+            if (clientId) {
+                router.replace(`/clients/${clientId}`);
+            } else {
+                router.replace("/all-clients");
+            }
         } catch (error) {
             console.error("Error ending workout session:", error);
-            toast.error("Failed to end workout session");
+            toast.error("Failed to save and end workout session");
         }
     };
 
@@ -182,6 +229,7 @@ export default function RecordWorkoutClient({
     return (
         <div className="min-h-screen bg-background text-foreground">
             <WorkoutHeader
+                clientName={clientName}
                 phaseName={phaseName}
                 sessionName={sessionName}
                 timer={timer}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Phase, Session, Exercise } from "./types";
 import type { SelectExercise } from "@/db/schemas";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
@@ -37,6 +38,9 @@ export default function WorkoutPlanner({
     const [manualSaveInProgress, setManualSaveInProgress] = useState(false);
     const [isReloading, setIsReloading] = useState(false);
     const [isCreatingPlan, setIsCreatingPlan] = useState(false);
+    const [startingSessionId, setStartingSessionId] = useState<string | null>(
+        null
+    );
 
     // ===== Edit State =====
     const [editingPhase, setEditingPhase] = useState<string | null>(null);
@@ -65,6 +69,7 @@ export default function WorkoutPlanner({
     }, [phases]);
 
     // ===== Hooks =====
+    const router = useRouter();
     const { validateWorkoutPlan } = useWorkoutPlanValidation();
     const invalidateWorkoutPlanCache = useWorkoutPlanCacheInvalidation();
 
@@ -261,6 +266,40 @@ export default function WorkoutPlanner({
         exerciseEditState.clearExerciseEditState();
     };
 
+    // ===== Session Start Handler =====
+    const handleStartSession = useCallback(
+        async (sessionId: string) => {
+            try {
+                setStartingSessionId(sessionId);
+
+                // Find the session and phase information
+                const phase = phases.find((p) =>
+                    p.sessions.some((s) => s.id === sessionId)
+                );
+                const session = phase?.sessions.find((s) => s.id === sessionId);
+
+                if (!phase || !session) {
+                    console.error("Session or phase not found");
+                    return;
+                }
+
+                // Navigate to record-workout page with session parameters
+                const searchParams = new URLSearchParams({
+                    clientId: client_id,
+                    phaseId: phase.id,
+                    sessionId: session.id,
+                });
+
+                router.push(`/record-workout?${searchParams.toString()}`);
+            } catch (error) {
+                console.error("Error starting session:", error);
+            } finally {
+                setStartingSessionId(null);
+            }
+        },
+        [phases, client_id, router]
+    );
+
     // Calculate session duration helper
     const calculateSessionDuration = (exercises: Exercise[]) => {
         // Simple calculation - you can enhance this based on your needs
@@ -357,8 +396,8 @@ export default function WorkoutPlanner({
                         onDeleteSession={handlers.deleteSessionHandler}
                         onDuplicateSession={handlers.duplicateSessionHandler}
                         onAddExercise={handlers.addExerciseHandler}
-                        onStartSession={() => {}} // TODO: Implement session start
-                        startingSessionId={null} // TODO: Implement starting session tracking
+                        onStartSession={handleStartSession}
+                        startingSessionId={startingSessionId}
                         onStartEditSession={handleStartEditSession}
                         onMoveSession={() => {}} // TODO: Implement session move
                         onDragVisual={() => {}} // TODO: Implement drag visual

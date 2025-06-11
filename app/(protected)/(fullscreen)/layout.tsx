@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "@/app/globals.css";
+import { get_logged_in_user } from "@/actions/logged_in_user_actions";
 
 export const metadata: Metadata = {
     title: "GymFlow | Movement Fitness",
@@ -11,7 +12,7 @@ export default async function AppLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    // const LoggedInUser = await get_logged_in_user();
+    await get_logged_in_user(); // Ensure user is authenticated
 
     return <div>{children}</div>;
 }

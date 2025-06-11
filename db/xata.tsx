@@ -60,10 +60,14 @@ export function getDb() {
 // Create a type for the database instance
 type DbType = ReturnType<typeof getDb>;
 
-// Export the db instance for convenience, but only create it when used
-// export const db =
-//     process.env.NODE_ENV === "production"
-//         ? getDb()
-//         : (null as unknown as DbType); // This will be replaced with the actual db instance in production
+// Lazy database connection - only create when first accessed
+let _db: DbType | null = null;
 
-export const db: DbType = getDb();
+export const db = new Proxy({} as DbType, {
+    get(_target, prop) {
+        if (!_db) {
+            _db = getDb();
+        }
+        return (_db as any)[prop];
+    },
+});
