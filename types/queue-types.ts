@@ -181,6 +181,7 @@ export interface WorkoutExerciseSaveMessage extends BaseQueueMessage {
             customizations?: string;
             notes?: string;
             order?: string; // Changed from exerciseOrder (number) to order (string)
+            additionalInfo?: string;
         };
         isNew: boolean; // Flag to indicate if this is a new exercise or update
         lastKnownUpdatedAt: string; // ISO string

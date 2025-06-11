@@ -20,9 +20,8 @@ export class ExerciseProcessors {
         message: WorkoutExerciseSaveMessage
     ): Promise<QueueJobResult> {
         console.log(
-            `Processing exercise ${
-                message.data.isNew ? "creation" : "update"
-            }:`,
+            `=================================================\n
+            Processing exercise ${message.data.isNew ? "creation" : "update"}:`,
             message.data
         );
 
@@ -65,6 +64,9 @@ export class ExerciseProcessors {
                                         "",
                                     notes: message.data.exercise.notes || "",
                                     order: message.data.exercise.order || "",
+                                    additionalInfo:
+                                        message.data.exercise.additionalInfo ||
+                                        "",
                                 },
                             },
                         ],
@@ -97,6 +99,7 @@ export class ExerciseProcessors {
                     customizations: message.data.exercise.customizations || "",
                     notes: message.data.exercise.notes || "",
                     order: message.data.exercise.order || "",
+                    additionalInfo: message.data.exercise.additionalInfo || "",
                 };
 
                 changes = {

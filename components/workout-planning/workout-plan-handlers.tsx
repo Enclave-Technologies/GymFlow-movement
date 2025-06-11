@@ -545,6 +545,9 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
                             exerciseData.customizations ||
                             exercise.customizations,
                         notes: exerciseData.notes || exercise.notes,
+                        additionalInfo:
+                            exerciseData.additionalInfo ||
+                            exercise.additionalInfo,
                         order: (() => {
                             const orderValue =
                                 exerciseData.order || exercise.order || "";

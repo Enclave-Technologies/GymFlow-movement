@@ -72,6 +72,14 @@ export function createExerciseHandlers(
     ) => {
         if (exerciseData) {
             console.log("Exercise data being saved:", exerciseData);
+            console.log(
+                "additionalInfo in exerciseData:",
+                exerciseData.additionalInfo
+            );
+            console.log(
+                "customizations in exerciseData:",
+                exerciseData.customizations
+            );
         }
 
         const currentPhases = props.latestPhasesRef.current;
@@ -126,40 +134,50 @@ export function createExerciseHandlers(
 
         try {
             if (props.planId && exerciseData) {
+                const exercisePayload = {
+                    id: exercise.id,
+                    exerciseId: exerciseData.exerciseId || "",
+                    description:
+                        exerciseData.description ||
+                        exercise.description ||
+                        "New Exercise",
+                    motion:
+                        exerciseData.motion || exercise.motion || "Unspecified",
+                    targetArea:
+                        exerciseData.targetArea ||
+                        exercise.targetArea ||
+                        "Unspecified",
+                    setsMin: exerciseData.setsMin || exercise.setsMin,
+                    setsMax: exerciseData.setsMax || exercise.setsMax,
+                    repsMin: exerciseData.repsMin || exercise.repsMin,
+                    repsMax: exerciseData.repsMax || exercise.repsMax,
+                    tempo: exerciseData.tempo || exercise.tempo,
+                    restMin: exerciseData.restMin || exercise.restMin,
+                    restMax: exerciseData.restMax || exercise.restMax,
+                    customizations:
+                        exerciseData.customizations || exercise.customizations,
+                    notes: exerciseData.notes || exercise.notes,
+                    order: exerciseData.order || exercise.order || "",
+                    additionalInfo:
+                        exerciseData.additionalInfo || exercise.additionalInfo,
+                };
+
+                console.log(
+                    "🚀 Exercise payload being sent to queue:",
+                    exercisePayload
+                );
+                console.log(
+                    "🔍 additionalInfo in payload:",
+                    exercisePayload.additionalInfo
+                );
+
                 await WorkoutQueueIntegration.queueExerciseSave(
                     props.planId,
                     phaseId,
                     sessionId,
                     exercise.id, // planExerciseId
                     props.client_id,
-                    {
-                        id: exercise.id,
-                        exerciseId: exerciseData.exerciseId || "",
-                        description:
-                            exerciseData.description ||
-                            exercise.description ||
-                            "New Exercise",
-                        motion:
-                            exerciseData.motion ||
-                            exercise.motion ||
-                            "Unspecified",
-                        targetArea:
-                            exerciseData.targetArea ||
-                            exercise.targetArea ||
-                            "Unspecified",
-                        setsMin: exerciseData.setsMin || exercise.setsMin,
-                        setsMax: exerciseData.setsMax || exercise.setsMax,
-                        repsMin: exerciseData.repsMin || exercise.repsMin,
-                        repsMax: exerciseData.repsMax || exercise.repsMax,
-                        tempo: exerciseData.tempo || exercise.tempo,
-                        restMin: exerciseData.restMin || exercise.restMin,
-                        restMax: exerciseData.restMax || exercise.restMax,
-                        customizations:
-                            exerciseData.customizations ||
-                            exercise.customizations,
-                        notes: exerciseData.notes || exercise.notes,
-                        order: exerciseData.order || exercise.order || "",
-                    },
+                    exercisePayload,
                     isNewExercise, // Use the state to determine create vs update
                     props.lastKnownUpdatedAt || new Date()
                 );

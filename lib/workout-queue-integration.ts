@@ -362,6 +362,7 @@ export class WorkoutQueueIntegration {
             customizations?: string;
             notes?: string;
             order?: string;
+            additionalInfo?: string;
         },
         isNew: boolean,
         lastKnownUpdatedAt: Date,

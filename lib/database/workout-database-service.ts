@@ -186,12 +186,23 @@ export async function applyWorkoutPlanChangesWorker(
                     updateData.restMax =
                         parseInt(exerciseUpdate.changes.restMax) || 0;
                 }
-                if (exerciseUpdate.changes.customizations !== undefined) {
-                    updateData.customizations =
-                        exerciseUpdate.changes.customizations;
+                if (
+                    exerciseUpdate.changes.customizations !== undefined ||
+                    exerciseUpdate.changes.additionalInfo !== undefined
+                ) {
+                    updateData.customizations = [
+                        exerciseUpdate.changes.customizations,
+                        exerciseUpdate.changes.additionalInfo,
+                    ]
+                        .filter(Boolean)
+                        .join("");
                 }
                 if (exerciseUpdate.changes.notes !== undefined) {
                     updateData.notes = exerciseUpdate.changes.notes;
+                }
+                if (exerciseUpdate.changes.order !== undefined) {
+                    updateData.setOrderMarker = exerciseUpdate.changes.order;
+                    updateData.exerciseOrder = 0; // Keep as 0 as requested
                 }
 
                 if (Object.keys(updateData).length > 0) {
@@ -256,7 +267,9 @@ export async function applyWorkoutPlanChangesWorker(
                         restMax:
                             parseInt(exerciseData.exercise.restMax || "0") || 0,
                         customizations:
-                            exerciseData.exercise.customizations || "",
+                            exerciseData.exercise.customizations ||
+                            exerciseData.exercise.additionalInfo ||
+                            "",
                         notes: exerciseData.exercise.notes || "",
                         exerciseOrder: 0, // Redundant field for future use
                         setOrderMarker: exerciseData.exercise.order || "",
@@ -389,7 +402,10 @@ export async function createWorkoutPlanWorker(
                         tempo: exercise.tempo || "",
                         restMin: parseInt(exercise.restMin || "0", 10) || 0,
                         restMax: parseInt(exercise.restMax || "0", 10) || 0,
-                        customizations: exercise.customizations || "",
+                        customizations:
+                            exercise.customizations ||
+                            exercise.additionalInfo ||
+                            "",
                         notes: exercise.notes || "",
                         exerciseOrder: 0, // Redundant field for future use
                         setOrderMarker: exercise.order || "",
