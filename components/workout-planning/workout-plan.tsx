@@ -34,6 +34,7 @@ export default function WorkoutPlanner({
     const [, setHasUnsavedChanges] = useState(false);
     const [isSaving, setSaving] = useState(false);
     const [manualSaveInProgress, setManualSaveInProgress] = useState(false);
+    const [isReloading, setIsReloading] = useState(false);
 
     // ===== Edit State =====
     const [editingPhase, setEditingPhase] = useState<string | null>(null);
@@ -84,26 +85,41 @@ export default function WorkoutPlanner({
     };
 
     // ===== Data Loading =====
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            await fetchWorkoutPlan(
+                client_id,
+                setIsLoading,
+                setPlanId,
+                setLastKnownUpdatedAt,
+                updatePhases
+            );
+        } catch (error) {
+            console.error("Error loading workout plan:", error);
+            setPhases([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
-            try {
-                await fetchWorkoutPlan(
-                    client_id,
-                    setIsLoading,
-                    setPlanId,
-                    setLastKnownUpdatedAt,
-                    updatePhases
-                );
-            } catch (error) {
-                console.error("Error loading workout plan:", error);
-                setPhases([]);
-            } finally {
-                setIsLoading(false);
-            }
-        };
         loadData();
     }, [client_id]);
+
+    // ===== Reload Function =====
+    const handleReload = async () => {
+        setIsReloading(true);
+        try {
+            await loadData();
+            // Clear any unsaved changes since we're reloading from DB
+            setHasUnsavedChanges(false);
+        } catch (error) {
+            console.error("Error reloading workout plan:", error);
+        } finally {
+            setIsReloading(false);
+        }
+    };
 
     // ===== Create Handlers =====
     const handlers = createWorkoutPlanHandlers({
@@ -220,6 +236,7 @@ export default function WorkoutPlanner({
                 {/* Toolbar */}
                 <WorkoutToolbar
                     onAddPhase={handlers.handleAddPhase}
+                    onReload={handleReload}
                     client_id={client_id}
                     trainer_id={trainer_id}
                     planId={planId}
@@ -229,6 +246,7 @@ export default function WorkoutPlanner({
                     updatePhases={updatePhases}
                     setHasUnsavedChanges={setHasUnsavedChanges}
                     isAnyOperationInProgress={manualSaveInProgress || isSaving}
+                    isReloading={isReloading}
                 />
 
                 {/* Phase List */}
