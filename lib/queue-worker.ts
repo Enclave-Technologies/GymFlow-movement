@@ -201,6 +201,7 @@ if (!messageWorker) {
 }
 
 export { messageWorker };
+export { messageWorker as worker }; // Export with more descriptive name for graceful shutdown
 
 // Worker event handlers
 messageWorker.on("completed", (job, result) => {
