@@ -1,10 +1,4 @@
-import React, {
-    useEffect,
-    useState,
-    useMemo,
-    useCallback,
-    useRef,
-} from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Table, TableBody } from "@/components/ui/table";
 import { Phase, Session, Exercise } from "../../types";
 import { toast } from "sonner";
@@ -12,7 +6,6 @@ import type { SelectExercise } from "@/db/schemas";
 import ExerciseTableHeader from "./ExerciseTableHeader";
 import ExerciseTableRow, { ExerciseRow } from "./ExerciseTableRow";
 import ExerciseEditRow from "./ExerciseEditRow";
-import { getUniqueMotions, getUniqueTargetAreas } from "./exercise-table-utils";
 
 interface ExerciseTableInlineProps {
     phase: Phase;
@@ -68,16 +61,7 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
     onEditingEnd,
     onEditingChange,
 }) => {
-    // Memoize motion and target area options to prevent recalculation on every render
-    const exerciseMotionOptions = useMemo(
-        () => getUniqueMotions(exercises || []),
-        [exercises]
-    );
-
-    const exerciseTargetAreaOptions = useMemo(
-        () => getUniqueTargetAreas(exercises || []),
-        [exercises]
-    );
+    // Motion and target area are now read-only and set automatically when exercise is selected
 
     const [editingExerciseRow, setEditingExerciseRow] =
         useState<ExerciseRow | null>(null);
@@ -97,10 +81,6 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
                 (e) => e.id === editingExerciseId
             );
             if (exercise) {
-                console.log(
-                    "🔄 useEffect: Setting editingExerciseRow from session.exercises:",
-                    exercise
-                );
                 setEditingExerciseRow({ ...exercise });
                 setShouldFocusFirstCell(true);
                 // Notify parent that editing has started
@@ -109,7 +89,6 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
                 }
             }
         } else {
-            console.log("🔄 useEffect: Clearing editingExerciseRow");
             setEditingExerciseRow(null);
         }
     }, [editingExerciseId, onEditingStart]); // Removed session.exercises to prevent state reset
@@ -125,22 +104,14 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
     // Handle field changes in editing row
     const handleInlineExerciseChange = useCallback(
         (field: keyof ExerciseRow, value: string) => {
-            console.log(`🔄 Field change: ${field} = ${value}`);
-            if (field === "exerciseId") {
-                console.log("🆔 ExerciseId being set to:", value);
-            }
-
             // Use functional state update to avoid stale closure issues
             setEditingExerciseRow((prevRow) => {
                 if (!prevRow) return null;
 
-                const newEditingRow = {
+                return {
                     ...prevRow,
                     [field]: value,
                 };
-
-                console.log("🔄 Setting new editing row:", newEditingRow);
-                return newEditingRow;
             });
 
             // Notify parent that a change was made
@@ -158,14 +129,6 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
             return;
         }
 
-        console.log("💾 Saving exercise with data:", {
-            id: editingExerciseRow.id,
-            description: editingExerciseRow.description,
-            exerciseId: editingExerciseRow.exerciseId,
-            motion: editingExerciseRow.motion,
-            targetArea: editingExerciseRow.targetArea,
-        });
-
         // Normalize description for matching
         const normalizedDescription = editingExerciseRow.description
             .trim()
@@ -173,10 +136,6 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
 
         // Make sure exerciseId is set - this is critical for backend updates
         if (!editingExerciseRow.exerciseId) {
-            console.log(
-                "⚠️ No exerciseId found, attempting to find by description:",
-                normalizedDescription
-            );
             // Find the exercise in the exercises list by normalized description
             const matchingExercise = exercises.find(
                 (ex) =>
@@ -369,12 +328,6 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
                                     key={exercise.id}
                                     editingExerciseRow={editingExerciseRow}
                                     exercises={exercises}
-                                    exerciseMotionOptions={
-                                        exerciseMotionOptions
-                                    }
-                                    exerciseTargetAreaOptions={
-                                        exerciseTargetAreaOptions
-                                    }
                                     isSaving={isSaving}
                                     onFieldChange={handleInlineExerciseChange}
                                     onSave={saveInlineExercise}

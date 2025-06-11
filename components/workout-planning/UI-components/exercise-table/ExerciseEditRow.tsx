@@ -1,13 +1,7 @@
 import React from "react";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectTrigger,
-    SelectValue,
-    SelectContent,
-    SelectItem,
-} from "@/components/ui/select";
+
 import { Button } from "@/components/ui/button";
 import { Check, X } from "lucide-react";
 import type { SelectExercise } from "@/db/schemas";
@@ -17,8 +11,6 @@ import { ExerciseRow } from "./ExerciseTableRow";
 interface ExerciseEditRowProps {
     editingExerciseRow: ExerciseRow;
     exercises: SelectExercise[];
-    exerciseMotionOptions: string[];
-    exerciseTargetAreaOptions: string[];
     isSaving: boolean;
     onFieldChange: (field: keyof ExerciseRow, value: string) => void;
     onSave: () => void;
@@ -33,8 +25,6 @@ interface ExerciseEditRowProps {
 const ExerciseEditRow: React.FC<ExerciseEditRowProps> = ({
     editingExerciseRow,
     exercises,
-    exerciseMotionOptions,
-    exerciseTargetAreaOptions,
     isSaving,
     onFieldChange,
     onSave,
@@ -43,17 +33,11 @@ const ExerciseEditRow: React.FC<ExerciseEditRowProps> = ({
 }) => {
     const handleExerciseSelect = (exercise: SelectExercise) => {
         // Update multiple fields when exercise is selected
-        console.log(
-            "🔍 Exercise selected:",
-            exercise.exerciseName,
-            "ID:",
-            exercise.exerciseId
-        );
+
         onFieldChange("description", exercise.exerciseName);
         onFieldChange("exerciseId", exercise.exerciseId);
         onFieldChange("motion", exercise.motion || "");
         onFieldChange("targetArea", exercise.targetArea || "");
-        console.log("✅ Fields updated for exercise:", exercise.exerciseName);
     };
 
     return (
@@ -71,10 +55,6 @@ const ExerciseEditRow: React.FC<ExerciseEditRowProps> = ({
 
             {/* Description (Exercise Name) */}
             <TableCell className="min-w-[350px]">
-                {console.log(
-                    "🎨 ExerciseEditRow render - editingExerciseRow.description:",
-                    editingExerciseRow.description
-                )}
                 <ExerciseDropdown
                     exercises={exercises}
                     selectedDescription={editingExerciseRow.description || ""}
@@ -83,44 +63,18 @@ const ExerciseEditRow: React.FC<ExerciseEditRowProps> = ({
                 />
             </TableCell>
 
-            {/* Motion */}
+            {/* Motion (Read-only) */}
             <TableCell className="min-w-[250px] hidden sm:table-cell">
-                <Select
-                    value={editingExerciseRow.motion || ""}
-                    onValueChange={(value) => onFieldChange("motion", value)}
-                >
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select motion" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {exerciseMotionOptions.map((motion) => (
-                            <SelectItem key={motion} value={motion}>
-                                {motion}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <div className="w-full px-3 py-2 text-sm bg-muted rounded-md border">
+                    {editingExerciseRow.motion || "Select exercise first"}
+                </div>
             </TableCell>
 
-            {/* Target Area */}
+            {/* Target Area (Read-only) */}
             <TableCell className="min-w-[250px] hidden md:table-cell">
-                <Select
-                    value={editingExerciseRow.targetArea || ""}
-                    onValueChange={(value) =>
-                        onFieldChange("targetArea", value)
-                    }
-                >
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select target area" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {exerciseTargetAreaOptions.map((area) => (
-                            <SelectItem key={area} value={area}>
-                                {area}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <div className="w-full px-3 py-2 text-sm bg-muted rounded-md border">
+                    {editingExerciseRow.targetArea || "Select exercise first"}
+                </div>
             </TableCell>
 
             {/* Sets (min-max) */}
