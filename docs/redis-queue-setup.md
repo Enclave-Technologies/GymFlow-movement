@@ -34,18 +34,33 @@ The Redis queue system provides a robust way to handle background processing of 
 
 3. **Queue Worker** (`lib/queue-worker.ts`)
 
-    - Background job processor
-    - Message type handlers
-    - Error handling and logging
+    - Standalone Node.js background process (not Express)
+    - Uses BullMQ for Redis-based job processing
+    - Direct database connections via worker-specific config
+    - Message type handlers and error handling
 
-4. **Server Actions** (`actions/queue_actions.ts`)
+4. **Worker Database** (`lib/database/worker-db.ts`)
+
+    - Worker-specific database configuration
+    - Direct Drizzle ORM connection (no Next.js dependencies)
+    - Optimized connection settings for background processing
+    - Environment variable loading with dotenv
+
+5. **Server Actions** (`actions/queue_actions.ts`)
 
     - `addJobToQueue` - Add jobs to queue with dependency support
     - `getQueueStats` - Get queue statistics
     - `clearQueue` - Clear queue (development only)
     - Specific message senders for each type
 
-5. **Workout Queue Integration** (`lib/workout-queue-integration.ts`)
+6. **Workout Database Service** (`lib/database/workout-database-service.ts`)
+
+    - Worker-compatible database operations
+    - Uses worker-specific database configuration
+    - No Next.js dependencies for standalone execution
+    - Handles workout plan CRUD operations
+
+7. **Workout Queue Integration** (`lib/workout-queue-integration.ts`)
 
     - `queuePlanCreate` - Queue workout plan creation
     - `queuePhaseCreate` - Queue phase creation
@@ -55,10 +70,27 @@ The Redis queue system provides a robust way to handle background processing of 
     - `queueExerciseCreate/Update/Delete` - Exercise management operations
     - `queueFullPlanSave` - Bulk plan operations (CSV uploads, etc.)
 
-6. **Test Interface** (`/queue-test`)
+8. **Test Interface** (`/queue-test`)
     - Interactive testing page
     - Real-time queue monitoring
     - Sample message generators
+
+## Worker Architecture
+
+The queue worker runs as a **standalone Node.js process** (not Express server):
+
+-   **Process Type**: Background Node.js process using `tsx` for TypeScript execution
+-   **Queue System**: BullMQ (Redis-based job queue)
+-   **Database**: Direct PostgreSQL connection via Drizzle ORM
+-   **Configuration**: Worker-specific database config (`lib/database/worker-db.ts`)
+-   **Isolation**: Completely separate from Next.js application context
+
+### Key Benefits:
+
+-   ✅ **Independent Scaling**: Worker can be scaled separately from web app
+-   ✅ **Resource Isolation**: Background processing doesn't affect web performance
+-   ✅ **Deployment Flexibility**: Can run on different servers/containers
+-   ✅ **Fault Tolerance**: Worker crashes don't affect web application
 
 ## Setup Instructions
 
@@ -512,6 +544,13 @@ Use the `/queue-test` page to:
     - Check if worker is using updated processor code
     - Verify database connection in worker environment
     - Check for TypeScript compilation errors
+
+6. **Worker import/module resolution errors**
+
+    - Ensure worker uses `lib/database/worker-db.ts` (not `db/xata.tsx`)
+    - Check that worker processors import from `types/workout-plan-types.ts`
+    - Verify all worker files avoid Next.js-specific imports
+    - Use explicit relative imports in worker context
 
 ### Debug Commands
 

@@ -12,9 +12,9 @@ import {
     WorkoutPhaseDuplicateMessage,
     WorkoutPhaseActivateMessage,
 } from "../../types/queue-types";
-import { WorkoutPlanChanges } from "../../components/workout-planning/types";
+import { WorkoutPlanChanges } from "../../types/workout-plan-types";
 import { applyWorkoutPlanChangesWorker } from "../database/workout-database-service";
-import { db } from "../../db/xata";
+import { workerDb as db } from "../database/worker-db";
 import {
     ExercisePlans,
     Sessions,

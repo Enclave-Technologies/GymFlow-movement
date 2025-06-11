@@ -9,10 +9,7 @@ import {
     WorkoutExerciseSaveMessage,
     WorkoutExerciseDeleteMessage,
 } from "../../types/queue-types";
-import {
-    WorkoutPlanChanges,
-    Exercise,
-} from "../../components/workout-planning/types";
+import { WorkoutPlanChanges, Exercise } from "../../types/workout-plan-types";
 import { applyWorkoutPlanChangesWorker } from "../database/workout-database-service";
 
 export class ExerciseProcessors {

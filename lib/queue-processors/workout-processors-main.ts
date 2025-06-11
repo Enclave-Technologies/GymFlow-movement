@@ -19,10 +19,7 @@ import {
     // WorkoutExerciseDeleteMessage,
     // WorkoutPlanFullSaveMessage,
 } from "../../types/queue-types";
-import {
-    WorkoutPlanChanges,
-    Exercise,
-} from "../../components/workout-planning/types";
+import { WorkoutPlanChanges, Exercise } from "../../types/workout-plan-types";
 import { applyWorkoutPlanChangesWorker } from "../database/workout-database-service";
 
 // Import specialized processors

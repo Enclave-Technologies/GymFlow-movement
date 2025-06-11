@@ -4,7 +4,7 @@
  * for use in queue workers and other non-Next.js contexts
  */
 
-import { db } from "../../db/xata";
+import { workerDb as db } from "./worker-db";
 import {
     ExercisePlans,
     Phases,
@@ -17,7 +17,7 @@ import {
     WorkoutPlanActionResponse,
     WorkoutPlanChanges,
     Phase,
-} from "../../components/workout-planning/types";
+} from "../../types/workout-plan-types";
 
 /**
  * Apply changes to a workout plan without concurrency control
