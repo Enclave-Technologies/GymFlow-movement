@@ -10,11 +10,11 @@ import {
     WorkoutPhaseCreateMessage,
     WorkoutPhaseUpdateMessage,
     WorkoutPhaseDeleteMessage,
-    WorkoutPhaseDuplicateMessage,
-    WorkoutPhaseActivateMessage,
     WorkoutSessionCreateMessage,
     WorkoutSessionUpdateMessage,
     WorkoutSessionDeleteMessage,
+    WorkoutPhaseDuplicateMessage,
+    WorkoutPhaseActivateMessage,
     WorkoutExerciseSaveMessage,
     WorkoutExerciseDeleteMessage,
     WorkoutPlanFullSaveMessage,
@@ -201,6 +201,7 @@ if (!messageWorker) {
 }
 
 export { messageWorker };
+export { messageWorker as worker }; // Export with more descriptive name for graceful shutdown
 
 // Worker event handlers
 messageWorker.on("completed", (job, result) => {
