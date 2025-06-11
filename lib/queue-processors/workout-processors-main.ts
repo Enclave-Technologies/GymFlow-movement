@@ -18,12 +18,12 @@ import {
     // WorkoutExerciseUpdateMessage,
     // WorkoutExerciseDeleteMessage,
     // WorkoutPlanFullSaveMessage,
-} from "@/types/queue-types";
+} from "../../types/queue-types";
 import {
     WorkoutPlanChanges,
     Exercise,
-} from "@/components/workout-planning/types";
-import { applyWorkoutPlanChangesWorker } from "@/lib/database/workout-database-service";
+} from "../../components/workout-planning/types";
+import { applyWorkoutPlanChangesWorker } from "../database/workout-database-service";
 
 // Import specialized processors
 import { PlanProcessors } from "./plan-processors";

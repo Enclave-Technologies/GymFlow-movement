@@ -11,11 +11,15 @@ import {
     WorkoutPhaseDeleteMessage,
     WorkoutPhaseDuplicateMessage,
     WorkoutPhaseActivateMessage,
-} from "@/types/queue-types";
-import { WorkoutPlanChanges } from "@/components/workout-planning/types";
-import { applyWorkoutPlanChangesWorker } from "@/lib/database/workout-database-service";
-import { db } from "@/db/xata";
-import { ExercisePlans, Sessions, ExercisePlanExercises } from "@/db/schemas";
+} from "../../types/queue-types";
+import { WorkoutPlanChanges } from "../../components/workout-planning/types";
+import { applyWorkoutPlanChangesWorker } from "../database/workout-database-service";
+import { db } from "../../db/xata";
+import {
+    ExercisePlans,
+    Sessions,
+    ExercisePlanExercises,
+} from "../../db/schemas";
 import { eq } from "drizzle-orm";
 
 export class PhaseProcessors {

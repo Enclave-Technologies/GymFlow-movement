@@ -23,7 +23,7 @@ import {
     EmailMessage,
     DataSyncMessage,
     TestMessage,
-} from "@/types/queue-types";
+} from "../types/queue-types";
 
 // Type for our specific Redis connection configuration
 interface RedisConnectionConfig {
@@ -201,7 +201,6 @@ if (!messageWorker) {
 }
 
 export { messageWorker };
-export { messageWorker as worker }; // Export with more descriptive name for graceful shutdown
 
 // Worker event handlers
 messageWorker.on("completed", (job, result) => {
