@@ -113,6 +113,59 @@ export interface WorkoutPhaseDeleteMessage extends BaseQueueMessage {
     };
 }
 
+export interface WorkoutPhaseDuplicateMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_PHASE_DUPLICATE";
+    data: {
+        planId: string;
+        clientId: string;
+        trainerId: string;
+        originalPhaseId: string;
+        duplicatedPhase: {
+            id: string;
+            name: string;
+            orderNumber: number;
+            isActive: boolean;
+            sessions: Array<{
+                id: string;
+                name: string;
+                orderNumber: number;
+                sessionTime?: number;
+                exercises: Array<{
+                    id: string;
+                    exerciseId: string;
+                    description?: string;
+                    motion?: string;
+                    targetArea?: string;
+                    setsMin?: string;
+                    setsMax?: string;
+                    repsMin?: string;
+                    repsMax?: string;
+                    tempo?: string;
+                    restMin?: string;
+                    restMax?: string;
+                    customizations?: string;
+                    additionalInfo?: string;
+                    notes?: string;
+                    order?: string;
+                }>;
+            }>;
+        };
+        lastKnownUpdatedAt: string; // ISO string
+    };
+}
+
+export interface WorkoutPhaseActivateMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_PHASE_ACTIVATE";
+    data: {
+        planId: string;
+        phaseId: string; // Phase to activate
+        clientId: string;
+        isActivating: boolean; // true = activate, false = deactivate
+        allPhaseIds: string[]; // All phase IDs in the plan (for deactivating others)
+        lastKnownUpdatedAt: string; // ISO string
+    };
+}
+
 export interface WorkoutSessionCreateMessage extends BaseQueueMessage {
     messageType: "WORKOUT_SESSION_CREATE";
     data: {
@@ -152,6 +205,41 @@ export interface WorkoutSessionDeleteMessage extends BaseQueueMessage {
         phaseId: string;
         sessionId: string;
         clientId: string;
+        lastKnownUpdatedAt: string; // ISO string
+    };
+}
+
+export interface WorkoutSessionDuplicateMessage extends BaseQueueMessage {
+    messageType: "WORKOUT_SESSION_DUPLICATE";
+    data: {
+        planId: string;
+        phaseId: string;
+        clientId: string;
+        originalSessionId: string;
+        duplicatedSession: {
+            id: string;
+            name: string;
+            orderNumber: number;
+            sessionTime?: number;
+            exercises: Array<{
+                id: string;
+                exerciseId: string;
+                description?: string;
+                motion?: string;
+                targetArea?: string;
+                setsMin?: string;
+                setsMax?: string;
+                repsMin?: string;
+                repsMax?: string;
+                tempo?: string;
+                restMin?: string;
+                restMax?: string;
+                customizations?: string;
+                additionalInfo?: string;
+                notes?: string;
+                order?: string;
+            }>;
+        };
         lastKnownUpdatedAt: string; // ISO string
     };
 }
@@ -272,9 +360,12 @@ export type QueueMessage =
     | WorkoutPhaseCreateMessage
     | WorkoutPhaseUpdateMessage
     | WorkoutPhaseDeleteMessage
+    | WorkoutPhaseDuplicateMessage
+    | WorkoutPhaseActivateMessage
     | WorkoutSessionCreateMessage
     | WorkoutSessionUpdateMessage
     | WorkoutSessionDeleteMessage
+    | WorkoutSessionDuplicateMessage
     | WorkoutExerciseSaveMessage
     | WorkoutExerciseDeleteMessage
     | WorkoutPlanFullSaveMessage

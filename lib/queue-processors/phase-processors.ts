@@ -9,11 +9,12 @@ import {
     WorkoutPhaseCreateMessage,
     WorkoutPhaseUpdateMessage,
     WorkoutPhaseDeleteMessage,
+    WorkoutPhaseDuplicateMessage,
 } from "@/types/queue-types";
 import { WorkoutPlanChanges } from "@/components/workout-planning/types";
 import { applyWorkoutPlanChangesWorker } from "@/lib/database/workout-database-service";
 import { db } from "@/db/xata";
-import { ExercisePlans } from "@/db/schemas";
+import { ExercisePlans, Sessions, ExercisePlanExercises } from "@/db/schemas";
 import { eq } from "drizzle-orm";
 
 export class PhaseProcessors {
@@ -215,6 +216,41 @@ export class PhaseProcessors {
         console.log("Processing phase deletion:", message.data);
 
         try {
+            // First, find all sessions that belong to this phase
+            const sessionsToDelete = await db
+                .select({ sessionId: Sessions.sessionId })
+                .from(Sessions)
+                .where(eq(Sessions.phaseId, message.data.phaseId));
+
+            const sessionIds = sessionsToDelete.map((s) => s.sessionId);
+
+            console.log(
+                `Found ${sessionIds.length} sessions to delete for phase ${message.data.phaseId}`
+            );
+
+            // Then, find all exercises that belong to those sessions
+            let exerciseIds: string[] = [];
+            if (sessionIds.length > 0) {
+                // For multiple sessions, we need to query each one
+                for (const sessionId of sessionIds) {
+                    const exercises = await db
+                        .select({
+                            planExerciseId:
+                                ExercisePlanExercises.planExerciseId,
+                        })
+                        .from(ExercisePlanExercises)
+                        .where(eq(ExercisePlanExercises.sessionId, sessionId));
+
+                    exerciseIds.push(
+                        ...exercises.map((ex) => ex.planExerciseId)
+                    );
+                }
+            }
+
+            console.log(
+                `Found ${exerciseIds.length} exercises to delete for phase ${message.data.phaseId}`
+            );
+
             // Delete the phase using the worker-compatible database service
             const changes: WorkoutPlanChanges = {
                 created: {
@@ -229,8 +265,8 @@ export class PhaseProcessors {
                 },
                 deleted: {
                     phases: [message.data.phaseId],
-                    sessions: [],
-                    exercises: [],
+                    sessions: sessionIds, // Include all sessions that belong to this phase
+                    exercises: exerciseIds, // Include all exercises that belong to those sessions
                 },
             };
 
@@ -258,6 +294,177 @@ export class PhaseProcessors {
             return {
                 success: false,
                 message: "Failed to process phase deletion",
+                error: error instanceof Error ? error.message : "Unknown error",
+                processedAt: new Date().toISOString(),
+            };
+        }
+    }
+
+    static async processWorkoutPhaseDuplicate(
+        message: WorkoutPhaseDuplicateMessage
+    ): Promise<QueueJobResult> {
+        console.log("Processing phase duplication:", message.data);
+
+        try {
+            // Create WorkoutPlanChanges object for phase duplication
+            // This includes the full phase with all sessions and exercises
+            const duplicatedPhase = message.data.duplicatedPhase;
+
+            const changes: WorkoutPlanChanges = {
+                created: {
+                    phases: [
+                        {
+                            id: duplicatedPhase.id,
+                            name: duplicatedPhase.name,
+                            orderNumber: duplicatedPhase.orderNumber,
+                            isActive: duplicatedPhase.isActive,
+                            isExpanded: true, // Default to expanded for new phases
+                            sessions: duplicatedPhase.sessions.map(
+                                (session) => ({
+                                    id: session.id,
+                                    name: session.name,
+                                    orderNumber: session.orderNumber,
+                                    duration: session.sessionTime || 0,
+                                    isExpanded: false,
+                                    exercises: session.exercises.map(
+                                        (exercise) => ({
+                                            id: exercise.id,
+                                            exerciseId: exercise.exerciseId,
+                                            description:
+                                                exercise.description || "",
+                                            motion: exercise.motion || "",
+                                            targetArea:
+                                                exercise.targetArea || "",
+                                            setsMin: exercise.setsMin || "",
+                                            setsMax: exercise.setsMax || "",
+                                            repsMin: exercise.repsMin || "",
+                                            repsMax: exercise.repsMax || "",
+                                            tempo: exercise.tempo || "",
+                                            restMin: exercise.restMin || "",
+                                            restMax: exercise.restMax || "",
+                                            customizations:
+                                                exercise.customizations || "",
+                                            additionalInfo:
+                                                exercise.additionalInfo || "",
+                                            notes: exercise.notes || "",
+                                            order: exercise.order || "",
+                                        })
+                                    ),
+                                })
+                            ),
+                        },
+                    ],
+                    sessions: duplicatedPhase.sessions.map((session) => ({
+                        phaseId: duplicatedPhase.id,
+                        session: {
+                            id: session.id,
+                            name: session.name,
+                            orderNumber: session.orderNumber,
+                            duration: session.sessionTime || 0,
+                            isExpanded: false,
+                            exercises: session.exercises.map((exercise) => ({
+                                id: exercise.id,
+                                exerciseId: exercise.exerciseId,
+                                description: exercise.description || "",
+                                motion: exercise.motion || "",
+                                targetArea: exercise.targetArea || "",
+                                setsMin: exercise.setsMin || "",
+                                setsMax: exercise.setsMax || "",
+                                repsMin: exercise.repsMin || "",
+                                repsMax: exercise.repsMax || "",
+                                tempo: exercise.tempo || "",
+                                restMin: exercise.restMin || "",
+                                restMax: exercise.restMax || "",
+                                customizations: exercise.customizations || "",
+                                additionalInfo: exercise.additionalInfo || "",
+                                notes: exercise.notes || "",
+                                order: exercise.order || "",
+                            })),
+                        },
+                    })),
+                    exercises: duplicatedPhase.sessions.flatMap((session) =>
+                        session.exercises.map((exercise) => ({
+                            sessionId: session.id,
+                            exercise: {
+                                id: exercise.id,
+                                exerciseId: exercise.exerciseId,
+                                description: exercise.description || "",
+                                motion: exercise.motion || "",
+                                targetArea: exercise.targetArea || "",
+                                setsMin: exercise.setsMin || "",
+                                setsMax: exercise.setsMax || "",
+                                repsMin: exercise.repsMin || "",
+                                repsMax: exercise.repsMax || "",
+                                tempo: exercise.tempo || "",
+                                restMin: exercise.restMin || "",
+                                restMax: exercise.restMax || "",
+                                customizations: exercise.customizations || "",
+                                additionalInfo: exercise.additionalInfo || "",
+                                notes: exercise.notes || "",
+                                order: exercise.order || "",
+                            },
+                        }))
+                    ),
+                },
+                updated: {
+                    phases: [],
+                    sessions: [],
+                    exercises: [],
+                },
+                deleted: {
+                    phases: [],
+                    sessions: [],
+                    exercises: [],
+                },
+            };
+
+            console.log(
+                `Creating duplicated phase with ${
+                    duplicatedPhase.sessions.length
+                } sessions and ${duplicatedPhase.sessions.reduce(
+                    (total, session) => total + session.exercises.length,
+                    0
+                )} exercises`
+            );
+
+            // Apply the changes using the simplified service (no concurrency control)
+            const result = await applyWorkoutPlanChangesWorker(
+                message.data.planId,
+                changes
+            );
+
+            if (result.success) {
+                return {
+                    success: true,
+                    message: "Phase duplicated successfully",
+                    data: {
+                        planId: message.data.planId,
+                        originalPhaseId: message.data.originalPhaseId,
+                        duplicatedPhaseId: duplicatedPhase.id,
+                        sessionsCreated: duplicatedPhase.sessions.length,
+                        exercisesCreated: duplicatedPhase.sessions.reduce(
+                            (total, session) =>
+                                total + session.exercises.length,
+                            0
+                        ),
+                        updatedAt:
+                            result.updatedAt?.toISOString() ||
+                            new Date().toISOString(),
+                    },
+                    processedAt: new Date().toISOString(),
+                };
+            } else {
+                return {
+                    success: false,
+                    message: result.error || "Failed to duplicate phase",
+                    error: result.error,
+                    processedAt: new Date().toISOString(),
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: "Failed to process phase duplication",
                 error: error instanceof Error ? error.message : "Unknown error",
                 processedAt: new Date().toISOString(),
             };

@@ -186,16 +186,9 @@ export async function applyWorkoutPlanChangesWorker(
                     updateData.restMax =
                         parseInt(exerciseUpdate.changes.restMax) || 0;
                 }
-                if (
-                    exerciseUpdate.changes.customizations !== undefined ||
-                    exerciseUpdate.changes.additionalInfo !== undefined
-                ) {
-                    updateData.customizations = [
-                        exerciseUpdate.changes.customizations,
-                        exerciseUpdate.changes.additionalInfo,
-                    ]
-                        .filter(Boolean)
-                        .join("");
+                if (exerciseUpdate.changes.additionalInfo !== undefined) {
+                    updateData.customizations =
+                        exerciseUpdate.changes.additionalInfo;
                 }
                 if (exerciseUpdate.changes.notes !== undefined) {
                     updateData.notes = exerciseUpdate.changes.notes;

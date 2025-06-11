@@ -240,23 +240,22 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
             props.setHasUnsavedChanges
         );
 
-        // Queue the phase creation event for the duplicated phase
-        try {
-            if (props.planId && targetPhase) {
-                // The duplicated phase will have "(Copy)" appended to the name
-                // We need to create a new phase object for the queue event
-                const duplicatedPhaseData = {
-                    id: `${phaseId}-copy-${Date.now()}`, // Temporary ID, will be replaced
-                    name: `${targetPhase.name} (Copy)`,
-                    orderNumber: Math.floor(Date.now() / 10000), // Same logic as addPhase
-                    isActive: false, // Duplicated phases are inactive by default
-                };
+        // Find the duplicated phase from the updated phases
+        const updatedPhases = props.latestPhasesRef.current;
+        const duplicatedPhase = updatedPhases.find(
+            (p) => p.name === `${targetPhase.name} (Copy)` && p.id !== phaseId
+        );
 
-                await WorkoutQueueIntegration.queuePhaseCreate(
+        // Queue the phase duplication event with full deep copy data
+        try {
+            if (props.planId && duplicatedPhase) {
+                await WorkoutQueueIntegration.queuePhaseDuplicate(
                     props.planId,
                     props.client_id,
                     props.trainer_id,
-                    duplicatedPhaseData
+                    phaseId, // Original phase ID
+                    duplicatedPhase, // Full duplicated phase with sessions and exercises
+                    props.lastKnownUpdatedAt || new Date()
                 );
             }
         } catch (error) {
@@ -351,33 +350,25 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         props.updatePhases(updatedPhases);
         props.setHasUnsavedChanges(true);
 
-        // Queue the session creation event for the duplicated session
-        try {
-            if (props.planId && originalSession) {
-                // Find the duplicated session (should have "(Copy)" in the name)
-                const updatedPhase = updatedPhases.find(
-                    (p) => p.id === phaseId
-                );
-                const duplicatedSession = updatedPhase?.sessions.find(
-                    (s) =>
-                        s.name === `${originalSession.name} (Copy)` &&
-                        s.id !== sessionId
-                );
+        // Find the duplicated session from the updated phases
+        const updatedPhase = updatedPhases.find((p) => p.id === phaseId);
+        const duplicatedSession = updatedPhase?.sessions.find(
+            (s) =>
+                s.name === `${originalSession?.name} (Copy)` &&
+                s.id !== sessionId
+        );
 
-                if (duplicatedSession) {
-                    await WorkoutQueueIntegration.queueSessionCreate(
-                        props.planId,
-                        phaseId,
-                        props.client_id,
-                        {
-                            id: duplicatedSession.id,
-                            name: duplicatedSession.name,
-                            orderNumber: duplicatedSession.orderNumber || 0,
-                            sessionTime: duplicatedSession.duration,
-                        },
-                        props.lastKnownUpdatedAt || new Date()
-                    );
-                }
+        // Queue the session duplication event with full deep copy data
+        try {
+            if (props.planId && duplicatedSession) {
+                await WorkoutQueueIntegration.queueSessionDuplicate(
+                    props.planId,
+                    phaseId,
+                    props.client_id,
+                    sessionId, // Original session ID
+                    duplicatedSession, // Full duplicated session with exercises
+                    props.lastKnownUpdatedAt || new Date()
+                );
             }
         } catch (error) {
             console.error("Failed to queue session duplication:", error);
@@ -489,9 +480,14 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
         const currentEditState = props.exerciseEditState.getCurrentEditState();
 
         // More robust logic: Check if exercise was just created locally vs exists in DB
+        console.log("🔍 Current exercise edit state:", currentEditState);
+
         const isNewExercise = (() => {
             // If we have explicit state, use it
             if (currentEditState?.isNew !== undefined) {
+                console.log(
+                    `✅ Using explicit state: isNew=${currentEditState.isNew}`
+                );
                 return currentEditState.isNew;
             }
 
@@ -500,6 +496,9 @@ export function createWorkoutPlanHandlers(props: WorkoutPlanHandlersProps) {
                 !exercise.exerciseId || exercise.exerciseId === "";
             console.log(
                 `🔍 Exercise ${exercise.id}: exerciseId="${exercise.exerciseId}", hasMinimalData=${hasMinimalData}`
+            );
+            console.log(
+                "⚠️ Using fallback logic because no explicit state found"
             );
 
             return hasMinimalData;

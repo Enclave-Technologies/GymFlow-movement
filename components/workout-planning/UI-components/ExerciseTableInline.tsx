@@ -294,16 +294,7 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
             setHasUnsavedChanges(true);
         }
 
-        // Notify parent that editing has ended
-        if (onEditingEnd) {
-            onEditingEnd(editingExerciseRow.id);
-        }
-
-        // End editing mode immediately for better UX
-        setEditingExerciseRow(null);
-        onEditEnd();
-
-        // Trigger a save of the workout plan (this will now be debounced)
+        // Trigger a save of the workout plan FIRST (while edit state is still available)
         if (onSaveExercise) {
             onSaveExercise(
                 phase.id,
@@ -312,6 +303,15 @@ const ExerciseTableInline: React.FC<ExerciseTableInlineProps> = ({
                 editingExerciseRow
             );
         }
+
+        // THEN notify parent that editing has ended (this clears exercise edit state)
+        if (onEditingEnd) {
+            onEditingEnd(editingExerciseRow.id);
+        }
+
+        // End editing mode immediately for better UX
+        setEditingExerciseRow(null);
+        onEditEnd();
     }, [
         editingExerciseRow,
         phase.id,

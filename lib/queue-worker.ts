@@ -2,7 +2,6 @@ import { Worker, Job } from "bullmq";
 import { getRedisConnectionOptions } from "./redis-utils";
 import { WorkoutProcessorsMain } from "./queue-processors/workout-processors-main";
 import { GeneralProcessors } from "./queue-processors/general-processors";
-import { ExerciseProcessors } from "./queue-processors/exercise-processors";
 import {
     QueueMessage,
     QueueJobResult,
@@ -11,9 +10,11 @@ import {
     WorkoutPhaseCreateMessage,
     WorkoutPhaseUpdateMessage,
     WorkoutPhaseDeleteMessage,
+    WorkoutPhaseDuplicateMessage,
     WorkoutSessionCreateMessage,
     WorkoutSessionUpdateMessage,
     WorkoutSessionDeleteMessage,
+    WorkoutSessionDuplicateMessage,
     WorkoutExerciseSaveMessage,
     WorkoutExerciseDeleteMessage,
     WorkoutPlanFullSaveMessage,
@@ -44,16 +45,20 @@ class MessageProcessors {
         WorkoutProcessorsMain.processWorkoutPhaseUpdate;
     static processWorkoutPhaseDelete =
         WorkoutProcessorsMain.processWorkoutPhaseDelete;
+    static processWorkoutPhaseDuplicate =
+        WorkoutProcessorsMain.processWorkoutPhaseDuplicate;
     static processWorkoutSessionCreate =
         WorkoutProcessorsMain.processWorkoutSessionCreate;
     static processWorkoutSessionUpdate =
         WorkoutProcessorsMain.processWorkoutSessionUpdate;
     static processWorkoutSessionDelete =
         WorkoutProcessorsMain.processWorkoutSessionDelete;
+    static processWorkoutSessionDuplicate =
+        WorkoutProcessorsMain.processWorkoutSessionDuplicate;
     static processWorkoutExerciseSave =
-        ExerciseProcessors.processWorkoutExerciseSave;
+        WorkoutProcessorsMain.processWorkoutExerciseSave;
     static processWorkoutExerciseDelete =
-        ExerciseProcessors.processWorkoutExerciseDelete;
+        WorkoutProcessorsMain.processWorkoutExerciseDelete;
     static processWorkoutPlanFullSave =
         WorkoutProcessorsMain.processWorkoutPlanFullSave;
 
@@ -100,6 +105,11 @@ async function processJob(job: Job<QueueMessage>): Promise<QueueJobResult> {
                     message as WorkoutPhaseDeleteMessage
                 );
                 break;
+            case "WORKOUT_PHASE_DUPLICATE":
+                result = await MessageProcessors.processWorkoutPhaseDuplicate(
+                    message as WorkoutPhaseDuplicateMessage
+                );
+                break;
             case "WORKOUT_SESSION_CREATE":
                 result = await MessageProcessors.processWorkoutSessionCreate(
                     message as WorkoutSessionCreateMessage
@@ -113,6 +123,11 @@ async function processJob(job: Job<QueueMessage>): Promise<QueueJobResult> {
             case "WORKOUT_SESSION_DELETE":
                 result = await MessageProcessors.processWorkoutSessionDelete(
                     message as WorkoutSessionDeleteMessage
+                );
+                break;
+            case "WORKOUT_SESSION_DUPLICATE":
+                result = await MessageProcessors.processWorkoutSessionDuplicate(
+                    message as WorkoutSessionDuplicateMessage
                 );
                 break;
             case "WORKOUT_EXERCISE_SAVE":

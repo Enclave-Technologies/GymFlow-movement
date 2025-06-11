@@ -11,15 +11,21 @@ import {
     WorkoutPhaseCreateMessage,
     WorkoutPhaseUpdateMessage,
     WorkoutPhaseDeleteMessage,
+    WorkoutPhaseDuplicateMessage,
     WorkoutSessionCreateMessage,
     WorkoutSessionUpdateMessage,
     WorkoutSessionDeleteMessage,
+    WorkoutSessionDuplicateMessage,
     WorkoutExerciseSaveMessage,
     WorkoutExerciseDeleteMessage,
     WorkoutPlanFullSaveMessage,
     QueueJobOptions,
 } from "@/types/queue-types";
-import type { Phase } from "@/components/workout-planning/types";
+import type {
+    Phase,
+    Session,
+    Exercise,
+} from "@/components/workout-planning/types";
 
 export class WorkoutQueueIntegration {
     /**
@@ -222,6 +228,72 @@ export class WorkoutQueueIntegration {
     }
 
     /**
+     * Queue a phase duplication for background processing
+     */
+    static async queuePhaseDuplicate(
+        planId: string,
+        clientId: string,
+        trainerId: string,
+        originalPhaseId: string,
+        duplicatedPhase: Phase,
+        lastKnownUpdatedAt: Date,
+        userId?: string
+    ) {
+        const message: WorkoutPhaseDuplicateMessage = {
+            messageType: "WORKOUT_PHASE_DUPLICATE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "phase_duplication",
+            },
+            data: {
+                planId,
+                clientId,
+                trainerId,
+                originalPhaseId,
+                duplicatedPhase: {
+                    id: duplicatedPhase.id,
+                    name: duplicatedPhase.name,
+                    orderNumber: duplicatedPhase.orderNumber || 0,
+                    isActive: duplicatedPhase.isActive,
+                    sessions: duplicatedPhase.sessions.map((session) => ({
+                        id: session.id,
+                        name: session.name,
+                        orderNumber: session.orderNumber || 0,
+                        sessionTime: session.duration,
+                        exercises: session.exercises.map((exercise) => ({
+                            id: exercise.id,
+                            exerciseId: exercise.exerciseId,
+                            description: exercise.description,
+                            motion: exercise.motion,
+                            targetArea: exercise.targetArea,
+                            setsMin: exercise.setsMin,
+                            setsMax: exercise.setsMax,
+                            repsMin: exercise.repsMin,
+                            repsMax: exercise.repsMax,
+                            tempo: exercise.tempo,
+                            restMin: exercise.restMin,
+                            restMax: exercise.restMax,
+                            customizations: exercise.customizations,
+                            additionalInfo: exercise.additionalInfo,
+                            notes: exercise.notes,
+                            order: exercise.order,
+                        })),
+                    })),
+                },
+                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 4, // Medium priority for duplication operations
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
      * Queue a session creation for background processing
      */
     static async queueSessionCreate(
@@ -332,6 +404,66 @@ export class WorkoutQueueIntegration {
 
         return addJobToQueue(message, {
             priority: 5,
+            attempts: 3,
+            delay: 0,
+        });
+    }
+
+    /**
+     * Queue a session duplication for background processing
+     */
+    static async queueSessionDuplicate(
+        planId: string,
+        phaseId: string,
+        clientId: string,
+        originalSessionId: string,
+        duplicatedSession: Session,
+        lastKnownUpdatedAt: Date,
+        userId?: string
+    ) {
+        const message: WorkoutSessionDuplicateMessage = {
+            messageType: "WORKOUT_SESSION_DUPLICATE",
+            timestamp: new Date().toISOString(),
+            userId,
+            metadata: {
+                source: "workout-planner",
+                updateType: "session_duplication",
+            },
+            data: {
+                planId,
+                phaseId,
+                clientId,
+                originalSessionId,
+                duplicatedSession: {
+                    id: duplicatedSession.id,
+                    name: duplicatedSession.name,
+                    orderNumber: duplicatedSession.orderNumber || 0,
+                    sessionTime: duplicatedSession.duration,
+                    exercises: duplicatedSession.exercises.map((exercise) => ({
+                        id: exercise.id,
+                        exerciseId: exercise.exerciseId,
+                        description: exercise.description,
+                        motion: exercise.motion,
+                        targetArea: exercise.targetArea,
+                        setsMin: exercise.setsMin,
+                        setsMax: exercise.setsMax,
+                        repsMin: exercise.repsMin,
+                        repsMax: exercise.repsMax,
+                        tempo: exercise.tempo,
+                        restMin: exercise.restMin,
+                        restMax: exercise.restMax,
+                        customizations: exercise.customizations,
+                        additionalInfo: exercise.additionalInfo,
+                        notes: exercise.notes,
+                        order: exercise.order,
+                    })),
+                },
+                lastKnownUpdatedAt: lastKnownUpdatedAt.toISOString(),
+            },
+        };
+
+        return addJobToQueue(message, {
+            priority: 4, // Medium priority for duplication operations
             attempts: 3,
             delay: 0,
         });
