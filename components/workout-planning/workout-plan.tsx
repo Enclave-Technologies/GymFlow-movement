@@ -8,6 +8,7 @@ import { PhaseList } from "./UI-components/PhaseList";
 import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
 import ExerciseTableInline from "./UI-components/ExerciseTableInline";
 import { fetchWorkoutPlan } from "./workout-utils/workout-utils";
+import { createWorkoutPlan } from "@/actions/workout_plan_actions";
 import { createWorkoutPlanHandlers } from "./workout-plan-handlers";
 import { useWorkoutPlanValidation } from "./workout-plan-hooks";
 import { useWorkoutPlanCacheInvalidation } from "./hooks/use-workout-plan-cache";
@@ -35,6 +36,7 @@ export default function WorkoutPlanner({
     const [isSaving, setSaving] = useState(false);
     const [manualSaveInProgress, setManualSaveInProgress] = useState(false);
     const [isReloading, setIsReloading] = useState(false);
+    const [isCreatingPlan, setIsCreatingPlan] = useState(false);
 
     // ===== Edit State =====
     const [editingPhase, setEditingPhase] = useState<string | null>(null);
@@ -55,6 +57,7 @@ export default function WorkoutPlanner({
 
     // ===== Refs =====
     const latestPhasesRef = useRef<Phase[]>([]);
+    const planCreationInProgressRef = useRef<boolean>(false);
 
     // Update ref whenever phases change
     useEffect(() => {
@@ -103,15 +106,96 @@ export default function WorkoutPlanner({
         }
     };
 
+    // ===== Ensure Plan Exists =====
+    const ensurePlanExists = async () => {
+        setIsLoading(true);
+        try {
+            // First try to load existing plan
+            await fetchWorkoutPlan(
+                client_id,
+                () => {}, // Don't set loading state here since we're managing it
+                (id) => {
+                    if (id) {
+                        setPlanId(id);
+                    }
+                },
+                setLastKnownUpdatedAt,
+                updatePhases
+            );
+
+            // Check if we have a plan after loading
+            const response = await import(
+                "@/actions/workout_client_actions"
+            ).then((module) => module.getWorkoutPlanByClientId(client_id));
+
+            let currentPlanId = null;
+            if (response && "planId" in response) {
+                currentPlanId = response.planId;
+            }
+
+            // If no plan was found, create one (with protection against duplicate creation)
+            if (
+                !currentPlanId &&
+                !isCreatingPlan &&
+                !planCreationInProgressRef.current
+            ) {
+                console.log("No workout plan found for user, creating one...");
+                setIsCreatingPlan(true);
+                planCreationInProgressRef.current = true;
+
+                try {
+                    const result = await createWorkoutPlan(
+                        client_id,
+                        trainer_id,
+                        {
+                            phases: [], // Start with empty phases for new plan
+                        }
+                    );
+
+                    if (result.success && result.planId) {
+                        setPlanId(result.planId);
+                        setLastKnownUpdatedAt(
+                            result.updatedAt
+                                ? new Date(result.updatedAt)
+                                : new Date()
+                        );
+                        console.log(
+                            "Workout plan created successfully:",
+                            result.planId
+                        );
+                        // Set empty phases since it's a new plan
+                        updatePhases([]);
+                    } else {
+                        console.error(
+                            "Failed to create workout plan:",
+                            result.error
+                        );
+                        throw new Error(
+                            result.error || "Failed to create workout plan"
+                        );
+                    }
+                } finally {
+                    setIsCreatingPlan(false);
+                    planCreationInProgressRef.current = false;
+                }
+            }
+        } catch (error) {
+            console.error("Error ensuring plan exists:", error);
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     useEffect(() => {
-        loadData();
+        ensurePlanExists();
     }, [client_id]);
 
     // ===== Reload Function =====
     const handleReload = async () => {
         setIsReloading(true);
         try {
-            await loadData();
+            await ensurePlanExists();
             // Clear any unsaved changes since we're reloading from DB
             setHasUnsavedChanges(false);
         } catch (error) {
@@ -240,12 +324,18 @@ export default function WorkoutPlanner({
                     client_id={client_id}
                     trainer_id={trainer_id}
                     planId={planId}
+                    setPlanId={setPlanId}
                     lastKnownUpdatedAt={lastKnownUpdatedAt}
                     phases={phases}
                     exercises={exercises}
                     updatePhases={updatePhases}
                     setHasUnsavedChanges={setHasUnsavedChanges}
-                    isAnyOperationInProgress={manualSaveInProgress || isSaving}
+                    isAnyOperationInProgress={
+                        manualSaveInProgress ||
+                        isSaving ||
+                        isCreatingPlan ||
+                        isLoading
+                    }
                     isReloading={isReloading}
                 />
 
@@ -256,7 +346,10 @@ export default function WorkoutPlanner({
                         isLoading={isLoading}
                         isSaving={isSaving}
                         isAnyOperationInProgress={
-                            manualSaveInProgress || isSaving
+                            manualSaveInProgress ||
+                            isSaving ||
+                            isCreatingPlan ||
+                            isLoading
                         }
                         // Phase handlers
                         onToggleExpand={handlers.handleTogglePhaseExpansion}

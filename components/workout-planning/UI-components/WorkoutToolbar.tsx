@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import WorkoutPlanCsvImportExport from "./workout-plan-csv-import-export";
 import { Plus, RefreshCw } from "lucide-react";
 import { WorkoutQueueIntegration } from "@/lib/workout-queue-integration";
+import { v4 as uuidv4 } from "uuid";
+import { toast } from "sonner";
 
 type WorkoutToolbarProps = {
     onAddPhase: () => void;
@@ -16,6 +18,7 @@ type WorkoutToolbarProps = {
     client_id: string;
     trainer_id: string;
     planId?: string | null;
+    setPlanId: (planId: string | null) => void;
     lastKnownUpdatedAt?: Date | null;
     phases: Phase[];
     exercises: SelectExercise[];
@@ -31,6 +34,7 @@ export function WorkoutToolbar({
     client_id,
     trainer_id,
     planId,
+    setPlanId,
     lastKnownUpdatedAt,
     phases,
     exercises,
@@ -95,7 +99,7 @@ export function WorkoutToolbar({
                     // Queue individual phase creation events for each imported phase
                     try {
                         if (planId) {
-                            // Queue each phase creation individually - much more efficient than full plan save
+                            // Plan exists - queue each phase creation individually
                             for (const phase of phasesWithCorrectOrder) {
                                 await WorkoutQueueIntegration.queuePhaseDuplicate(
                                     planId,
@@ -106,10 +110,24 @@ export function WorkoutToolbar({
                                     lastKnownUpdatedAt || new Date()
                                 );
                             }
+                            toast.success(
+                                "CSV phases imported and queued for processing.",
+                                {
+                                    duration: 3000,
+                                }
+                            );
+                        } else {
+                            // This should never happen since ensurePlanExists() guarantees a plan exists
+                            toast.error(
+                                "No workout plan found. Please reload the page."
+                            );
+                            return;
                         }
                     } catch (error) {
                         console.error("Failed to queue CSV import:", error);
-                        // Don't show error to user as the operation succeeded locally
+                        toast.error(
+                            "Failed to import CSV phases. Please try again."
+                        );
                     }
                 }}
                 clientId={client_id}
