@@ -230,7 +230,7 @@ export class PhaseProcessors {
             );
 
             // Then, find all exercises that belong to those sessions
-            let exerciseIds: string[] = [];
+            const exerciseIds: string[] = [];
             if (sessionIds.length > 0) {
                 // For multiple sessions, we need to query each one
                 for (const sessionId of sessionIds) {

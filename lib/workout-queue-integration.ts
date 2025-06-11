@@ -22,11 +22,7 @@ import {
     WorkoutPlanFullSaveMessage,
     QueueJobOptions,
 } from "@/types/queue-types";
-import type {
-    Phase,
-    Session,
-    Exercise,
-} from "@/components/workout-planning/types";
+import type { Phase, Session } from "@/components/workout-planning/types";
 
 export class WorkoutQueueIntegration {
     /**
