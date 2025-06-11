@@ -14,7 +14,7 @@ import {
 import { WorkoutPlanChanges } from "../../types/workout-plan-types";
 import { applyWorkoutPlanChangesWorker } from "../database/workout-database-service";
 import { workerDb as db } from "../database/worker-db";
-import { ExercisePlanExercises } from "../../db/schemas";
+import { ExercisePlanExercises } from "../database/worker-schemas";
 import { eq } from "drizzle-orm";
 
 export class SessionProcessors {

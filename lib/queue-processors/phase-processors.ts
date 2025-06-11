@@ -19,7 +19,7 @@ import {
     ExercisePlans,
     Sessions,
     ExercisePlanExercises,
-} from "../../db/schemas";
+} from "../database/worker-schemas";
 import { eq } from "drizzle-orm";
 
 export class PhaseProcessors {

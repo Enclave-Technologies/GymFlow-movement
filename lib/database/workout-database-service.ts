@@ -10,7 +10,7 @@ import {
     Phases,
     Sessions,
     ExercisePlanExercises,
-} from "../../db/schemas";
+} from "./worker-schemas";
 import { eq, inArray } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import {

@@ -20,7 +20,7 @@ import {
     Users,
     WorkoutSessionDetails,
     WorkoutSessionsLog,
-} from "../../db/schemas";
+} from "./worker-schemas";
 
 // Load environment variables for worker context
 dotenv.config({ path: ".env.local" });
