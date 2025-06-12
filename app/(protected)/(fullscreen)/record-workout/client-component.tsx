@@ -18,7 +18,7 @@ import { useWorkoutData } from "@/hooks/use-workout-data";
 
 // Components
 import { WorkoutHeader } from "@/components/workout-tracker/workout-header";
-import { ExerciseCard } from "@/components/workout-tracker/exercise-card";
+import { EnhancedExerciseCard } from "@/components/workout-tracker/enhanced-exercise-card";
 import { WorkoutHistorySidebar } from "@/components/workout-tracker/workout-history-sidebar";
 import { QuitWorkoutDialog } from "@/components/workout-tracker/quit-workout-dialog";
 
@@ -44,7 +44,7 @@ export default function RecordWorkoutClient({
     );
     const [showQuitDialog, setShowQuitDialog] = useState(false);
     const [showPastWorkouts, setShowPastWorkouts] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
+    const [isSaving] = useState(false);
 
     // Custom hooks
     const { timer } = useWorkoutTimer();
@@ -55,8 +55,11 @@ export default function RecordWorkoutClient({
         updateSetValue,
         addSet,
         deleteSet,
-        updateNotes,
         saveUnsavedSets,
+        isSaving: isDataSaving,
+        saveStatus,
+        pendingOperations,
+        saveNow,
     } = useWorkoutData({
         initialWorkoutData,
         workoutSessionDetails: initialWorkoutSessionDetails,
@@ -117,19 +120,9 @@ export default function RecordWorkoutClient({
             return;
         }
 
-        setIsSaving(true);
         try {
-            // Save any unsaved sets using the hook
-            console.log(
-                "Saving workout sets for session:",
-                workoutSessionLogId
-            );
-
-            const savedCount = await saveUnsavedSets();
-
-            if (savedCount > 0) {
-                console.log(`Successfully saved ${savedCount} sets`);
-            }
+            // Trigger immediate save of all pending operations
+            saveNow();
 
             // Update the URL with the workoutSessionLogId to maintain state on refresh
             if (window.history && window.history.replaceState) {
@@ -141,12 +134,14 @@ export default function RecordWorkoutClient({
                 window.history.replaceState({}, "", url.toString());
             }
 
-            toast.success("Workout progress saved");
+            if (pendingOperations === 0) {
+                toast.success("All changes saved successfully");
+            } else {
+                toast.info("Save in progress...");
+            }
         } catch (error) {
             console.error("Error saving workout:", error);
             toast.error("Error saving workout");
-        } finally {
-            setIsSaving(false);
         }
     };
 
@@ -230,12 +225,19 @@ export default function RecordWorkoutClient({
         <div className="min-h-screen bg-background text-foreground">
             <WorkoutHeader
                 clientName={clientName}
+                clientImage={initialWorkoutData?.client?.imageUrl}
                 phaseName={phaseName}
                 sessionName={sessionName}
+                exercises={exercises.map((ex) => ({
+                    setOrderMarker: ex.setOrderMarker,
+                    name: ex.name,
+                }))}
                 timer={timer}
                 showPastWorkouts={showPastWorkouts}
                 pastSessionsCount={initialPastSessions.length}
-                isSaving={isSaving}
+                isSaving={isSaving || isDataSaving}
+                saveStatus={saveStatus}
+                pendingOperations={pendingOperations}
                 onExit={openQuitDialog}
                 onTogglePastWorkouts={() =>
                     setShowPastWorkouts(!showPastWorkouts)
@@ -243,7 +245,7 @@ export default function RecordWorkoutClient({
                 onSave={handleSave}
             />
 
-            <div className="container mx-auto p-4 max-w-6xl">
+            <div className="container mx-auto px-4 pt-2 pb-4 max-w-6xl">
                 <div className="flex flex-col md:flex-row gap-6">
                     {/* Main workout content */}
                     <div className="flex-1">
@@ -253,14 +255,13 @@ export default function RecordWorkoutClient({
                             </div>
                         ) : (
                             exercises.map((exercise) => (
-                                <ExerciseCard
+                                <EnhancedExerciseCard
                                     key={exercise.id}
                                     exercise={exercise}
                                     onToggleExpansion={toggleExerciseExpansion}
                                     onUpdateSetValue={updateSetValue}
                                     onAddSet={addSet}
                                     onDeleteSet={deleteSet}
-                                    onUpdateNotes={updateNotes}
                                 />
                             ))
                         )}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
     logWorkoutSet,
-    updateWorkoutSet,
+    // updateWorkoutSet,
     deleteWorkoutSet,
 } from "@/actions/workout_tracker_actions";
 import {
@@ -13,6 +13,7 @@ import {
     WorkoutData,
     PastSessionDetail,
 } from "@/types/workout-tracker-types";
+import { useReliableSave } from "./use-reliable-save";
 
 interface UseWorkoutDataProps {
     initialWorkoutData: WorkoutData;
@@ -27,6 +28,36 @@ export function useWorkoutData({
 }: UseWorkoutDataProps) {
     const [exercises, setExercises] = useState<Exercise[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Initialize reliable save system
+    const { isSaving, saveStatus, pendingOperations, queueOperation, saveNow } =
+        useReliableSave({
+            workoutSessionLogId,
+            onSaveSuccess: (operation) => {
+                console.log("Save successful:", operation);
+                // Update UI to reflect successful save
+                setExercises((prev) =>
+                    prev.map((ex) =>
+                        ex.id === operation.exerciseId
+                            ? {
+                                  ...ex,
+                                  sets: ex.sets.map((set) =>
+                                      set.id === operation.setId
+                                          ? { ...set, isNew: false }
+                                          : set
+                                  ),
+                              }
+                            : ex
+                    )
+                );
+            },
+            onSaveError: (operation, error) => {
+                console.error("Save failed:", operation, error);
+                toast.error(
+                    `Failed to save set ${operation.data.setNumber}. Retrying...`
+                );
+            },
+        });
 
     // Load workout data on component mount
     useEffect(() => {
@@ -87,6 +118,7 @@ export function useWorkoutData({
                                 notes: ex.notes || "",
                                 isExpanded: true, // Start expanded
                                 setOrderMarker: ex.setOrderMarker,
+                                customizations: ex.customizations || "",
                             };
                         });
 
@@ -122,7 +154,19 @@ export function useWorkoutData({
                         });
                     }
 
-                    setExercises(transformedExercises);
+                    // Sort exercises by setOrderMarker in proper alphanumeric order
+                    const sortedExercises = transformedExercises.sort(
+                        (a, b) => {
+                            const orderA = a.setOrderMarker || a.order || "999";
+                            const orderB = b.setOrderMarker || b.order || "999";
+                            return orderA.localeCompare(orderB, undefined, {
+                                numeric: true,
+                                sensitivity: "base",
+                            });
+                        }
+                    );
+
+                    setExercises(sortedExercises);
                 }
             } catch (error) {
                 console.error("Error loading workout data:", error);
@@ -144,46 +188,68 @@ export function useWorkoutData({
         );
     };
 
-    const updateSetValue = async (
-        exerciseId: string,
-        setId: string,
-        field: "reps" | "weight",
-        value: string
-    ) => {
-        // Update local state first for immediate UI feedback
-        setExercises(
-            exercises.map((ex) =>
-                ex.id === exerciseId
-                    ? {
-                          ...ex,
-                          sets: ex.sets.map((set) =>
-                              set.id === setId
-                                  ? { ...set, [field]: value }
-                                  : set
-                          ),
-                      }
-                    : ex
-            )
-        );
+    const updateSetValue = useCallback(
+        (
+            exerciseId: string,
+            setId: string,
+            field: "reps" | "weight" | "notes",
+            value: string
+        ) => {
+            // Update local state first for immediate UI feedback (optimistic update)
+            setExercises((prev) =>
+                prev.map((ex) =>
+                    ex.id === exerciseId
+                        ? {
+                              ...ex,
+                              sets: ex.sets.map((set) =>
+                                  set.id === setId
+                                      ? { ...set, [field]: value }
+                                      : set
+                              ),
+                          }
+                        : ex
+                )
+            );
 
-        // If this is an existing set (not newly added), update it in the database
-        const exercise = exercises.find((ex) => ex.id === exerciseId);
-        const set = exercise?.sets.find((s) => s.id === setId);
-
-        if (set && !set.isNew && workoutSessionLogId) {
-            try {
-                // Only update the database if the set has a real ID (not a temp ID)
-                if (!setId.startsWith("temp-")) {
-                    await updateWorkoutSet(setId, {
-                        [field]: value ? parseInt(value) : null,
-                    });
-                }
-            } catch (error) {
-                console.error(`Error updating ${field} for set:`, error);
-                toast.error(`Failed to update ${field}`);
+            // Don't save if workoutSessionLogId is not available
+            if (!workoutSessionLogId) {
+                console.warn("No workout session log ID available for saving");
+                return;
             }
-        }
-    };
+
+            // Find the exercise and set for database update
+            const exercise = exercises.find((ex) => ex.id === exerciseId);
+            const set = exercise?.sets.find((s) => s.id === setId);
+
+            if (!exercise || !set) {
+                console.error("Exercise or set not found for update");
+                return;
+            }
+
+            // Get updated values
+            const updatedSet = { ...set, [field]: value };
+            const setNumber = exercise.sets.indexOf(set) + 1;
+
+            // Queue the save operation for existing sets
+            if (!set.isNew && !setId.startsWith("temp-")) {
+                queueOperation({
+                    id: `update-${setId}-${Date.now()}`,
+                    type: "update",
+                    exerciseId,
+                    setId,
+                    data: {
+                        exerciseName: exercise.name,
+                        setNumber,
+                        reps: parseInt(updatedSet.reps) || 0,
+                        weight: parseFloat(updatedSet.weight) || 0,
+                        notes: exercise.notes,
+                        setOrderMarker: exercise.setOrderMarker,
+                    },
+                });
+            }
+        },
+        [exercises, workoutSessionLogId, queueOperation]
+    );
 
     const addSet = async (exerciseId: string) => {
         if (!workoutSessionLogId) {
@@ -380,5 +446,10 @@ export function useWorkoutData({
         deleteSet,
         updateNotes,
         saveUnsavedSets,
+        // Reliable save status
+        isSaving,
+        saveStatus,
+        pendingOperations,
+        saveNow,
     };
 }

@@ -121,7 +121,7 @@ export async function fetchWorkoutTrackerData(
             .select()
             .from(ExercisePlanExercises)
             .where(eq(ExercisePlanExercises.sessionId, sessionId))
-            .orderBy(ExercisePlanExercises.exerciseOrder);
+            .orderBy(ExercisePlanExercises.setOrderMarker);
 
         // 3. Fetch exercise details for each exercise
         const exercisesWithDetails = await Promise.all(
