@@ -85,7 +85,8 @@ export function useReliableSave({
         );
 
         retryTimeoutRef.current = setTimeout(() => {
-            processQueue();
+            // Use ref to avoid stale closure and circular dependency issues
+            processQueueRef.current();
         }, delay);
     }, []);
 

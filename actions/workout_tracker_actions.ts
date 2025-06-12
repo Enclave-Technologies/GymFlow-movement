@@ -189,23 +189,8 @@ export async function createWorkoutSessionLog(
     noStore();
 
     try {
-        // Check if a session with this ID already exists
-        const existingSession = await db
-            .select()
-            .from(WorkoutSessionsLog)
-            .where(
-                eq(WorkoutSessionsLog.workoutSessionLogId, workoutSessionLogId)
-            )
-            .limit(1);
-
-        if (existingSession.length > 0) {
-            console.log(
-                `Workout session log ${workoutSessionLogId} already exists`
-            );
-            return existingSession[0];
-        }
-
         // Create a new workout session log entry with the specific ID
+        // Use ON CONFLICT DO NOTHING to handle race conditions
         const newSessionData: InsertWorkoutSessionLog = {
             workoutSessionLogId,
             userId,
@@ -217,10 +202,33 @@ export async function createWorkoutSessionLog(
         const result = await db
             .insert(WorkoutSessionsLog)
             .values(newSessionData)
+            .onConflictDoNothing()
             .returning();
 
+        // If no result returned, the session already exists - fetch it
         if (!result || result.length === 0) {
-            throw new Error("Failed to create workout session log");
+            console.log(
+                `Workout session log ${workoutSessionLogId} already exists, fetching existing record`
+            );
+
+            const existingSession = await db
+                .select()
+                .from(WorkoutSessionsLog)
+                .where(
+                    eq(
+                        WorkoutSessionsLog.workoutSessionLogId,
+                        workoutSessionLogId
+                    )
+                )
+                .limit(1);
+
+            if (!existingSession || existingSession.length === 0) {
+                throw new Error(
+                    "Failed to create or retrieve workout session log"
+                );
+            }
+
+            return existingSession[0];
         }
 
         console.log(`✅ Created workout session log: ${workoutSessionLogId}`);
@@ -293,24 +301,46 @@ export async function startWorkoutSession(
                     newSession.workoutSessionLogId
                 );
             } else {
-                // Create a new workout session log entry
-                const newSessionData: InsertWorkoutSessionLog = {
-                    userId,
-                    sessionName,
-                    startTime: new Date(),
-                    // endTime is left null until the session is completed
-                };
+                // Use a transaction to handle race conditions when creating new sessions
+                // This prevents multiple sessions being created simultaneously for the same user/sessionName
+                newSession = await db.transaction(async (tx) => {
+                    // Double-check for existing unfinished session within transaction
+                    const existingUnfinishedSessionInTx = await tx
+                        .select()
+                        .from(WorkoutSessionsLog)
+                        .where(
+                            and(
+                                eq(WorkoutSessionsLog.userId, userId),
+                                eq(WorkoutSessionsLog.sessionName, sessionName),
+                                isNull(WorkoutSessionsLog.endTime)
+                            )
+                        )
+                        .limit(1);
 
-                const result = await db
-                    .insert(WorkoutSessionsLog)
-                    .values(newSessionData)
-                    .returning();
+                    if (existingUnfinishedSessionInTx.length > 0) {
+                        // Another transaction created a session, use it
+                        return existingUnfinishedSessionInTx[0];
+                    }
 
-                if (!result || result.length === 0) {
-                    throw new Error("Failed to create workout session log");
-                }
+                    // Create a new workout session log entry
+                    const newSessionData: InsertWorkoutSessionLog = {
+                        userId,
+                        sessionName,
+                        startTime: new Date(),
+                        // endTime is left null until the session is completed
+                    };
 
-                newSession = result[0];
+                    const result = await tx
+                        .insert(WorkoutSessionsLog)
+                        .values(newSessionData)
+                        .returning();
+
+                    if (!result || result.length === 0) {
+                        throw new Error("Failed to create workout session log");
+                    }
+
+                    return result[0];
+                });
             }
         }
 

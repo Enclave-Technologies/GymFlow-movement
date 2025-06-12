@@ -230,21 +230,15 @@ export function useWorkoutData({
             field: "reps" | "weight" | "notes",
             value: string
         ) => {
-            // Update local state first for immediate UI feedback (optimistic update)
-            setExercises((prev) =>
-                prev.map((ex) =>
-                    ex.id === exerciseId
-                        ? {
-                              ...ex,
-                              sets: ex.sets.map((set) =>
-                                  set.id === setId
-                                      ? { ...set, [field]: value }
-                                      : set
-                              ),
-                          }
-                        : ex
-                )
-            );
+            // Handle exercise-level notes with special setId
+            if (setId === "exercise-notes" && field === "notes") {
+                setExercises((prev) =>
+                    prev.map((ex) =>
+                        ex.id === exerciseId ? { ...ex, notes: value } : ex
+                    )
+                );
+                return; // Don't save exercise-level notes to database immediately
+            }
 
             // Don't save if workoutSessionLogId is not available
             if (!workoutSessionLogId) {
@@ -252,17 +246,38 @@ export function useWorkoutData({
                 return;
             }
 
-            // Find the exercise and set for database update
-            const exercise = exercises.find((ex) => ex.id === exerciseId);
-            const set = exercise?.sets.find((s) => s.id === setId);
+            // Update local state and get the updated exercise/set data within the callback
+            // This ensures we use the fresh state, not stale closure data
+            setExercises((prev) => {
+                // Find the exercise and set from the current (fresh) state
+                const exercise = prev.find((ex) => ex.id === exerciseId);
+                const set = exercise?.sets.find((s) => s.id === setId);
 
-            if (!exercise || !set) {
-                console.error("Exercise or set not found for update");
-                return;
-            }
+                if (!exercise || !set) {
+                    console.error("Exercise or set not found for update");
+                    return prev; // Return unchanged state
+                }
 
-            // Trigger debounced auto-save (5 seconds after last input)
-            triggerDebouncedSaveRef.current();
+                // Update the state with the new value
+                const updatedExercises = prev.map((ex) =>
+                    ex.id === exerciseId
+                        ? {
+                              ...ex,
+                              sets: ex.sets.map((s) =>
+                                  s.id === setId ? { ...s, [field]: value } : s
+                              ),
+                          }
+                        : ex
+                );
+
+                // Trigger debounced auto-save after state update
+                // Use setTimeout to ensure this runs after the state update is complete
+                setTimeout(() => {
+                    triggerDebouncedSaveRef.current();
+                }, 0);
+
+                return updatedExercises;
+            });
         },
         [exercises, workoutSessionLogId]
     );
@@ -280,6 +295,9 @@ export function useWorkoutData({
 
         // Generate a temporary ID for the new set
         const tempId = `temp-${exerciseId}-${Date.now()}`;
+
+        // Calculate set number before state update to avoid stale closure issues
+        const setNumber = exercise.sets.length + 1;
 
         // Update local state first
         setExercises(
@@ -303,7 +321,6 @@ export function useWorkoutData({
 
         try {
             // Log the new set to the database
-            const setNumber = exercise.sets.length + 1;
             const result = await logWorkoutSet(
                 workoutSessionLogId,
                 exercise.name,
@@ -392,14 +409,6 @@ export function useWorkoutData({
                 );
             }
         }
-    };
-
-    const updateNotes = (exerciseId: string, notes: string) => {
-        setExercises(
-            exercises.map((ex) =>
-                ex.id === exerciseId ? { ...ex, notes } : ex
-            )
-        );
     };
 
     const saveUnsavedSets = async () => {
@@ -637,7 +646,6 @@ export function useWorkoutData({
         updateSetValue,
         addSet,
         deleteSet,
-        updateNotes,
         saveUnsavedSets,
         saveAllSetDetails,
         // Reliable save status

@@ -16,7 +16,6 @@ interface ExerciseCardProps {
     ) => void;
     onAddSet: (exerciseId: string) => void;
     onDeleteSet: (exerciseId: string, setId: string) => void;
-    onUpdateNotes: (exerciseId: string, notes: string) => void;
 }
 
 export function ExerciseCard({
@@ -25,7 +24,6 @@ export function ExerciseCard({
     onUpdateSetValue,
     onAddSet,
     onDeleteSet,
-    onUpdateNotes,
 }: ExerciseCardProps) {
     return (
         <div className="mb-6 bg-card rounded-lg overflow-hidden shadow-md border border-border">
@@ -164,7 +162,12 @@ export function ExerciseCard({
                             className="w-full min-h-[120px] bg-muted text-foreground border-border resize-none"
                             value={exercise.notes}
                             onChange={(e) =>
-                                onUpdateNotes(exercise.id, e.target.value)
+                                onUpdateSetValue(
+                                    exercise.id,
+                                    "exercise-notes", // Special identifier for exercise-level notes
+                                    "notes",
+                                    e.target.value
+                                )
                             }
                         />
                     </div>
