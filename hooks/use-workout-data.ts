@@ -279,7 +279,7 @@ export function useWorkoutData({
                 return updatedExercises;
             });
         },
-        [exercises, workoutSessionLogId]
+        [workoutSessionLogId]
     );
 
     // autoSaveOnDefocus removed - using debounced save instead
@@ -411,7 +411,7 @@ export function useWorkoutData({
         }
     };
 
-    const saveUnsavedSets = async () => {
+    const saveUnsavedSets = useCallback(async () => {
         if (!workoutSessionLogId) {
             throw new Error("No active workout session");
         }
@@ -452,7 +452,7 @@ export function useWorkoutData({
                     exerciseName: exercise.name,
                     setNumber,
                     reps: parseInt(set.reps) || 0,
-                    weight: parseInt(set.weight) || 0,
+                    weight: parseFloat(set.weight) || 0,
                     coachNote: exercise.notes,
                     setOrderMarker: exercise.setOrderMarker,
                 },
@@ -473,7 +473,7 @@ export function useWorkoutData({
                 exercise.name,
                 setNumber,
                 parseInt(set.reps) || 0,
-                parseInt(set.weight) || 0,
+                parseFloat(set.weight) || 0,
                 set.notes || undefined, // Use individual set notes, not exercise notes
                 exercise.setOrderMarker
             );
@@ -500,9 +500,9 @@ export function useWorkoutData({
         }
 
         return unsavedSets.length;
-    };
+    }, [workoutSessionLogId, exercises]);
 
-    const saveAllSetDetails = async () => {
+    const saveAllSetDetails = useCallback(async () => {
         if (!workoutSessionLogId) {
             throw new Error("No active workout session");
         }
@@ -580,7 +580,7 @@ export function useWorkoutData({
         }
 
         return setsToUpdate.length;
-    };
+    }, [workoutSessionLogId, exercises]);
 
     // Debounced auto-save function (defined after save functions)
     const triggerDebouncedSave = useCallback(() => {
