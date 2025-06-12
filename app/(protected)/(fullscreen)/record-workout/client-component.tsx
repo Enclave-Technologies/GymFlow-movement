@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import {
     endWorkoutSession,
-    deleteEmptyWorkoutSession,
+    deleteActiveWorkoutSession,
 } from "@/actions/workout_tracker_actions";
 
 // Types
@@ -44,7 +44,9 @@ export default function RecordWorkoutClient({
     );
     const [showQuitDialog, setShowQuitDialog] = useState(false);
     const [showPastWorkouts, setShowPastWorkouts] = useState(false);
-    const [isSaving] = useState(false);
+    const [isQuittingWithoutSaving, setIsQuittingWithoutSaving] =
+        useState(false);
+    const [isEndingWorkout, setIsEndingWorkout] = useState(false);
 
     // Custom hooks
     const { timer } = useWorkoutTimer();
@@ -56,10 +58,11 @@ export default function RecordWorkoutClient({
         addSet,
         deleteSet,
         saveUnsavedSets,
-        isSaving: isDataSaving,
+        saveAllSetDetails,
         saveStatus,
         pendingOperations,
-        saveNow,
+        isSyncing,
+        hasUnsavedChanges,
     } = useWorkoutData({
         initialWorkoutData,
         workoutSessionDetails: initialWorkoutSessionDetails,
@@ -94,18 +97,70 @@ export default function RecordWorkoutClient({
         };
     }, [clientName]);
 
-    // Add event listener for beforeunload to warn user before leaving the page
+    // Create stable references to save functions to avoid dependency issues
+    const saveWorkoutDataRef =
+        useRef<() => Promise<{ newSets: number; details: number }> | null>(
+            null
+        );
+
     useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (workoutSessionLogId) {
-                e.preventDefault();
-                // Modern browsers will show their own message, but we still need to prevent default
-                return "You have an active workout session. Are you sure you want to leave?";
+        saveWorkoutDataRef.current = async () => {
+            const newSetsSaved = await saveUnsavedSets();
+            const detailsSaved = await saveAllSetDetails();
+            return { newSets: newSetsSaved, details: detailsSaved };
+        };
+    }, [saveUnsavedSets, saveAllSetDetails]);
+
+    // Add event listeners for browser navigation (back/forward) and page unload
+    useEffect(() => {
+        if (!workoutSessionLogId) return;
+
+        // Handle browser back/forward navigation
+        const handlePopState = async () => {
+            console.log(
+                "🔄 Browser back/forward detected - saving workout data..."
+            );
+
+            try {
+                if (saveWorkoutDataRef.current) {
+                    const result = await saveWorkoutDataRef.current();
+                    if (result) {
+                        const { newSets, details } = result;
+                        const totalSaved = newSets + details;
+
+                        if (totalSaved > 0) {
+                            console.log(
+                                `✅ Auto-saved ${totalSaved} workout entries before navigation`
+                            );
+                        }
+                    }
+                }
+
+                // End the workout session to mark it as complete
+                await endWorkoutSession(workoutSessionLogId);
+                console.log("✅ Workout session saved and ended successfully");
+            } catch (error) {
+                console.error(
+                    "❌ Failed to save workout data during navigation:",
+                    error
+                );
             }
         };
 
+        // Handle page close/refresh (simpler, non-async approach)
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (workoutSessionLogId) {
+                e.preventDefault();
+                return "You have an active workout session. Your progress will be saved automatically.";
+            }
+        };
+
+        // Add event listeners
+        window.addEventListener("popstate", handlePopState);
         window.addEventListener("beforeunload", handleBeforeUnload);
+
         return () => {
+            window.removeEventListener("popstate", handlePopState);
             window.removeEventListener("beforeunload", handleBeforeUnload);
         };
     }, [workoutSessionLogId]);
@@ -114,59 +169,29 @@ export default function RecordWorkoutClient({
     const openQuitDialog = () => setShowQuitDialog(true);
     const closeQuitDialog = () => setShowQuitDialog(false);
 
-    const handleSave = async () => {
-        if (!workoutSessionLogId) {
-            toast.error("No active workout session to save");
-            return;
-        }
-
-        try {
-            // Trigger immediate save of all pending operations
-            saveNow();
-
-            // Update the URL with the workoutSessionLogId to maintain state on refresh
-            if (window.history && window.history.replaceState) {
-                const url = new URL(window.location.href);
-                url.searchParams.set(
-                    "workoutSessionLogId",
-                    workoutSessionLogId
-                );
-                window.history.replaceState({}, "", url.toString());
-            }
-
-            if (pendingOperations === 0) {
-                toast.success("All changes saved successfully");
-            } else {
-                toast.info("Save in progress...");
-            }
-        } catch (error) {
-            console.error("Error saving workout:", error);
-            toast.error("Error saving workout");
-        }
-    };
+    // handleSave function removed - using debounced auto-save instead
 
     const handleQuitWithoutSaving = async () => {
+        setIsQuittingWithoutSaving(true);
+        toast.info("Quitting without saving...");
+
         try {
-            // Delete the empty workout session if it exists
+            // Delete the entire workout session and all its details (regardless of content)
             if (workoutSessionLogId) {
                 console.log(
-                    "Deleting empty workout session:",
+                    "🗑️ Deleting entire workout session and all details:",
                     workoutSessionLogId
                 );
-                const deleted = await deleteEmptyWorkoutSession(
-                    workoutSessionLogId
+                await deleteActiveWorkoutSession(workoutSessionLogId);
+                console.log(
+                    "✅ Workout session and all details deleted successfully"
                 );
-                if (deleted) {
-                    console.log("Empty workout session deleted successfully");
-                } else {
-                    console.log(
-                        "Workout session was not empty or could not be deleted"
-                    );
-                }
             }
         } catch (error) {
-            console.error("Error deleting empty workout session:", error);
+            console.error("❌ Error deleting workout session:", error);
             // Don't block navigation if deletion fails
+        } finally {
+            setIsQuittingWithoutSaving(false);
         }
 
         // Use replace instead of push to avoid navigation issues between layouts
@@ -183,14 +208,22 @@ export default function RecordWorkoutClient({
             return;
         }
 
-        try {
-            // First save any unsaved workout data
-            console.log("Saving workout data before ending session...");
-            const savedCount = await saveUnsavedSets();
+        setIsEndingWorkout(true);
+        toast.info("Saving and ending workout...");
 
-            if (savedCount > 0) {
+        try {
+            // First save any unsaved workout data (new sets)
+            console.log("Saving new sets before ending session...");
+            const newSetsSaved = await saveUnsavedSets();
+
+            // Then save all existing set details
+            console.log("Saving existing set details before ending session...");
+            const detailsSaved = await saveAllSetDetails();
+
+            const totalSaved = newSetsSaved + detailsSaved;
+            if (totalSaved > 0) {
                 console.log(
-                    `Successfully saved ${savedCount} sets before ending workout`
+                    `Successfully saved ${totalSaved} workout entries before ending session`
                 );
             }
 
@@ -207,6 +240,8 @@ export default function RecordWorkoutClient({
         } catch (error) {
             console.error("Error ending workout session:", error);
             toast.error("Failed to save and end workout session");
+        } finally {
+            setIsEndingWorkout(false);
         }
     };
 
@@ -235,15 +270,34 @@ export default function RecordWorkoutClient({
                 timer={timer}
                 showPastWorkouts={showPastWorkouts}
                 pastSessionsCount={initialPastSessions.length}
-                isSaving={isSaving || isDataSaving}
                 saveStatus={saveStatus}
                 pendingOperations={pendingOperations}
                 onExit={openQuitDialog}
                 onTogglePastWorkouts={() =>
                     setShowPastWorkouts(!showPastWorkouts)
                 }
-                onSave={handleSave}
             />
+
+            {/* Syncing Indicator */}
+            {(isSyncing || hasUnsavedChanges) && (
+                <div className="bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800">
+                    <div className="container mx-auto px-4 py-2 max-w-6xl">
+                        <div className="flex items-center justify-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+                            {isSyncing ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span>Syncing with database...</span>
+                                </>
+                            ) : hasUnsavedChanges ? (
+                                <>
+                                    <div className="h-2 w-2 bg-orange-500 rounded-full animate-pulse"></div>
+                                    <span>You have unsaved changes</span>
+                                </>
+                            ) : null}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="container mx-auto px-4 pt-2 pb-4 max-w-6xl">
                 <div className="flex flex-col md:flex-row gap-6">
@@ -282,6 +336,8 @@ export default function RecordWorkoutClient({
                 onClose={closeQuitDialog}
                 onQuitWithoutSaving={handleQuitWithoutSaving}
                 onEndWorkout={handleEndWorkout}
+                isQuittingWithoutSaving={isQuittingWithoutSaving}
+                isEndingWorkout={isEndingWorkout}
             />
         </div>
     );

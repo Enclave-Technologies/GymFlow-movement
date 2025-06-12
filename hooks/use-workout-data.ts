@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
     logWorkoutSet,
-    // updateWorkoutSet,
+    updateWorkoutSet,
     deleteWorkoutSet,
 } from "@/actions/workout_tracker_actions";
 import {
@@ -28,9 +28,16 @@ export function useWorkoutData({
 }: UseWorkoutDataProps) {
     const [exercises, setExercises] = useState<Exercise[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+    // Debounce timer ref
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const triggerDebouncedSaveRef = useRef<() => void>(() => {});
+    const DEBOUNCE_DELAY = 5000; // 5 seconds
 
     // Initialize reliable save system
-    const { isSaving, saveStatus, pendingOperations, queueOperation, saveNow } =
+    const { isSaving, saveStatus, pendingOperations, saveNow } =
         useReliableSave({
             workoutSessionLogId,
             onSaveSuccess: (operation) => {
@@ -91,9 +98,15 @@ export function useWorkoutData({
                                         : `${ex.restMin}-${ex.restMax}s`
                                     : "45-60s";
 
-                            // Generate initial sets based on the minimum sets
+                            // Generate initial sets based on the maximum sets (to match UI expectations)
                             const initialSets: ExerciseSet[] = [];
-                            const numSets = ex.setsMin || 3;
+                            const maxSets =
+                                ex.setsMax ||
+                                parseInt(setRange.split("-")[1] || setRange) ||
+                                3;
+                            const minSets = ex.setsMin || 3;
+                            // Use the maximum sets to determine number of initial rows
+                            const numSets = Math.max(maxSets, minSets);
 
                             for (let i = 0; i < numSets; i++) {
                                 initialSets.push({
@@ -147,8 +160,19 @@ export function useWorkoutData({
                                         id: detail.workoutDetailId,
                                         reps: detail.reps?.toString() || "",
                                         weight: detail.weight?.toString() || "",
+                                        notes: detail.coachNote || "",
                                         isNew: false, // These are existing sets
                                     })
+                                );
+
+                                console.log(
+                                    `📥 Loaded ${existingDetails.length} existing sets for ${exercise.name}:`,
+                                    existingDetails
+                                        .map(
+                                            (d) =>
+                                                `${d.reps} reps @ ${d.weight} weight`
+                                        )
+                                        .join(", ")
                                 );
                             }
                         });
@@ -177,6 +201,17 @@ export function useWorkoutData({
 
         loadWorkoutData();
     }, [initialWorkoutData, workoutSessionDetails]);
+
+    // triggerDebouncedSave will be defined after save functions
+
+    // Cleanup debounce timer on unmount
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []);
 
     const toggleExerciseExpansion = (exerciseId: string) => {
         setExercises(
@@ -226,30 +261,13 @@ export function useWorkoutData({
                 return;
             }
 
-            // Get updated values
-            const updatedSet = { ...set, [field]: value };
-            const setNumber = exercise.sets.indexOf(set) + 1;
-
-            // Queue the save operation for existing sets
-            if (!set.isNew && !setId.startsWith("temp-")) {
-                queueOperation({
-                    id: `update-${setId}-${Date.now()}`,
-                    type: "update",
-                    exerciseId,
-                    setId,
-                    data: {
-                        exerciseName: exercise.name,
-                        setNumber,
-                        reps: parseInt(updatedSet.reps) || 0,
-                        weight: parseFloat(updatedSet.weight) || 0,
-                        notes: exercise.notes,
-                        setOrderMarker: exercise.setOrderMarker,
-                    },
-                });
-            }
+            // Trigger debounced auto-save (5 seconds after last input)
+            triggerDebouncedSaveRef.current();
         },
-        [exercises, workoutSessionLogId, queueOperation]
+        [exercises, workoutSessionLogId]
     );
+
+    // autoSaveOnDefocus removed - using debounced save instead
 
     const addSet = async (exerciseId: string) => {
         if (!workoutSessionLogId) {
@@ -340,8 +358,8 @@ export function useWorkoutData({
         if (!set) return;
 
         // Update local state first
-        setExercises(
-            exercises.map((ex) =>
+        setExercises((prev) =>
+            prev.map((ex) =>
                 ex.id === exerciseId
                     ? {
                           ...ex,
@@ -391,14 +409,52 @@ export function useWorkoutData({
 
         const unsavedSets: { exercise: Exercise; set: ExerciseSet }[] = [];
 
-        // Collect all unsaved sets
+        // Collect all unsaved sets that have meaningful data (reps > 0 OR weight > 0 OR notes)
         exercises.forEach((exercise) => {
             exercise.sets.forEach((set) => {
                 if (set.isNew) {
-                    unsavedSets.push({ exercise, set });
+                    const hasReps = parseInt(set.reps) > 0;
+                    const hasWeight = parseFloat(set.weight) > 0;
+                    const hasNotes = (set.notes || "").trim().length > 0;
+                    const hasMeaningfulData = hasReps || hasWeight || hasNotes;
+
+                    if (hasMeaningfulData) {
+                        unsavedSets.push({ exercise, set });
+                    }
                 }
             });
         });
+
+        // Log the new sets data that will be created in DB
+        const newSetsData = unsavedSets.map(({ exercise, set }) => {
+            const setNumber = exercise.sets.indexOf(set) + 1;
+            return {
+                setId: set.id,
+                exerciseName: exercise.name,
+                setNumber,
+                currentData: {
+                    reps: set.reps,
+                    weight: set.weight,
+                    notes: set.notes || null,
+                    exerciseNotes: exercise.notes || null,
+                },
+                dataToSend: {
+                    workoutSessionLogId,
+                    exerciseName: exercise.name,
+                    setNumber,
+                    reps: parseInt(set.reps) || 0,
+                    weight: parseInt(set.weight) || 0,
+                    coachNote: exercise.notes,
+                    setOrderMarker: exercise.setOrderMarker,
+                },
+                isNew: set.isNew,
+            };
+        });
+
+        if (newSetsData.length > 0) {
+            console.log("🆕 NEW SETS - Sets to be created in database:");
+            console.log(JSON.stringify(newSetsData, null, 2));
+        }
 
         // Save each unsaved set
         for (const { exercise, set } of unsavedSets) {
@@ -409,7 +465,7 @@ export function useWorkoutData({
                 setNumber,
                 parseInt(set.reps) || 0,
                 parseInt(set.weight) || 0,
-                exercise.notes,
+                set.notes || undefined, // Use individual set notes, not exercise notes
                 exercise.setOrderMarker
             );
 
@@ -437,6 +493,143 @@ export function useWorkoutData({
         return unsavedSets.length;
     };
 
+    const saveAllSetDetails = async () => {
+        if (!workoutSessionLogId) {
+            throw new Error("No active workout session");
+        }
+
+        const setsToUpdate: {
+            exercise: Exercise;
+            set: ExerciseSet;
+            setNumber: number;
+        }[] = [];
+
+        // Collect all existing sets that have non-zero reps (indicating they have been worked out)
+        exercises.forEach((exercise) => {
+            exercise.sets.forEach((set, index) => {
+                // Only update existing sets (not new ones) that have non-zero reps
+                if (
+                    !set.isNew &&
+                    !set.id.startsWith("temp-") &&
+                    parseInt(set.reps) > 0
+                ) {
+                    setsToUpdate.push({
+                        exercise,
+                        set,
+                        setNumber: index + 1,
+                    });
+                }
+            });
+        });
+
+        console.log(`Found ${setsToUpdate.length} sets to update with details`);
+
+        // Log the queue data that will be sent to DB
+        const queueData = setsToUpdate.map(({ exercise, set, setNumber }) => ({
+            setId: set.id,
+            exerciseName: exercise.name,
+            setNumber,
+            currentData: {
+                reps: set.reps,
+                weight: set.weight,
+                notes: set.notes || null, // Individual set notes
+            },
+            dataToSend: {
+                reps: parseInt(set.reps) || 0,
+                weight: parseFloat(set.weight) || 0,
+                coachNote: set.notes || null, // Prioritize individual set notes
+            },
+            isNew: set.isNew,
+            isTemp: set.id.startsWith("temp-"),
+        }));
+
+        console.log("🔄 SAVE QUEUE - Sets to be updated in database:");
+        console.log(JSON.stringify(queueData, null, 2));
+
+        // Update each set with current details
+        for (const { exercise, set, setNumber } of setsToUpdate) {
+            try {
+                await updateWorkoutSet(set.id, {
+                    reps: parseInt(set.reps) || 0,
+                    weight: parseFloat(set.weight) || 0,
+                    coachNote: set.notes || null, // Use individual set notes only
+                });
+                console.log(
+                    `✅ Updated set ${setNumber} for ${exercise.name}: ${
+                        set.reps
+                    } reps @ ${set.weight} weight, notes: "${
+                        set.notes || "none"
+                    }"`
+                );
+            } catch (error) {
+                console.error(
+                    `❌ Failed to update set ${setNumber} for ${exercise.name}:`,
+                    error
+                );
+                throw error; // Re-throw to handle in the calling function
+            }
+        }
+
+        return setsToUpdate.length;
+    };
+
+    // Debounced auto-save function (defined after save functions)
+    const triggerDebouncedSave = useCallback(() => {
+        // Clear existing timer
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        // Mark as having unsaved changes
+        setHasUnsavedChanges(true);
+
+        // Set new timer
+        debounceTimerRef.current = setTimeout(async () => {
+            console.log("🔄 Debounced auto-save triggered");
+            setIsSyncing(true);
+
+            try {
+                // Save all unsaved sets (new sets)
+                const newSetsSaved = await saveUnsavedSets();
+
+                // Save all existing set details
+                const detailsSaved = await saveAllSetDetails();
+
+                // Trigger any pending queue operations
+                saveNow();
+
+                const totalSaved = newSetsSaved + detailsSaved;
+                if (totalSaved > 0) {
+                    console.log(`✅ Auto-saved ${totalSaved} changes`);
+                }
+
+                setHasUnsavedChanges(false);
+            } catch (error) {
+                console.error("❌ Auto-save failed:", error);
+            } finally {
+                setIsSyncing(false);
+            }
+        }, DEBOUNCE_DELAY);
+
+        console.log(
+            `⏱️ Auto-save scheduled in ${DEBOUNCE_DELAY / 1000} seconds`
+        );
+    }, [saveUnsavedSets, saveAllSetDetails, saveNow, DEBOUNCE_DELAY]);
+
+    // Update the ref whenever the function changes
+    useEffect(() => {
+        triggerDebouncedSaveRef.current = triggerDebouncedSave;
+    }, [triggerDebouncedSave]);
+
+    // Cleanup debounce timer on unmount
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []);
+
     return {
         exercises,
         isLoading,
@@ -446,10 +639,15 @@ export function useWorkoutData({
         deleteSet,
         updateNotes,
         saveUnsavedSets,
+        saveAllSetDetails,
         // Reliable save status
         isSaving,
         saveStatus,
         pendingOperations,
         saveNow,
+        // Debounced auto-save
+        isSyncing,
+        hasUnsavedChanges,
+        triggerDebouncedSave,
     };
 }

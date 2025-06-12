@@ -173,6 +173,65 @@ interface StartWorkoutSessionResponse {
 }
 
 /**
+ * Creates a workout session log entry with a specific ID.
+ * This is used for eager log creation when starting a workout session.
+ *
+ * @param workoutSessionLogId - The specific ID to use for the log entry
+ * @param userId - The ID of the user starting the workout
+ * @param sessionName - The name of the session being performed
+ * @returns The created workout session log entry
+ */
+export async function createWorkoutSessionLog(
+    workoutSessionLogId: string,
+    userId: string,
+    sessionName: string
+): Promise<SelectWorkoutSessionLog> {
+    noStore();
+
+    try {
+        // Check if a session with this ID already exists
+        const existingSession = await db
+            .select()
+            .from(WorkoutSessionsLog)
+            .where(
+                eq(WorkoutSessionsLog.workoutSessionLogId, workoutSessionLogId)
+            )
+            .limit(1);
+
+        if (existingSession.length > 0) {
+            console.log(
+                `Workout session log ${workoutSessionLogId} already exists`
+            );
+            return existingSession[0];
+        }
+
+        // Create a new workout session log entry with the specific ID
+        const newSessionData: InsertWorkoutSessionLog = {
+            workoutSessionLogId,
+            userId,
+            sessionName,
+            startTime: new Date(),
+            // endTime is left null until the session is completed
+        };
+
+        const result = await db
+            .insert(WorkoutSessionsLog)
+            .values(newSessionData)
+            .returning();
+
+        if (!result || result.length === 0) {
+            throw new Error("Failed to create workout session log");
+        }
+
+        console.log(`✅ Created workout session log: ${workoutSessionLogId}`);
+        return result[0];
+    } catch (error) {
+        console.error("Error creating workout session log:", error);
+        throw new Error("Failed to create workout session log");
+    }
+}
+
+/**
  * Starts a new workout session for a user and returns similar past sessions.
  * If an existing workoutSessionLogId is provided, it will not create a new session
  * but will return the past sessions.
@@ -659,7 +718,50 @@ export async function getWorkoutSessionDetails(
 }
 
 /**
- * Deletes an empty workout session (one with no workout details).
+ * Deletes an entire workout session and all its details (for active sessions).
+ * This is used when a user wants to quit without saving their current session.
+ * Unlike deleteEmptyWorkoutSession, this deletes regardless of content.
+ *
+ * @param workoutSessionLogId - The ID of the workout session log to delete
+ * @returns Boolean indicating success
+ */
+export async function deleteActiveWorkoutSession(
+    workoutSessionLogId: string
+): Promise<boolean> {
+    noStore();
+
+    try {
+        // First delete all workout details associated with this session
+        await db
+            .delete(WorkoutSessionDetails)
+            .where(
+                eq(
+                    WorkoutSessionDetails.workoutSessionLogId,
+                    workoutSessionLogId
+                )
+            );
+
+        // Then delete the session itself
+        const result = await db
+            .delete(WorkoutSessionsLog)
+            .where(
+                eq(WorkoutSessionsLog.workoutSessionLogId, workoutSessionLogId)
+            )
+            .returning({ deletedId: WorkoutSessionsLog.workoutSessionLogId });
+
+        console.log(
+            `✅ Deleted active workout session and all details: ${workoutSessionLogId}`
+        );
+        return result.length > 0;
+    } catch (error) {
+        console.error("Error deleting active workout session:", error);
+        throw new Error("Failed to delete active workout session");
+    }
+}
+
+/**
+ * Deletes an empty workout session (one with no meaningful workout details).
+ * A session is considered empty if it has no details OR all details have 0 reps.
  * This is useful for cleaning up sessions that were started but abandoned.
  *
  * @param workoutSessionLogId - The ID of the workout session log to delete
@@ -671,23 +773,40 @@ export async function deleteEmptyWorkoutSession(
     noStore();
 
     try {
-        // First check if the session has any workout details
-        const details = await db
-            .select({ count: WorkoutSessionDetails.workoutDetailId })
+        // Check if the session has any workout details with non-zero reps
+        const meaningfulDetails = await db
+            .select({
+                workoutDetailId: WorkoutSessionDetails.workoutDetailId,
+                reps: WorkoutSessionDetails.reps,
+            })
             .from(WorkoutSessionDetails)
+            .where(
+                and(
+                    eq(
+                        WorkoutSessionDetails.workoutSessionLogId,
+                        workoutSessionLogId
+                    ),
+                    // Only consider details with reps > 0 as meaningful
+                    gte(WorkoutSessionDetails.reps, 1)
+                )
+            );
+
+        if (meaningfulDetails.length > 0) {
+            console.warn(
+                `Cannot delete workout session ${workoutSessionLogId} - it has ${meaningfulDetails.length} sets with recorded reps`
+            );
+            return false;
+        }
+
+        // Delete any existing details with 0 reps first (cleanup)
+        await db
+            .delete(WorkoutSessionDetails)
             .where(
                 eq(
                     WorkoutSessionDetails.workoutSessionLogId,
                     workoutSessionLogId
                 )
             );
-
-        if (details.length > 0) {
-            console.warn(
-                `Cannot delete workout session ${workoutSessionLogId} - it has workout details`
-            );
-            return false;
-        }
 
         // Delete the empty workout session
         const result = await db
@@ -697,6 +816,7 @@ export async function deleteEmptyWorkoutSession(
             )
             .returning({ deletedId: WorkoutSessionsLog.workoutSessionLogId });
 
+        console.log(`✅ Deleted empty workout session ${workoutSessionLogId}`);
         return result.length > 0;
     } catch (error) {
         console.error("Error deleting empty workout session:", error);

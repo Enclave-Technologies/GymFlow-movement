@@ -270,7 +270,7 @@ export async function WorkoutDataFetcher({
         entryTime: string | Date | null;
         [key: string]: unknown;
     }[] = [];
-    
+
     if (newWorkoutSessionLogId) {
         try {
             workoutSessionDetails = await getWorkoutSessionDetails(

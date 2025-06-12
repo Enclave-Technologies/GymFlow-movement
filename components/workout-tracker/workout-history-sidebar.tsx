@@ -99,7 +99,7 @@ export function WorkoutHistorySidebar({
                                 {exerciseGroup.order}. {exerciseGroup.name}
                             </h4>
                             <div className="overflow-x-auto text-xs">
-                                <table className="w-full min-w-[150px]">
+                                <table className="w-full min-w-[200px]">
                                     <thead>
                                         <tr className="bg-card bg-opacity-50">
                                             <th className="py-1 px-2 text-left whitespace-nowrap">
@@ -110,6 +110,9 @@ export function WorkoutHistorySidebar({
                                             </th>
                                             <th className="py-1 px-2 text-center whitespace-nowrap">
                                                 Kg
+                                            </th>
+                                            <th className="py-1 px-2 text-left whitespace-nowrap">
+                                                Notes
                                             </th>
                                         </tr>
                                     </thead>
@@ -128,12 +131,15 @@ export function WorkoutHistorySidebar({
                                                 <td className="py-1 px-2 text-center whitespace-nowrap">
                                                     {set.weight}
                                                 </td>
+                                                <td className="py-1 px-2 text-left text-xs max-w-[100px] truncate">
+                                                    {set.coachNote || "-"}
+                                                </td>
                                             </tr>
                                         ))}
                                         {exerciseGroup.sets.length === 0 && (
                                             <tr>
                                                 <td
-                                                    colSpan={3}
+                                                    colSpan={4}
                                                     className="py-1 px-2 text-center text-muted-foreground"
                                                 >
                                                     No details recorded

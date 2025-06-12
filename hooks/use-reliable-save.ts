@@ -47,6 +47,7 @@ export function useReliableSave({
     const saveQueueRef = useRef<SaveOperation[]>([]);
     const isProcessingRef = useRef(false);
     const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const processQueueRef = useRef<() => void>(() => {});
 
     // Local storage key for offline backup
     const localStorageKey = `workout-backup-${workoutSessionLogId}`;
@@ -204,6 +205,11 @@ export function useReliableSave({
         scheduleRetry,
     ]);
 
+    // Update the ref whenever processQueue changes
+    useEffect(() => {
+        processQueueRef.current = processQueue;
+    }, [processQueue]);
+
     // Load from local storage on mount
     useEffect(() => {
         if (!workoutSessionLogId) return;
@@ -215,14 +221,14 @@ export function useReliableSave({
                 if (operations && operations.length > 0) {
                     setPendingOperations(operations);
                     saveQueueRef.current = [...operations];
-                    // Auto-process pending operations
-                    processQueue();
+                    // Auto-process pending operations (use ref to avoid dependency loop)
+                    processQueueRef.current();
                 }
             }
         } catch (error) {
             console.error("Failed to load from localStorage:", error);
         }
-    }, [workoutSessionLogId, localStorageKey, processQueue]);
+    }, [workoutSessionLogId, localStorageKey]); // Removed processQueue dependency
 
     // Add operation to queue
     const queueOperation = useCallback(

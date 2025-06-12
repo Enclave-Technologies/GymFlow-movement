@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Clock, X, History, Save, User } from "lucide-react";
+import { Clock, X, History, User } from "lucide-react";
 
 interface Exercise {
     setOrderMarker?: string;
@@ -18,12 +18,10 @@ interface WorkoutHeaderProps {
     timer: string;
     showPastWorkouts: boolean;
     pastSessionsCount: number;
-    isSaving: boolean;
     saveStatus: "idle" | "saving" | "saved" | "error";
     pendingOperations: number;
     onExit: () => void;
     onTogglePastWorkouts: () => void;
-    onSave: () => void;
 }
 
 export function WorkoutHeader({
@@ -35,12 +33,10 @@ export function WorkoutHeader({
     timer,
     showPastWorkouts,
     pastSessionsCount,
-    isSaving,
     saveStatus,
     pendingOperations,
     onExit,
     onTogglePastWorkouts,
-    onSave,
 }: WorkoutHeaderProps) {
     const getStatusMessage = () => {
         if (pendingOperations > 0) {
@@ -78,9 +74,9 @@ export function WorkoutHeader({
                 {/* Left side - Exit button */}
                 <div className="flex items-center">
                     <Button
-                        variant="outline"
+                        variant="destructive"
                         size="lg"
-                        className="cursor-pointer border-border hover:bg-muted h-10 px-4"
+                        className="h-10 px-4"
                         onClick={onExit}
                     >
                         <X className="h-5 w-5 mr-2" /> Exit
@@ -118,7 +114,7 @@ export function WorkoutHeader({
                             <Button
                                 variant="outline"
                                 size="lg"
-                                className="text-foreground border-border hover:bg-muted cursor-pointer h-10 px-4"
+                                className="h-10 px-4"
                                 onClick={onTogglePastWorkouts}
                             >
                                 <History className="h-5 w-5 mr-2" />
@@ -132,31 +128,7 @@ export function WorkoutHeader({
                                 </span>
                             </Button>
                         )}
-                        <Button
-                            variant="outline"
-                            size="lg"
-                            className="text-foreground border-border hover:bg-muted cursor-pointer h-10 px-4"
-                            onClick={onSave}
-                            disabled={isSaving}
-                        >
-                            {isSaving ? (
-                                <>
-                                    <div className="h-5 w-5 mr-2 rounded-full border-2 border-foreground border-t-transparent animate-spin"></div>
-                                    <span className="hidden sm:inline">
-                                        Please wait...
-                                    </span>
-                                    <span className="sm:hidden">Wait...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="h-5 w-5 mr-2" />
-                                    <span className="hidden sm:inline">
-                                        Save
-                                    </span>
-                                    <span className="sm:hidden">Save</span>
-                                </>
-                            )}
-                        </Button>
+                        {/* Save button removed - using auto-save instead */}
                     </div>
                 </div>
             </div>

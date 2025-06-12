@@ -26,14 +26,9 @@ export function EnhancedExerciseCard({
     onAddSet,
     onDeleteSet,
 }: EnhancedExerciseCardProps) {
-    // Calculate max reps for initial table rows
+    // Calculate max reps for input validation only
     const maxReps =
         parseInt(exercise.repRange.split("-")[1] || exercise.repRange) || 12;
-    const targetSets =
-        parseInt(exercise.setRange.split("-")[1] || exercise.setRange) || 3;
-
-    // Ensure we have at least the target number of sets
-    const setsToShow = Math.max(exercise.sets.length, targetSets);
 
     return (
         <div className="mb-6 bg-card rounded-lg overflow-hidden shadow-md border border-border">
@@ -162,124 +157,89 @@ export function EnhancedExerciseCard({
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {Array.from(
-                                        { length: setsToShow },
-                                        (_, index) => {
-                                            const set = exercise.sets[index];
-                                            const setNumber = index + 1;
-
-                                            return (
-                                                <tr
-                                                    key={
-                                                        set?.id ||
-                                                        `empty-${index}`
-                                                    }
-                                                    className="border-b border-border hover:bg-muted/30 transition-colors"
-                                                >
-                                                    <td className="py-3 px-2">
-                                                        <span className="font-medium text-primary">
-                                                            {setNumber}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-3 px-2">
-                                                        <Input
-                                                            type="number"
-                                                            min="0"
-                                                            max={maxReps * 2}
-                                                            className="w-20 h-10"
-                                                            value={
-                                                                set?.reps || ""
-                                                            }
-                                                            onChange={(e) => {
-                                                                if (set) {
-                                                                    onUpdateSetValue(
-                                                                        exercise.id,
-                                                                        set.id,
-                                                                        "reps",
-                                                                        e.target
-                                                                            .value
-                                                                    );
-                                                                } else {
-                                                                    // Create new set if it doesn't exist
-                                                                    onAddSet(
-                                                                        exercise.id
-                                                                    );
-                                                                }
-                                                            }}
-                                                            placeholder="0"
-                                                        />
-                                                    </td>
-                                                    <td className="py-3 px-2">
-                                                        <Input
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.5"
-                                                            className="w-24 h-10"
-                                                            value={
-                                                                set?.weight ||
-                                                                ""
-                                                            }
-                                                            onChange={(e) => {
-                                                                if (set) {
-                                                                    onUpdateSetValue(
-                                                                        exercise.id,
-                                                                        set.id,
-                                                                        "weight",
-                                                                        e.target
-                                                                            .value
-                                                                    );
-                                                                } else {
-                                                                    // Create new set if it doesn't exist
-                                                                    onAddSet(
-                                                                        exercise.id
-                                                                    );
-                                                                }
-                                                            }}
-                                                            placeholder="0"
-                                                        />
-                                                    </td>
-                                                    <td className="py-3 px-2">
-                                                        <Input
-                                                            type="text"
-                                                            className="w-32 h-10"
-                                                            value={
-                                                                set?.notes || ""
-                                                            }
-                                                            onChange={(e) => {
-                                                                if (set) {
-                                                                    onUpdateSetValue(
-                                                                        exercise.id,
-                                                                        set.id,
-                                                                        "notes",
-                                                                        e.target
-                                                                            .value
-                                                                    );
-                                                                }
-                                                            }}
-                                                            placeholder="Notes..."
-                                                        />
-                                                    </td>
-                                                    <td className="py-3 px-2 text-right">
-                                                        {set && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer h-10 w-10 p-0"
-                                                                onClick={() =>
-                                                                    onDeleteSet(
-                                                                        exercise.id,
-                                                                        set.id
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        }
-                                    )}
+                                    {/* Render ONLY existing sets - no empty rows, no filling up */}
+                                    {exercise.sets.map((set, index) => {
+                                        const setNumber = index + 1;
+                                        return (
+                                            <tr
+                                                key={set.id}
+                                                className="border-b border-border hover:bg-muted/30 transition-colors"
+                                            >
+                                                <td className="py-3 px-2">
+                                                    <span className="font-medium text-primary">
+                                                        {setNumber}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-2">
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        max={maxReps * 2}
+                                                        className="w-20 h-10"
+                                                        value={set.reps || ""}
+                                                        onChange={(e) => {
+                                                            onUpdateSetValue(
+                                                                exercise.id,
+                                                                set.id,
+                                                                "reps",
+                                                                e.target.value
+                                                            );
+                                                        }}
+                                                        placeholder="0"
+                                                    />
+                                                </td>
+                                                <td className="py-3 px-2">
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.5"
+                                                        className="w-24 h-10"
+                                                        value={set.weight || ""}
+                                                        onChange={(e) => {
+                                                            onUpdateSetValue(
+                                                                exercise.id,
+                                                                set.id,
+                                                                "weight",
+                                                                e.target.value
+                                                            );
+                                                        }}
+                                                        placeholder="0"
+                                                    />
+                                                </td>
+                                                <td className="py-3 px-2">
+                                                    <Input
+                                                        type="text"
+                                                        className="w-32 h-10"
+                                                        value={set.notes || ""}
+                                                        onChange={(e) => {
+                                                            onUpdateSetValue(
+                                                                exercise.id,
+                                                                set.id,
+                                                                "notes",
+                                                                e.target.value
+                                                            );
+                                                        }}
+                                                        placeholder="Notes..."
+                                                    />
+                                                </td>
+                                                <td className="py-3 px-2 text-right">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer h-10 w-10 p-0"
+                                                        onClick={() =>
+                                                            onDeleteSet(
+                                                                exercise.id,
+                                                                set.id
+                                                            )
+                                                        }
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
