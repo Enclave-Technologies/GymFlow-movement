@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { v4 as uuidv4 } from "uuid";
+import { toast } from "sonner";
 import { Phase, Session, Exercise } from "./types";
 import type { SelectExercise } from "@/db/schemas";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
@@ -10,6 +12,7 @@ import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDial
 import ExerciseTableInline from "./UI-components/ExerciseTableInline";
 import { fetchWorkoutPlan } from "./workout-utils/workout-utils";
 import { createWorkoutPlan } from "@/actions/workout_plan_actions";
+import { createWorkoutSessionLog } from "@/actions/workout_tracker_actions";
 import { createWorkoutPlanHandlers } from "./workout-plan-handlers";
 import { useWorkoutPlanValidation } from "./workout-plan-hooks";
 import { useWorkoutPlanCacheInvalidation } from "./hooks/use-workout-plan-cache";
@@ -280,19 +283,43 @@ export default function WorkoutPlanner({
 
                 if (!phase || !session) {
                     console.error("Session or phase not found");
+                    toast.error("Session not found");
                     return;
                 }
 
-                // Navigate to record-workout page with session parameters
+                // Show immediate feedback to user
+                toast.info("Starting workout session...");
+
+                // Generate a unique workout session log ID
+                const workoutSessionLogId = uuidv4();
+                console.log(
+                    `🚀 Creating workout session log: ${workoutSessionLogId}`
+                );
+
+                // Create the workout session log entry immediately
+                await createWorkoutSessionLog(
+                    workoutSessionLogId,
+                    client_id,
+                    session.name
+                );
+
+                console.log(`✅ Workout session log created successfully`);
+                toast.success("Workout session created! Loading workout...");
+
+                // Navigate to record-workout page with session parameters including the log ID
                 const searchParams = new URLSearchParams({
                     clientId: client_id,
                     phaseId: phase.id,
                     sessionId: session.id,
+                    workoutSessionLogId: workoutSessionLogId,
                 });
 
                 router.push(`/record-workout?${searchParams.toString()}`);
             } catch (error) {
                 console.error("Error starting session:", error);
+                toast.error(
+                    "Failed to start workout session. Please try again."
+                );
             } finally {
                 setStartingSessionId(null);
             }
