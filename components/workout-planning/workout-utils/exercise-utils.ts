@@ -19,7 +19,7 @@ export function addExercise(
         // Legacy fields for backward compatibility
         sets: "3-5",
         reps: "8-12",
-        rest: "45-60",
+        rest: "0",
         // New fields
         setsMin: "3",
         setsMax: "5",

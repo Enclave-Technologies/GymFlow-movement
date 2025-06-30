@@ -1685,31 +1685,120 @@ export async function updateClient(
             }`.trim();
         }
 
+        // Get current client data to check for email addition
+        const currentClient = await db
+            .select({
+                userId: Users.userId,
+                email: Users.email,
+                has_auth: Users.has_auth,
+                appwrite_id: Users.appwrite_id,
+                fullName: Users.fullName,
+            })
+            .from(Users)
+            .where(eq(Users.userId, clientId))
+            .limit(1);
+
+        if (currentClient.length === 0) {
+            throw new Error("Client not found");
+        }
+
+        const originalClient = currentClient[0];
+
+        // Check if email is being added (client previously had no email, now has one)
+        const isEmailBeingAdded =
+            (!originalClient.email || originalClient.email.trim() === "") &&
+            clientData.email &&
+            clientData.email.trim() !== "";
+
+        console.log("Email being added:", isEmailBeingAdded, {
+            originalEmail: originalClient.email,
+            newEmail: clientData.email,
+            hasAuth: originalClient.has_auth,
+        });
+
+        // If email is being added, create Appwrite account
+        if (isEmailBeingAdded && clientData.email) {
+            try {
+                // Get Appwrite admin client
+                const { appwrite_user } = await createAdminClient();
+
+                // Check if user already exists in Appwrite (safety check)
+                const existingAppwriteUser = await appwrite_user.list([
+                    Query.equal("email", [clientData.email]),
+                ]);
+
+                if (existingAppwriteUser.total > 0) {
+                    throw new Error(
+                        "Email already exists in Appwrite authentication system"
+                    );
+                }
+
+                // Create Appwrite user with default password
+                await appwrite_user.create(
+                    clientId, // Use existing userId as appwrite ID
+                    clientData.email, // email
+                    undefined, // phone (optional)
+                    "password", // default password
+                    fullName || originalClient.fullName // name
+                );
+
+                console.log(
+                    `Created Appwrite account for existing client: ${clientId}`
+                );
+            } catch (error) {
+                // Handle Appwrite account creation errors
+                if (error instanceof AppwriteException) {
+                    if (error.code === 409) {
+                        throw new Error(
+                            "Email already exists in Appwrite but client doesn't have authentication enabled"
+                        );
+                    }
+                }
+                console.error(
+                    "Error creating Appwrite account for existing client:",
+                    error
+                );
+                throw new Error(
+                    "Failed to create authentication account for client"
+                );
+            }
+        }
+
         // Update user record
         await db.transaction(async (tx) => {
             // 1. Update the user details
+            const updateData: Partial<typeof Users.$inferInsert> = {
+                fullName: fullName || undefined,
+                email: clientData.email || null,
+                phone: clientData.phoneNumber || null,
+                notes: clientData.coachNotes || null,
+                gender:
+                    (clientData.gender as
+                        | "male"
+                        | "female"
+                        | "non-binary"
+                        | "prefer-not-to-say") || null,
+                dob: clientData.dateOfBirth
+                    ? new Date(clientData.dateOfBirth)
+                    : null,
+                idealWeight: clientData.idealWeight || null,
+                emergencyContactName: clientData.emergencyContactName || null,
+                emergencyContactPhone: clientData.emergencyContactPhone || null,
+            };
+
+            // If email is being added, also update authentication flags
+            if (isEmailBeingAdded) {
+                updateData.has_auth = true;
+                updateData.appwrite_id = clientId;
+                console.log(
+                    "Setting authentication flags for client:",
+                    clientId
+                );
+            }
+
             await tx
                 .update(Users)
-                .set({
-                    fullName: fullName || undefined,
-                    email: clientData.email || null,
-                    phone: clientData.phoneNumber || null,
-                    notes: clientData.coachNotes || null,
-                    gender:
-                        (clientData.gender as
-                            | "male"
-                            | "female"
-                            | "non-binary"
-                            | "prefer-not-to-say") || null,
-                    dob: clientData.dateOfBirth
-                        ? new Date(clientData.dateOfBirth)
-                        : null,
-                    idealWeight: clientData.idealWeight || null,
-                    emergencyContactName:
-                        clientData.emergencyContactName || null,
-                    emergencyContactPhone:
-                        clientData.emergencyContactPhone || null,
-                })
+                .set(updateData)
                 .where(eq(Users.userId, clientId));
 
             // 2. Update trainer relationship if trainerId is provided

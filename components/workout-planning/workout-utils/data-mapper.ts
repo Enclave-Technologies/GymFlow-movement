@@ -20,7 +20,7 @@ export function addExerciseDefaults(exercise: Partial<Exercise>): Exercise {
         // Legacy fields for backward compatibility
         sets: exercise.sets || "3-5",
         reps: exercise.reps || "8-12",
-        rest: exercise.rest || "45-60",
+        rest: exercise.rest || "0",
 
         // New fields with defaults
         setsMin: exercise.setsMin || "3",
