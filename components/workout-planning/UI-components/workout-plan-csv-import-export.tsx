@@ -53,13 +53,86 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Check if export should be disabled due to incomplete data
+    const isExportDisabled = () => {
+        if (disabled) return true;
+        if (!phases || phases.length === 0) return true;
+
+        // Check if there are any exercises to export
+        const totalExercises = phases.reduce(
+            (acc, phase) =>
+                acc +
+                phase.sessions.reduce(
+                    (sessionAcc, session) =>
+                        sessionAcc + session.exercises.length,
+                    0
+                ),
+            0
+        );
+
+        return totalExercises === 0;
+    };
+
     const handleExport = () => {
+        // Check if we have valid data to export
+        if (!phases || phases.length === 0) {
+            toast.error("No workout plan data available to export");
+            return;
+        }
+
+        // Count total exercises to give user feedback
+        const totalExercises = phases.reduce(
+            (acc, phase) =>
+                acc +
+                phase.sessions.reduce(
+                    (sessionAcc, session) =>
+                        sessionAcc + session.exercises.length,
+                    0
+                ),
+            0
+        );
+
+        if (totalExercises === 0) {
+            toast.error("No exercises found in the workout plan to export");
+            return;
+        }
+
+        // Check for phases without sessions or sessions without exercises
+        const phasesWithSessions = phases.filter(
+            (phase) => phase.sessions && phase.sessions.length > 0
+        );
+        if (phasesWithSessions.length === 0) {
+            toast.error("No phases with sessions found to export");
+            return;
+        }
+
+        const sessionsWithExercises = phasesWithSessions.reduce(
+            (acc, phase) =>
+                acc +
+                phase.sessions.filter(
+                    (session) =>
+                        session.exercises && session.exercises.length > 0
+                ).length,
+            0
+        );
+
+        if (sessionsWithExercises === 0) {
+            toast.error("No sessions with exercises found to export");
+            return;
+        }
+
         try {
             downloadWorkoutPlanCsv(phases, `workout-plan-${clientId}.csv`);
-            toast.success("Workout plan exported successfully");
+            toast.success(
+                `Workout plan exported successfully (${totalExercises} exercises from ${phasesWithSessions.length} phases)`
+            );
         } catch (err) {
             console.error("Error exporting workout plan:", err);
-            toast.error("Failed to export workout plan");
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to export workout plan";
+            toast.error(errorMessage);
         }
     };
 
@@ -118,7 +191,7 @@ const WorkoutPlanCsvImportExport: React.FC<WorkoutPlanCsvImportExportProps> = ({
                     size="sm"
                     onClick={handleExport}
                     className="flex items-center gap-2 h-10"
-                    disabled={disabled}
+                    disabled={isExportDisabled()}
                 >
                     <Upload className="h-4 w-4" />
                     Export CSV

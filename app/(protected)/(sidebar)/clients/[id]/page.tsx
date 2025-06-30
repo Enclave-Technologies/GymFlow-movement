@@ -20,6 +20,7 @@ import ClientTabs from "@/components/client-tabs/client-tabs";
 import { safeImageUrl } from "@/lib/utils";
 import Link from "next/link";
 import { Metadata } from "next";
+import { LinkifiedText } from "@/components/ui/linkified-text";
 
 type PageProps = {
     params: Promise<{
@@ -169,7 +170,11 @@ export default async function ClientProfilePage({ params }: PageProps) {
                                 Notes
                             </div>
                             <div className="text-foreground text-sm overflow-y-auto break-words max-h-32 p-2 border border-muted rounded-md bg-muted">
-                                {client.notes || "No notes available"}
+                                <LinkifiedText
+                                    text={client.notes || ""}
+                                    fallback="No notes available"
+                                    linkClassName="text-blue-500 hover:text-blue-700"
+                                />
                             </div>
                         </div>
 

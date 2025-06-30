@@ -96,7 +96,7 @@ export function useWorkoutData({
                                     ? ex.restMin === ex.restMax
                                         ? `${ex.restMin}s`
                                         : `${ex.restMin}-${ex.restMax}s`
-                                    : "45-60s";
+                                    : "0s";
 
                             // Generate initial sets based on the maximum sets (to match UI expectations)
                             const initialSets: ExerciseSet[] = [];

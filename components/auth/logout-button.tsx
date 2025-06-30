@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 // import { cn } from "@/lib/utils";
 import {
     AlertDialog,
@@ -27,15 +26,20 @@ export function LogoutButton({
 }) {
     const [isLoading, setIsLoading] = useState(false);
 
-    const router = useRouter();
-
     const handleLogout = async () => {
+        if (isLoading) return; // Prevent multiple logout attempts
+
         setIsLoading(true);
         try {
             const redirectPath = await logout();
-            router.push(redirectPath);
+            // Use window.location instead of router.push for more reliable logout
+            window.location.href = redirectPath;
+        } catch (error) {
+            console.error("Logout error:", error);
+            // Even if logout fails, redirect to login page
+            window.location.href = "/login";
         } finally {
-            setIsLoading(false);
+            // Don't set loading to false here since we're redirecting
         }
     };
 

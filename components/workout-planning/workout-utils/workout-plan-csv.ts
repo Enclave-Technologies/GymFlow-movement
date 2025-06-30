@@ -19,11 +19,73 @@ export interface WorkoutPlanCsvRow {
 }
 
 /**
+ * Validates that the workout plan data is complete before export
+ * @param phases The workout plan phases to validate
+ * @returns Object with isValid boolean and error message if invalid
+ */
+function validateWorkoutPlanForExport(phases: Phase[]): {
+    isValid: boolean;
+    error?: string;
+} {
+    if (!phases || phases.length === 0) {
+        return { isValid: false, error: "No workout plan data to export" };
+    }
+
+    // Check for phases without sessions
+    const phasesWithoutSessions = phases.filter(
+        (phase) => !phase.sessions || phase.sessions.length === 0
+    );
+    if (phasesWithoutSessions.length === phases.length) {
+        return { isValid: false, error: "No sessions found in workout plan" };
+    }
+
+    // Check for incomplete phase data
+    for (const phase of phases) {
+        if (!phase.name || phase.name.trim() === "") {
+            return { isValid: false, error: "Found phases with missing names" };
+        }
+
+        if (phase.sessions && phase.sessions.length > 0) {
+            for (const session of phase.sessions) {
+                if (!session.name || session.name.trim() === "") {
+                    return {
+                        isValid: false,
+                        error: "Found sessions with missing names",
+                    };
+                }
+
+                if (session.exercises && session.exercises.length > 0) {
+                    for (const exercise of session.exercises) {
+                        if (
+                            !exercise.description ||
+                            exercise.description.trim() === ""
+                        ) {
+                            return {
+                                isValid: false,
+                                error: "Found exercises with missing descriptions",
+                            };
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return { isValid: true };
+}
+
+/**
  * Converts workout plan phases to CSV format
  * @param phases The workout plan phases to convert
  * @returns CSV string representation of the workout plan
  */
 export function exportWorkoutPlanToCsv(phases: Phase[]): string {
+    // Validate data before export
+    const validation = validateWorkoutPlanForExport(phases);
+    if (!validation.isValid) {
+        throw new Error(validation.error || "Invalid workout plan data");
+    }
+
     // Define CSV header
     const header = [
         "PhaseName",
@@ -42,10 +104,36 @@ export function exportWorkoutPlanToCsv(phases: Phase[]): string {
 
     // Convert phases to CSV rows
     const rows: string[] = [];
+    let totalExercisesExported = 0;
 
     phases.forEach((phase) => {
+        // Skip phases without sessions
+        if (!phase.sessions || phase.sessions.length === 0) {
+            console.warn(`Skipping phase "${phase.name}" - no sessions found`);
+            return;
+        }
+
         phase.sessions.forEach((session) => {
+            // Skip sessions without exercises
+            if (!session.exercises || session.exercises.length === 0) {
+                console.warn(
+                    `Skipping session "${session.name}" in phase "${phase.name}" - no exercises found`
+                );
+                return;
+            }
+
             session.exercises.forEach((exercise) => {
+                // Skip exercises without description
+                if (
+                    !exercise.description ||
+                    exercise.description.trim() === ""
+                ) {
+                    console.warn(
+                        `Skipping exercise with missing description in session "${session.name}"`
+                    );
+                    return;
+                }
+
                 const row = [
                     phase.name,
                     session.name,
@@ -67,9 +155,21 @@ export function exportWorkoutPlanToCsv(phases: Phase[]): string {
                     .join(",");
 
                 rows.push(row);
+                totalExercisesExported++;
             });
         });
     });
+
+    // Verify we have exported some data
+    if (rows.length === 0) {
+        throw new Error(
+            "No exercises found to export. Please ensure your workout plan has phases with sessions and exercises."
+        );
+    }
+
+    console.log(
+        `Successfully exported ${totalExercisesExported} exercises from ${phases.length} phases`
+    );
 
     // Combine header and rows
     return [header, ...rows].join("\n");
@@ -436,4 +536,69 @@ export function downloadExercisesCsv(
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+}
+
+/**
+ * Debug utility to log workout plan structure for troubleshooting
+ * @param phases The workout plan phases to analyze
+ * @param clientId Optional client ID for logging context
+ */
+export function debugWorkoutPlanStructure(
+    phases: Phase[],
+    clientId?: string
+): void {
+    const prefix = clientId ? `[Client ${clientId}]` : "[Workout Plan Debug]";
+
+    console.group(`${prefix} Workout Plan Structure Analysis`);
+    console.log(`Total phases: ${phases.length}`);
+
+    if (phases.length === 0) {
+        console.warn("No phases found");
+        console.groupEnd();
+        return;
+    }
+
+    let totalSessions = 0;
+    let totalExercises = 0;
+    let phasesWithoutSessions = 0;
+    let sessionsWithoutExercises = 0;
+
+    phases.forEach((phase, phaseIndex) => {
+        const sessionCount = phase.sessions?.length || 0;
+        totalSessions += sessionCount;
+
+        if (sessionCount === 0) {
+            phasesWithoutSessions++;
+            console.warn(
+                `Phase ${phaseIndex + 1} (${phase.name}) has no sessions`
+            );
+        }
+
+        phase.sessions?.forEach((session, sessionIndex) => {
+            const exerciseCount = session.exercises?.length || 0;
+            totalExercises += exerciseCount;
+
+            if (exerciseCount === 0) {
+                sessionsWithoutExercises++;
+                console.warn(
+                    `Session ${sessionIndex + 1} (${session.name}) in phase "${
+                        phase.name
+                    }" has no exercises`
+                );
+            }
+        });
+    });
+
+    console.log(`Total sessions: ${totalSessions}`);
+    console.log(`Total exercises: ${totalExercises}`);
+    console.log(`Phases without sessions: ${phasesWithoutSessions}`);
+    console.log(`Sessions without exercises: ${sessionsWithoutExercises}`);
+
+    if (totalExercises === 0) {
+        console.error("❌ No exercises found - export will fail");
+    } else {
+        console.log("✅ Workout plan structure looks valid for export");
+    }
+
+    console.groupEnd();
 }

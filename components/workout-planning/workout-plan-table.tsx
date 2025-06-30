@@ -20,8 +20,12 @@ import {
 import { Clock, Dumbbell, Loader2, Download, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { useWorkoutPlanCache } from "./hooks/use-workout-plan-cache";
-import { downloadWorkoutPlanCsv } from "./workout-utils/workout-plan-csv";
+import {
+    downloadWorkoutPlanCsv,
+    debugWorkoutPlanStructure,
+} from "./workout-utils/workout-plan-csv";
 import { toast } from "sonner";
+import { LinkifiedText } from "@/components/ui/linkified-text";
 
 interface WorkoutPlanTableProps {
     client_id: string;
@@ -52,12 +56,62 @@ WorkoutPlanTableProps) {
 
     // Handle download functionality
     const handleDownload = () => {
+        // Prevent export if data is still loading
+        if (loading) {
+            toast.error(
+                "Please wait for the workout plan to finish loading before exporting"
+            );
+            return;
+        }
+
+        // Prevent export if cache is stale
+        if (isStale) {
+            toast.error(
+                "Workout plan data is outdated. Please refresh the page and try again."
+            );
+            return;
+        }
+
+        // Check if we have valid data to export
+        if (!phases || phases.length === 0) {
+            toast.error("No workout plan data available to export");
+            return;
+        }
+
+        // Count total exercises to give user feedback
+        const totalExercises = phases.reduce(
+            (acc, phase) =>
+                acc +
+                phase.sessions.reduce(
+                    (sessionAcc, session) =>
+                        sessionAcc + session.exercises.length,
+                    0
+                ),
+            0
+        );
+
+        if (totalExercises === 0) {
+            toast.error("No exercises found in the workout plan to export");
+            return;
+        }
+
         try {
+            // Debug logging in development
+            if (process.env.NODE_ENV === "development") {
+                debugWorkoutPlanStructure(phases, client_id);
+            }
+
             downloadWorkoutPlanCsv(phases, `workout-plan-${client_id}.csv`);
-            toast.success("Workout plan downloaded successfully");
+            toast.success(
+                `Workout plan exported successfully (${totalExercises} exercises)`
+            );
         } catch (err) {
             console.error("Error downloading workout plan:", err);
-            toast.error("Failed to download workout plan");
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to download workout plan";
+            toast.error(errorMessage);
         }
     };
 
@@ -113,6 +167,7 @@ WorkoutPlanTableProps) {
                             size="sm"
                             onClick={handleDownload}
                             className="flex items-center gap-2"
+                            disabled={loading || isStale || phases.length === 0}
                         >
                             <Download className="h-4 w-4" />
                             Download CSV
@@ -266,10 +321,14 @@ WorkoutPlanTableProps) {
                                                                             "-"}
                                                                     </TableCell>
                                                                     <TableCell className="text-xs text-gray-600">
-                                                                        {exercise.notes ||
-                                                                            exercise.additionalInfo ||
-                                                                            exercise.customizations ||
-                                                                            "-"}
+                                                                        <LinkifiedText
+                                                                            text={
+                                                                                exercise.notes ||
+                                                                                exercise.additionalInfo ||
+                                                                                exercise.customizations ||
+                                                                                "-"
+                                                                            }
+                                                                        />
                                                                     </TableCell>
                                                                 </TableRow>
                                                             )

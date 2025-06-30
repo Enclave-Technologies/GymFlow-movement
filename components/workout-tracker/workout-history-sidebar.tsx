@@ -129,10 +129,20 @@ export function WorkoutHistorySidebar({
                                                     {set.reps}
                                                 </td>
                                                 <td className="py-1 px-2 text-center whitespace-nowrap">
-                                                    {set.weight}
+                                                    {typeof set.weight ===
+                                                    "number"
+                                                        ? set.weight.toFixed(1)
+                                                        : set.weight}
                                                 </td>
-                                                <td className="py-1 px-2 text-left text-xs max-w-[100px] truncate">
-                                                    {set.coachNote || "-"}
+                                                <td className="py-1 px-2 text-left text-xs">
+                                                    <div
+                                                        className="max-w-[150px] break-words"
+                                                        title={
+                                                            set.coachNote || ""
+                                                        }
+                                                    >
+                                                        {set.coachNote || "-"}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
