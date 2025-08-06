@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { WorkoutDataFetcher } from "./server-component";
 import RecordWorkoutClient from "./client-component";
+import { getAllExercisesForWorkoutPlanning } from "@/actions/exercise_actions";
 
 // This is the server component that handles the initial data fetching
 export default async function RecordWorkoutPage({
@@ -12,7 +13,7 @@ export default async function RecordWorkoutPage({
     const phaseId = (await searchParams).phaseId as string;
     const clientId = (await searchParams).clientId as string;
     const workoutSessionLogId = (await searchParams)
-        .workoutSessionLogId as string;
+        .workoutSessionLogId as string;        
 
     if (!sessionId) {
         return (
@@ -67,9 +68,11 @@ async function WorkoutDataFetcherWrapper({
         clientId,
         workoutSessionLogId,
     });
+    const allExercises = await getAllExercisesForWorkoutPlanning();
 
     return (
         <RecordWorkoutClient
+            allExercises={allExercises}
             initialWorkoutData={workoutData}
             sessionId={sessionId}
             phaseId={phaseId}

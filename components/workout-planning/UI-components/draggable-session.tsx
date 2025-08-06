@@ -184,51 +184,53 @@ const DraggableSession = ({
                             </Button>
                         </div>
                     ) : (
-                        <span className="font-medium">{session.name}</span>
+                        <div className="flex flex-row gap-1 items-center">
+                            <span className="font-medium">{session.name}</span>
+                            {/* Edit Session */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                            startEditSession(session.id, session.name)
+                                        }
+                                        disabled={isAnyOperationInProgress}
+                                        className={`h-8 w-8 ${
+                                            isAnyOperationInProgress
+                                                ? "cursor-not-allowed"
+                                                : "cursor-pointer"
+                                        }`}
+                                    >
+                                        <Edit className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Rename Session</TooltipContent>
+                            </Tooltip>
+                        </div>
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-                    {/* Edit Session */}
+                    {/* Add Exercise */}
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() =>
-                                    startEditSession(session.id, session.name)
+                                    addExercise(phase.id, session.id)
                                 }
                                 disabled={isAnyOperationInProgress}
-                                className={`h-8 w-8 ${
+                                className={`h-8 w-auto px-4 bg-primary text-white hover:bg-green-700 hover:text-white ${
                                     isAnyOperationInProgress
                                         ? "cursor-not-allowed"
                                         : "cursor-pointer"
                                 }`}
                             >
-                                <Edit className="h-4 w-4" />
+                                <Plus className="h-4 w-4" /> Exercise
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Edit Session Name</TooltipContent>
-                    </Tooltip>
-                    {/* Delete Session */}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() =>
-                                    deleteSession(phase.id, session.id)
-                                }
-                                disabled={isAnyOperationInProgress}
-                                className={`h-8 w-8 ${
-                                    isAnyOperationInProgress
-                                        ? "cursor-not-allowed"
-                                        : "cursor-pointer"
-                                }`}
-                            >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Delete Session</TooltipContent>
+                        <TooltipContent>Add Exercise</TooltipContent>
                     </Tooltip>
                     {/* Duplicate Session */}
                     <Tooltip>
@@ -251,14 +253,14 @@ const DraggableSession = ({
                         </TooltipTrigger>
                         <TooltipContent>Duplicate Session</TooltipContent>
                     </Tooltip>
-                    {/* Add Exercise */}
+                    {/* Delete Session */}
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() =>
-                                    addExercise(phase.id, session.id)
+                                    deleteSession(phase.id, session.id)
                                 }
                                 disabled={isAnyOperationInProgress}
                                 className={`h-8 w-8 ${
@@ -267,10 +269,10 @@ const DraggableSession = ({
                                         : "cursor-pointer"
                                 }`}
                             >
-                                <Plus className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Add Exercise</TooltipContent>
+                        <TooltipContent>Delete Session</TooltipContent>
                     </Tooltip>
                     {/* Save button removed */}
                     <Button

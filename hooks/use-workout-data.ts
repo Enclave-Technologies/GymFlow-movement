@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, startTransition } from "react";
 import { toast } from "sonner";
 import {
     logWorkoutSet,
@@ -411,6 +411,49 @@ export function useWorkoutData({
         }
     };
 
+    const addExerciseToActiveWorkout = async(exerciseId: string, exerciseName: string) => {
+        console.log(exercises, exerciseId);
+        // Get Exercise Info From Backend
+        const exercise = {
+            customizations: "",
+            id: exerciseId,
+            isExpanded: true,
+            name: exerciseName,
+            notes: "",
+            order: "",
+            repRange: '8-10',
+            restTime: '45-60s',
+            setOrderMarker: '',
+            setRange: "3",
+            sets: [],
+            tempo: "3 0 1 0"
+        };
+        // Update local state first
+        setExercises((prev) => [...prev, exercise]);
+        toast.success("Added successfully");
+    }
+
+    const removeExerciseFromActiveWorkout = async(exerciseId: string) => {
+        if (
+            confirm(
+                "Remove this exercise from the workout?"
+            )
+        ) {
+            startTransition(async () => {
+                const exercise = exercises.find((ex) => ex.id === exerciseId);
+                if (!exercise) return;
+
+                // Update local state first
+                setExercises((prev) =>
+                    prev.filter((ex) =>
+                        ex.id !== exerciseId
+                    )
+                );
+                toast.success("Deleted successfully");
+            });
+        }
+    }
+
     const saveUnsavedSets = useCallback(async () => {
         if (!workoutSessionLogId) {
             throw new Error("No active workout session");
@@ -657,5 +700,7 @@ export function useWorkoutData({
         isSyncing,
         hasUnsavedChanges,
         triggerDebouncedSave,
+        addExerciseToActiveWorkout,
+        removeExerciseFromActiveWorkout
     };
 }

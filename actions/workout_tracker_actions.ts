@@ -356,7 +356,6 @@ export async function startWorkoutSession(
                 )
             )
             .orderBy(desc(WorkoutSessionsLog.startTime))
-            .limit(3); // Get last 3 similar sessions
 
         // Get details for each past session
         const pastSessionsWithDetails = await Promise.all(

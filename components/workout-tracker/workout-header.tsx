@@ -37,7 +37,9 @@ export function WorkoutHeader({
     pendingOperations,
     onExit,
     onTogglePastWorkouts,
+    // onAddExercise,
 }: WorkoutHeaderProps) {
+    // const [selectedExercise, setSelectedExercise] = useState<SelectExercise>();
     const getStatusMessage = () => {
         if (pendingOperations > 0) {
             return `* ${pendingOperations} unsaved changes`;
@@ -136,20 +138,19 @@ export function WorkoutHeader({
             {/* Exercise List Preview */}
             <div className="px-4 pb-3">
                 <div className="text-sm text-muted-foreground mb-2">
-                    Exercises:
+                    Workout Plan:
                 </div>
-                <div className="flex flex-wrap gap-2">
-                    {exercises.map((exercise, index) => (
-                        <span
-                            key={index}
-                            className="text-xs bg-muted px-2 py-1 rounded-md"
-                        >
-                            {exercise.setOrderMarker}. {exercise.name}
-                        </span>
-                    ))}
+                    <div className="flex flex-wrap gap-2">
+                        {exercises.map((exercise, index) => (
+                            <span
+                                key={index}
+                                className="text-xs bg-muted px-2 py-1 rounded-md"
+                            >
+                                {exercise.setOrderMarker} {exercise.name}
+                            </span>
+                        ))}
+                    </div>
                 </div>
-            </div>
-
             {/* Save Status */}
             {getStatusMessage() && (
                 <div className="px-4 pb-2">

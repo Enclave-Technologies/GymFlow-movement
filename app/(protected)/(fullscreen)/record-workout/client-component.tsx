@@ -21,8 +21,14 @@ import { WorkoutHeader } from "@/components/workout-tracker/workout-header";
 import { EnhancedExerciseCard } from "@/components/workout-tracker/enhanced-exercise-card";
 import { WorkoutHistorySidebar } from "@/components/workout-tracker/workout-history-sidebar";
 import { QuitWorkoutDialog } from "@/components/workout-tracker/quit-workout-dialog";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import ExerciseDropdown from "@/components/workout-planning/UI-components/exercise-table/ExerciseDropdown";
+import { Button } from "@/components/ui/button";
+import { SelectExercise } from "@/db/schemas";
+
 
 export default function RecordWorkoutClient({
+    allExercises,
     initialWorkoutData,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     sessionId: _sessionId,
@@ -63,6 +69,8 @@ export default function RecordWorkoutClient({
         pendingOperations,
         isSyncing,
         hasUnsavedChanges,
+        addExerciseToActiveWorkout,
+        removeExerciseFromActiveWorkout
     } = useWorkoutData({
         initialWorkoutData,
         workoutSessionDetails: initialWorkoutSessionDetails,
@@ -308,29 +316,44 @@ export default function RecordWorkoutClient({
                                 <p>No exercises found for this session.</p>
                             </div>
                         ) : (
-                            exercises.map((exercise) => (
-                                <EnhancedExerciseCard
-                                    key={exercise.id}
-                                    exercise={exercise}
-                                    onToggleExpansion={toggleExerciseExpansion}
-                                    onUpdateSetValue={updateSetValue}
-                                    onAddSet={addSet}
-                                    onDeleteSet={deleteSet}
+                            <div className="flex flex-col gap-4">
+                                <AddExerciseSheet 
+                                    allExercises={allExercises}
+                                    onAddExercise={(exerciseId, exerciseName)=>{
+                                        addExerciseToActiveWorkout(exerciseId, exerciseName)
+                                    }}
                                 />
-                            ))
+                                <div className="flex flex-col gap-0">
+                                    {exercises.map((exercise) => (
+                                        <EnhancedExerciseCard
+                                            key={exercise.id}
+                                            exercise={exercise}
+                                            onToggleExpansion={toggleExerciseExpansion}
+                                            onUpdateSetValue={updateSetValue}
+                                            onAddSet={addSet}
+                                            onDeleteSet={deleteSet}
+                                            onDeleteExercise={removeExerciseFromActiveWorkout}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         )}
                     </div>
-
-                    {/* Workout History Sidebar */}
-                    {initialPastSessions.length > 0 && showPastWorkouts && (
-                        <WorkoutHistorySidebar
-                            pastSessions={initialPastSessions}
-                            initialWorkoutData={initialWorkoutData}
-                        />
-                    )}
                 </div>
             </div>
-
+            {/* Workout History Sidebar */}
+            {/* 
+                TODO: Convert the Workout History Sidebar into a full-screen popup that appears from the bottom and allow coaches to view full workout history of the user. 
+                The coach should also be able to filter the history according the exercises present in the workout history in case they want to see it.
+            */}
+            {initialPastSessions.length > 0 && showPastWorkouts && (
+                <WorkoutHistorySidebar
+                    userId={clientId || ""}
+                    pastSessions={initialPastSessions}
+                    initialWorkoutData={initialWorkoutData}
+                    setShowPastWorkouts={setShowPastWorkouts}
+                />
+            )}
             <QuitWorkoutDialog
                 isOpen={showQuitDialog}
                 onClose={closeQuitDialog}
@@ -342,3 +365,56 @@ export default function RecordWorkoutClient({
         </div>
     );
 }
+
+const AddExerciseSheet = ({onAddExercise, allExercises}: {
+        onAddExercise: (exerciseId: string, exerciseName: string) => void;
+        allExercises: SelectExercise[];
+}) => {
+    const [selectedExercise, setSelectedExercise] = useState<SelectExercise>();
+    return (
+        <Sheet>
+            <SheetTrigger asChild>
+                <div className="cursor-pointer" onClick={()=>{
+                    // Open tab to add a new workout
+                }}>
+                    <div
+                        className="bg-green-500 px-2 py-2 rounded-md text-white text-center"
+                    >
+                        + Exercise
+                    </div>
+                </div>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:w-[40vw]">
+                <SheetHeader>
+                <SheetTitle>Add Exercise</SheetTitle>
+                <SheetDescription>
+                    Add a new exercise to ongoing workout
+                </SheetDescription>
+                </SheetHeader>
+                <div className="grid gap-4 p-4">
+                    {/* Your form or content goes here */}
+                    <div className="flex flex-col items-start gap-2">
+                        {/* <label htmlFor="name" className="text-right">Target Muscle Group</label> */}
+                            {/* Show a checklist of all muscle groups */}
+                        {/* <label htmlFor="name" className="text-right">Motion</label> */}
+                            {/* Show a checklist of all motions available in that muscle group */}
+                        <label htmlFor="name" className="text-right">Exercise</label>
+                        <ExerciseDropdown
+                            exercises={allExercises}
+                            selectedDescription={selectedExercise?.exerciseName || ""}
+                            onExerciseSelect={(ex)=>{
+                                // Add Exercise to this Workout Plan
+                                setSelectedExercise(ex)
+                            }}
+                            placeholder="Select exercise..."
+                        />                  
+                    </div>
+                </div>
+                <SheetFooter>
+                {/* The SheetClose component can be used to create a button that closes the sheet */}
+                <Button type="submit" onClick={()=>{onAddExercise(selectedExercise?.exerciseId || "", selectedExercise?.exerciseName || "")}}>Save changes</Button>
+                </SheetFooter>
+            </SheetContent>
+        </Sheet>
+    )
+};
