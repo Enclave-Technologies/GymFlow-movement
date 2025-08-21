@@ -69,7 +69,6 @@ async function WorkoutDataFetcherWrapper({
         workoutSessionLogId,
     });
     const allExercises = await getAllExercisesForWorkoutPlanning();
-
     return (
         <RecordWorkoutClient
             allExercises={allExercises}

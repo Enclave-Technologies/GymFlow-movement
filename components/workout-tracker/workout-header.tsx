@@ -140,17 +140,17 @@ export function WorkoutHeader({
                 <div className="text-sm text-muted-foreground mb-2">
                     Workout Plan:
                 </div>
-                    <div className="flex flex-wrap gap-2">
-                        {exercises.map((exercise, index) => (
-                            <span
-                                key={index}
-                                className="text-xs bg-muted px-2 py-1 rounded-md"
-                            >
-                                {exercise.setOrderMarker} {exercise.name}
-                            </span>
-                        ))}
-                    </div>
+                <div className="flex flex-wrap gap-2">
+                    {exercises.map((exercise, index) => (
+                        <span
+                            key={index}
+                            className="text-xs bg-muted px-2 py-1 rounded-md"
+                        >
+                            {exercise.setOrderMarker} {exercise.name}
+                        </span>
+                    ))}
                 </div>
+            </div>
             {/* Save Status */}
             {getStatusMessage() && (
                 <div className="px-4 pb-2">

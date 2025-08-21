@@ -10,7 +10,7 @@ import {
 } from "@/actions/workout_tracker_actions";
 
 // Types
-import { RecordWorkoutClientProps } from "@/types/workout-tracker-types";
+import { Exercise, RecordWorkoutClientProps } from "@/types/workout-tracker-types";
 
 // Hooks
 import { useWorkoutTimer } from "@/hooks/use-workout-timer";
@@ -25,6 +25,8 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import ExerciseDropdown from "@/components/workout-planning/UI-components/exercise-table/ExerciseDropdown";
 import { Button } from "@/components/ui/button";
 import { SelectExercise } from "@/db/schemas";
+import { fetchWorkoutDetailsBySession } from "@/actions/workout_history_actions";
+import { Input } from "@/components/ui/input";
 
 
 export default function RecordWorkoutClient({
@@ -48,6 +50,16 @@ export default function RecordWorkoutClient({
     const [workoutSessionLogId] = useState<string | null>(
         initialWorkoutSessionLogId || null
     );
+    const [pastSessionDetails, setPastSessionDetails] = useState<{
+        id: string;
+        exerciseName: string;
+        sets: number;
+        reps: number;
+        weight: number;
+        notes: string;
+        setOrderMarker: string;
+        entryTime: string | null;
+    }[][]>([]);
     const [showQuitDialog, setShowQuitDialog] = useState(false);
     const [showPastWorkouts, setShowPastWorkouts] = useState(false);
     const [isQuittingWithoutSaving, setIsQuittingWithoutSaving] =
@@ -253,6 +265,33 @@ export default function RecordWorkoutClient({
         }
     };
 
+    useEffect(()=>{
+        fetchSessionDetails();
+    },[]);
+    
+    const fetchSessionDetails = async () => {
+        const allSessionDetails = initialPastSessions.map(async ({session}) => {
+            const sessionId = session.workoutSessionLogId;
+            const sessionDetails = await fetchWorkoutDetailsBySession(sessionId, clientId ?? "");
+            return sessionDetails;
+            // get details of the sessionId;
+        });
+        const result = await Promise.all(allSessionDetails).then((values)=>{
+            return values;
+        });
+        setPastSessionDetails(result);
+    }
+
+    const replaceExercise = async (exerciseId: string, selectedExercise: Exercise) => {
+        // Delete current exercise and create a new one using the add
+        try {
+            await removeExerciseFromActiveWorkout(exerciseId);
+            await addExerciseToActiveWorkout(selectedExercise);
+        } catch (error) {
+            console.warn(error);
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-background text-foreground flex justify-center items-center">
@@ -308,23 +347,24 @@ export default function RecordWorkoutClient({
             )}
 
             <div className="container mx-auto px-4 pt-2 pb-4 max-w-6xl">
-                <div className="flex flex-col md:flex-row gap-6">
+                <AddExerciseSheet 
+                    allExercises={allExercises}
+                    onAddExercise={(exercise)=>{
+                        addExerciseToActiveWorkout(exercise)
+                    }}
+                />
+                <div className="flex flex-col md:flex-row gap-6 w-full">
                     {/* Main workout content */}
-                    <div className="flex-1">
+                    <div className="flex-1 w-full">
                         {exercises.length === 0 ? (
                             <div className="text-center p-8">
                                 <p>No exercises found for this session.</p>
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-4">
-                                <AddExerciseSheet 
-                                    allExercises={allExercises}
-                                    onAddExercise={(exerciseId, exerciseName)=>{
-                                        addExerciseToActiveWorkout(exerciseId, exerciseName)
-                                    }}
-                                />
+                            <div className="flex flex-col gap-4 w-full">
                                 <div className="flex flex-col gap-0">
-                                    {exercises.map((exercise) => (
+                                    {exercises.sort((a,b)=> a.order > b.order ? 1 : -1).map((exercise) => {
+                                        return (
                                         <EnhancedExerciseCard
                                             key={exercise.id}
                                             exercise={exercise}
@@ -333,8 +373,11 @@ export default function RecordWorkoutClient({
                                             onAddSet={addSet}
                                             onDeleteSet={deleteSet}
                                             onDeleteExercise={removeExerciseFromActiveWorkout}
+                                            pastSessionDetails={pastSessionDetails}
+                                            onReplaceExercise={replaceExercise}
+                                            allExercises={allExercises}
                                         />
-                                    ))}
+                                    )})}
                                 </div>
                             </div>
                         )}
@@ -367,20 +410,25 @@ export default function RecordWorkoutClient({
 }
 
 const AddExerciseSheet = ({onAddExercise, allExercises}: {
-        onAddExercise: (exerciseId: string, exerciseName: string) => void;
+        onAddExercise: (exercise: Exercise) => void;
         allExercises: SelectExercise[];
 }) => {
     const [selectedExercise, setSelectedExercise] = useState<SelectExercise>();
+    const [exerciseOrder, setExerciseOrder] = useState<string>("A1");
+    const [openSheet, setOpenSheet] = useState(false);
+
     return (
-        <Sheet>
+        <Sheet open={openSheet} onOpenChange={setOpenSheet}>
             <SheetTrigger asChild>
-                <div className="cursor-pointer" onClick={()=>{
+                <div className="cursor-pointer fixed bottom-8 right-8" onClick={()=>{
                     // Open tab to add a new workout
                 }}>
                     <div
-                        className="bg-green-500 px-2 py-2 rounded-md text-white text-center"
+                        className="bg-green-500 px-2 py-2 rounded-md text-white text-center w-40 flex items-center justify-center"
                     >
-                        + Exercise
+                        <span className="text-xl">
+                            Add Exercise
+                        </span>
                     </div>
                 </div>
             </SheetTrigger>
@@ -398,21 +446,45 @@ const AddExerciseSheet = ({onAddExercise, allExercises}: {
                             {/* Show a checklist of all muscle groups */}
                         {/* <label htmlFor="name" className="text-right">Motion</label> */}
                             {/* Show a checklist of all motions available in that muscle group */}
-                        <label htmlFor="name" className="text-right">Exercise</label>
-                        <ExerciseDropdown
-                            exercises={allExercises}
-                            selectedDescription={selectedExercise?.exerciseName || ""}
-                            onExerciseSelect={(ex)=>{
-                                // Add Exercise to this Workout Plan
-                                setSelectedExercise(ex)
-                            }}
-                            placeholder="Select exercise..."
-                        />                  
+                        <div className="py-2 w-full flex flex-col items-start gap-2">
+                            <label htmlFor="name" className="text-right">Exercise Order</label>
+                            <Input value={exerciseOrder} onChange={(e) => {setExerciseOrder(e.target.value)}}/>                  
+                        </div>
+                        <div className="py-2 w-full flex flex-col items-start gap-2">
+                            <label htmlFor="name" className="text-right">Exercise</label>
+                            <ExerciseDropdown
+                                exercises={allExercises}
+                                selectedDescription={selectedExercise?.exerciseName || ""}
+                                onExerciseSelect={(ex)=>{
+                                    // Add Exercise to this Workout Plan
+                                    setSelectedExercise(ex)
+                                }}
+                                placeholder="Select exercise..."
+                            />           
+                        </div>       
                     </div>
                 </div>
                 <SheetFooter>
                 {/* The SheetClose component can be used to create a button that closes the sheet */}
-                <Button type="submit" onClick={()=>{onAddExercise(selectedExercise?.exerciseId || "", selectedExercise?.exerciseName || "")}}>Save changes</Button>
+                <Button type="submit" onClick={()=>{
+                    if(selectedExercise) {
+                        onAddExercise({
+                            customizations: "",
+                            id: selectedExercise?.exerciseId,
+                            isExpanded: true,
+                            name: selectedExercise?.exerciseName,
+                            notes: "",
+                            order: exerciseOrder,
+                            repRange: '8-10',
+                            restTime: '45-60s',
+                            setOrderMarker: exerciseOrder,
+                            setRange: "3",
+                            sets: [],
+                            tempo: "3 0 1 0"
+                        })
+                        setOpenSheet(false);
+                    }
+                }}>Save changes</Button>
                 </SheetFooter>
             </SheetContent>
         </Sheet>

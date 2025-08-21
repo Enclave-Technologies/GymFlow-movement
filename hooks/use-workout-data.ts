@@ -36,7 +36,7 @@ export function useWorkoutData({
     const triggerDebouncedSaveRef = useRef<() => void>(() => {});
     const DEBOUNCE_DELAY = 5000; // 5 seconds
 
-    // Initialize reliable save system
+    // Initialize reliable save system - Unused @Variables
     const { isSaving, saveStatus, pendingOperations, saveNow } =
         useReliableSave({
             workoutSessionLogId,
@@ -411,25 +411,10 @@ export function useWorkoutData({
         }
     };
 
-    const addExerciseToActiveWorkout = async(exerciseId: string, exerciseName: string) => {
-        console.log(exercises, exerciseId);
-        // Get Exercise Info From Backend
-        const exercise = {
-            customizations: "",
-            id: exerciseId,
-            isExpanded: true,
-            name: exerciseName,
-            notes: "",
-            order: "",
-            repRange: '8-10',
-            restTime: '45-60s',
-            setOrderMarker: '',
-            setRange: "3",
-            sets: [],
-            tempo: "3 0 1 0"
-        };
+    const addExerciseToActiveWorkout = async(exercise: Exercise) => {
         // Update local state first
         setExercises((prev) => [...prev, exercise]);
+        // Add to database asynchronously
         toast.success("Added successfully");
     }
 
@@ -449,6 +434,7 @@ export function useWorkoutData({
                         ex.id !== exerciseId
                     )
                 );
+                // TOOD: Update the backend state.
                 toast.success("Deleted successfully");
             });
         }
@@ -701,6 +687,6 @@ export function useWorkoutData({
         hasUnsavedChanges,
         triggerDebouncedSave,
         addExerciseToActiveWorkout,
-        removeExerciseFromActiveWorkout
+        removeExerciseFromActiveWorkout,
     };
 }

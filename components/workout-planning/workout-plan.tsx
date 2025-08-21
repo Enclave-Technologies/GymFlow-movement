@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
@@ -24,11 +24,17 @@ type WorkoutPlannerProps = {
     trainer_id: string;
 };
 
-export default function WorkoutPlanner({
+function WorkoutPlanner({
     client_id,
     exercises,
     trainer_id,
 }: WorkoutPlannerProps) {
+    console.log('reload WorkoutPlanner');
+    useWhyDidChange('YourParentComponent', {
+        client_id,
+        exercises,
+        trainer_id
+    });
     // ===== Core State =====
     const [phases, setPhases] = useState<Phase[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -82,6 +88,7 @@ export default function WorkoutPlanner({
     // ===== Update Phases Function =====
     const updatePhases = useCallback(
         (newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])) => {
+            console.log("updatePhases");
             if (typeof newPhases === "function") {
                 setPhases((prevPhases) => {
                     const updated = newPhases(prevPhases);
@@ -93,7 +100,7 @@ export default function WorkoutPlanner({
                 latestPhasesRef.current = newPhases;
             }
         },
-        []
+        [client_id, trainer_id]
     );
 
     // ===== Data Loading =====
@@ -183,9 +190,10 @@ export default function WorkoutPlanner({
 
     useEffect(() => {
         ensurePlanExists();
-    }, [ensurePlanExists]);
+    }, [client_id]);
 
     // ===== Reload Function =====
+    // ----- Unused Function -----
     const handleReload = async () => {
         setIsReloading(true);
         try {
@@ -450,3 +458,34 @@ export default function WorkoutPlanner({
         </div>
     );
 }
+
+export default React.memo(WorkoutPlanner);
+
+
+export const useWhyDidChange = (name: string, props: Record<string, any>): void => {
+  const previousProps = useRef<Record<string, any>>();
+  useEffect(() => {
+    if (previousProps.current) {
+      const allKeys = Object.keys({ ...previousProps.current, ...props });
+      const changes: Record<string, any> = {};
+
+      allKeys.forEach((key) => {
+        // Check for changes
+        if (previousProps.current && previousProps.current[key] !== props[key]) {
+          changes[key] = {
+            from: previousProps.current[key],
+            to: props[key],
+          };
+        }
+      });
+      console.log("changes", changes);
+      // If there are changes, log them
+      if (Object.keys(changes).length) {
+        console.log(`[why-did-change] ${name}:`, changes);
+      }
+    }
+
+    // Store the current props for the next render
+    previousProps.current = props;
+  });
+};

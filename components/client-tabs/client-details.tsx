@@ -48,6 +48,7 @@ const ClientDetails = async ({ client_id, userdata }: ClientDetailsProps) => {
                     <TabsTrigger
                         className="flex-shrink-0 whitespace-nowrap"
                         value="workout-planner"
+                        
                     >
                         Workout Planner
                     </TabsTrigger>

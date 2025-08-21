@@ -351,7 +351,6 @@ export async function startWorkoutSession(
             .where(
                 and(
                     eq(WorkoutSessionsLog.userId, userId),
-                    eq(WorkoutSessionsLog.sessionName, sessionName),
                     isNotNull(WorkoutSessionsLog.endTime)
                 )
             )
