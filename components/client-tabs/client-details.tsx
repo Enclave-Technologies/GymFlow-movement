@@ -10,6 +10,8 @@ import { ClientType } from "./client-tabs";
 import { get_logged_in_user } from "@/actions/logged_in_user_actions";
 import { getAllExercisesForWorkoutPlanning } from "@/actions/exercise_actions";
 import { redirect } from "next/navigation";
+import { getWorkoutPlanByClientId } from "@/actions/workout_client_actions";
+import { WorkoutPlanResponse } from "@/types/workout-plan-types";
 
 type ClientDetailsProps = {
     client_id: string;
@@ -25,6 +27,7 @@ const ClientDetails = async ({ client_id, userdata }: ClientDetailsProps) => {
 
     // Fetch exercises for the workout planner
     const exercises = await getAllExercisesForWorkoutPlanning();
+    const workoutPlan: [] | WorkoutPlanResponse = await getWorkoutPlanByClientId(client_id);
 
     return (
         <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 h-full">
@@ -88,6 +91,7 @@ const ClientDetails = async ({ client_id, userdata }: ClientDetailsProps) => {
                         client_id={client_id}
                         exercises={exercises}
                         trainer_id={logged_in_user.userId}
+                        workoutPlan={workoutPlan}
                     />
                 </TabsContent>
                 <TabsContent value="goal-list">

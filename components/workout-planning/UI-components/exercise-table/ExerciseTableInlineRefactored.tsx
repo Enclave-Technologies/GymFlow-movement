@@ -196,28 +196,26 @@ const ExerciseTableInlineRefactored: React.FC<ExerciseTableInlineProps> = ({
                           ...phaseItem,
                           sessions: phaseItem.sessions.map((sessionItem) => {
                               if (sessionItem.id !== session.id)
-                                  return sessionItem;
+                                return sessionItem;
                               // Update the exercise in the array
                               const updatedExercises =
-                                  sessionItem.exercises.map((e) =>
-                                      e.id === editingExerciseRow.id
-                                          ? {
-                                                ...editingExerciseRow,
-                                                // Ensure exerciseId is preserved
-                                                exerciseId:
-                                                    editingExerciseRow.exerciseId ||
-                                                    e.exerciseId,
-                                            }
-                                          : e
+                                  sessionItem.exercises.map((e) => 
+                                        e.id === editingExerciseRow.id ? {
+                                            ...editingExerciseRow,
+                                            // Ensure exerciseId is preserved
+                                            exerciseId:
+                                                editingExerciseRow.exerciseId ||
+                                                e.exerciseId,
+                                        }
+                                        : e
                                   );
-
-                              return {
-                                  ...sessionItem,
-                                  exercises: updatedExercises,
-                                  duration: calculateSessionDuration(
-                                      updatedExercises as ExerciseRow[]
-                                  ),
-                              };
+                            return {
+                                ...sessionItem,
+                                exercises: updatedExercises,
+                                duration: calculateSessionDuration(
+                                    updatedExercises as ExerciseRow[]
+                                ),
+                            };
                           }),
                       }
             )

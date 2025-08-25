@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -264,12 +264,8 @@ export default function RecordWorkoutClient({
             setIsEndingWorkout(false);
         }
     };
-
-    useEffect(()=>{
-        fetchSessionDetails();
-    },[]);
     
-    const fetchSessionDetails = async () => {
+    const fetchSessionDetails = useCallback(async () => {
         const allSessionDetails = initialPastSessions.map(async ({session}) => {
             const sessionId = session.workoutSessionLogId;
             const sessionDetails = await fetchWorkoutDetailsBySession(sessionId, clientId ?? "");
@@ -280,7 +276,11 @@ export default function RecordWorkoutClient({
             return values;
         });
         setPastSessionDetails(result);
-    }
+    },[initialPastSessions, clientId]);
+
+    useEffect(()=>{
+        fetchSessionDetails();
+    },[fetchSessionDetails]);
 
     const replaceExercise = async (exerciseId: string, selectedExercise: Exercise) => {
         // Delete current exercise and create a new one using the add

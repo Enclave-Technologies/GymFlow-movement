@@ -4,37 +4,34 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
-import { Phase, Session, Exercise } from "./types";
+import { Phase, Session, Exercise, WorkoutPlanResponse } from "./types";
 import type { SelectExercise } from "@/db/schemas";
 import { WorkoutToolbar } from "./UI-components/WorkoutToolbar";
 import { PhaseList } from "./UI-components/PhaseList";
 import { DeleteConfirmationDialog } from "./UI-components/DeleteConfirmationDialog";
 import ExerciseTableInline from "./UI-components/ExerciseTableInline";
-import { fetchWorkoutPlan } from "./workout-utils/workout-utils";
+import { mapWorkoutPlanResponseToPhase } from "./workout-utils/workout-utils";
 import { createWorkoutPlan } from "@/actions/workout_plan_actions";
 import { createWorkoutSessionLog } from "@/actions/workout_tracker_actions";
 import { createWorkoutPlanHandlers } from "./workout-plan-handlers";
 import { useWorkoutPlanValidation } from "./workout-plan-hooks";
 import { useWorkoutPlanCacheInvalidation } from "./hooks/use-workout-plan-cache";
 import { useExerciseEditState } from "./hooks/use-exercise-edit-state";
+import { sortPhasesByActiveStatus } from "./workout-utils/phase-utils";
 
 type WorkoutPlannerProps = {
     client_id: string;
     exercises: SelectExercise[];
     trainer_id: string;
+    workoutPlan: WorkoutPlanResponse | [];
 };
 
 function WorkoutPlanner({
     client_id,
     exercises,
     trainer_id,
+    workoutPlan,
 }: WorkoutPlannerProps) {
-    console.log('reload WorkoutPlanner');
-    useWhyDidChange('YourParentComponent', {
-        client_id,
-        exercises,
-        trainer_id
-    });
     // ===== Core State =====
     const [phases, setPhases] = useState<Phase[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +85,6 @@ function WorkoutPlanner({
     // ===== Update Phases Function =====
     const updatePhases = useCallback(
         (newPhases: Phase[] | ((prevPhases: Phase[]) => Phase[])) => {
-            console.log("updatePhases");
             if (typeof newPhases === "function") {
                 setPhases((prevPhases) => {
                     const updated = newPhases(prevPhases);
@@ -100,84 +96,77 @@ function WorkoutPlanner({
                 latestPhasesRef.current = newPhases;
             }
         },
-        [client_id, trainer_id]
+        []
     );
 
     // ===== Data Loading =====
     // Note: loadData function removed as it was unused.
     // Data loading is now handled by ensurePlanExists function.
 
-    // ===== Ensure Plan Exists =====
-    const ensurePlanExists = useCallback(async () => {
+    const loadPlan = useCallback(async () => {
         setIsLoading(true);
         try {
-            // First try to load existing plan
-            await fetchWorkoutPlan(
-                client_id,
-                () => {}, // Don't set loading state here since we're managing it
-                (id) => {
-                    if (id) {
-                        setPlanId(id);
-                    }
-                },
-                setLastKnownUpdatedAt,
-                updatePhases
-            );
+            if ("planId" in workoutPlan && "updatedAt" in workoutPlan) {
+                setPlanId(workoutPlan.planId);
+                setLastKnownUpdatedAt(new Date(workoutPlan.updatedAt));
+                const mapped = mapWorkoutPlanResponseToPhase(
+                    workoutPlan as WorkoutPlanResponse
+                );
+                const sortedPhases = sortPhasesByActiveStatus(mapped);
+                const phasesWithSortedSessions = sortedPhases.map((phase) => ({
+                    ...phase,
+                    sessions: [...phase.sessions].sort(
+                        (a, b) => (a.orderNumber || 0) - (b.orderNumber || 0)
+                    ),
+                }));
+                updatePhases(phasesWithSortedSessions);
+            } else {
+                const currentPlanId = null;
+                // If no plan was found, create one (with protection against duplicate creation)
+                if (
+                    !currentPlanId &&
+                    !isCreatingPlan &&
+                    !planCreationInProgressRef.current
+                ) {
+                    console.log("No workout plan found for user, creating one...");
+                    setIsCreatingPlan(true);
+                    planCreationInProgressRef.current = true;
 
-            // Check if we have a plan after loading
-            const response = await import(
-                "@/actions/workout_client_actions"
-            ).then((module) => module.getWorkoutPlanByClientId(client_id));
+                    try {
+                        const result = await createWorkoutPlan(
+                            client_id,
+                            trainer_id,
+                            {
+                                phases: [], // Start with empty phases for new plan
+                            }
+                        );
 
-            let currentPlanId = null;
-            if (response && "planId" in response) {
-                currentPlanId = response.planId;
-            }
-
-            // If no plan was found, create one (with protection against duplicate creation)
-            if (
-                !currentPlanId &&
-                !isCreatingPlan &&
-                !planCreationInProgressRef.current
-            ) {
-                console.log("No workout plan found for user, creating one...");
-                setIsCreatingPlan(true);
-                planCreationInProgressRef.current = true;
-
-                try {
-                    const result = await createWorkoutPlan(
-                        client_id,
-                        trainer_id,
-                        {
-                            phases: [], // Start with empty phases for new plan
+                        if (result.success && result.planId) {
+                            setPlanId(result.planId);
+                            setLastKnownUpdatedAt(
+                                result.updatedAt
+                                    ? new Date(result.updatedAt)
+                                    : new Date()
+                            );
+                            console.log(
+                                "Workout plan created successfully:",
+                                result.planId
+                            );
+                            // Set empty phases since it's a new plan
+                            updatePhases([]);
+                        } else {
+                            console.error(
+                                "Failed to create workout plan:",
+                                result.error
+                            );
+                            throw new Error(
+                                result.error || "Failed to create workout plan"
+                            );
                         }
-                    );
-
-                    if (result.success && result.planId) {
-                        setPlanId(result.planId);
-                        setLastKnownUpdatedAt(
-                            result.updatedAt
-                                ? new Date(result.updatedAt)
-                                : new Date()
-                        );
-                        console.log(
-                            "Workout plan created successfully:",
-                            result.planId
-                        );
-                        // Set empty phases since it's a new plan
-                        updatePhases([]);
-                    } else {
-                        console.error(
-                            "Failed to create workout plan:",
-                            result.error
-                        );
-                        throw new Error(
-                            result.error || "Failed to create workout plan"
-                        );
+                    } finally {
+                        setIsCreatingPlan(false);
+                        planCreationInProgressRef.current = false;
                     }
-                } finally {
-                    setIsCreatingPlan(false);
-                    planCreationInProgressRef.current = false;
                 }
             }
         } catch (error) {
@@ -186,19 +175,17 @@ function WorkoutPlanner({
         } finally {
             setIsLoading(false);
         }
-    }, [client_id, trainer_id, isCreatingPlan, updatePhases]);
+    }, [workoutPlan, updatePhases, client_id, isCreatingPlan, trainer_id]);
 
     useEffect(() => {
-        ensurePlanExists();
-    }, [client_id]);
+        loadPlan();
+    }, [loadPlan]);
 
     // ===== Reload Function =====
     // ----- Unused Function -----
     const handleReload = async () => {
         setIsReloading(true);
         try {
-            await ensurePlanExists();
-            // Clear any unsaved changes since we're reloading from DB
             setHasUnsavedChanges(false);
         } catch (error) {
             console.error("Error reloading workout plan:", error);
@@ -460,32 +447,3 @@ function WorkoutPlanner({
 }
 
 export default React.memo(WorkoutPlanner);
-
-
-export const useWhyDidChange = (name: string, props: Record<string, any>): void => {
-  const previousProps = useRef<Record<string, any>>();
-  useEffect(() => {
-    if (previousProps.current) {
-      const allKeys = Object.keys({ ...previousProps.current, ...props });
-      const changes: Record<string, any> = {};
-
-      allKeys.forEach((key) => {
-        // Check for changes
-        if (previousProps.current && previousProps.current[key] !== props[key]) {
-          changes[key] = {
-            from: previousProps.current[key],
-            to: props[key],
-          };
-        }
-      });
-      console.log("changes", changes);
-      // If there are changes, log them
-      if (Object.keys(changes).length) {
-        console.log(`[why-did-change] ${name}:`, changes);
-      }
-    }
-
-    // Store the current props for the next render
-    previousProps.current = props;
-  });
-};
