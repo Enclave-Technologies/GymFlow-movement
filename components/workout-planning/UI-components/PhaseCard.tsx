@@ -108,7 +108,7 @@ export function PhaseCard({
         >
             <CardContent className="p-0 w-full overflow-hidden">
                 {/* Phase Header */}
-                <div className="flex items-center justify-between pl-4 pr-5 bg-muted rounded-md w-full overflow-hidden">
+                <div className="flex items-center justify-between py-2 px-4 bg-muted rounded-md w-full overflow-hidden">
                     <div className="flex items-center min-w-0 flex-1">
                         <Button
                             variant="ghost"
@@ -156,52 +156,54 @@ export function PhaseCard({
                                 </Button>
                             </div>
                         ) : (
-                            <span className="font-semibold text-lg">
-                                {phase.name}
-                            </span>
+                            <div className="flex flex-row gap-1 items-center">
+                                <span className="font-semibold text-lg">
+                                    {phase.name}
+                                </span>
+                                {/* Edit Phase */}
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() =>
+                                                onEditPhase(phase.id, phase.name)
+                                            }
+                                            disabled={isAnyOperationInProgress}
+                                            className={`${
+                                                isAnyOperationInProgress
+                                                    ? "cursor-not-allowed"
+                                                    : "cursor-pointer"
+                                            }`}
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Rename Phase</TooltipContent>
+                                </Tooltip>
+                            </div>
                         )}
                     </div>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
-                        {/* Edit Phase */}
+                        {/* Add Session */}
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() =>
-                                        onEditPhase(phase.id, phase.name)
-                                    }
+                                    onClick={() => onAddSession(phase.id)}
                                     disabled={isAnyOperationInProgress}
-                                    className={`${
+                                    className={`h-8 w-auto px-4 bg-primary text-white hover:bg-green-700 hover:text-white ${
                                         isAnyOperationInProgress
                                             ? "cursor-not-allowed"
                                             : "cursor-pointer"
                                     }`}
                                 >
-                                    <Edit className="h-4 w-4" />
+                                    <Plus className="h-4 w-4" /> Session
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Edit Phase Name</TooltipContent>
-                        </Tooltip>
-                        {/* Delete Phase */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => onDeletePhase(phase.id)}
-                                    disabled={isAnyOperationInProgress}
-                                    className={`h-8 w-8 ${
-                                        isAnyOperationInProgress
-                                            ? "cursor-not-allowed"
-                                            : "cursor-pointer"
-                                    }`}
-                                >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete Phase</TooltipContent>
+                            <TooltipContent>Add Session</TooltipContent>
                         </Tooltip>
                         {/* Duplicate Phase */}
                         <Tooltip>
@@ -222,13 +224,13 @@ export function PhaseCard({
                             </TooltipTrigger>
                             <TooltipContent>Duplicate Phase</TooltipContent>
                         </Tooltip>
-                        {/* Add Session */}
+                        {/* Delete Phase */}
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => onAddSession(phase.id)}
+                                    onClick={() => onDeletePhase(phase.id)}
                                     disabled={isAnyOperationInProgress}
                                     className={`h-8 w-8 ${
                                         isAnyOperationInProgress
@@ -236,10 +238,10 @@ export function PhaseCard({
                                             : "cursor-pointer"
                                     }`}
                                 >
-                                    <Plus className="h-4 w-4" />
+                                    <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Add Session</TooltipContent>
+                            <TooltipContent>Delete Phase</TooltipContent>
                         </Tooltip>
                         {/* Activate/Deactivate Phase */}
                         <Tooltip>

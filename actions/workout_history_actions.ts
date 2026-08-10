@@ -147,6 +147,18 @@ export async function deleteWorkoutSession(sessionId: string) {
         .where(eq(WorkoutSessionsLog.workoutSessionLogId, sessionId));
 }
 
+/**
+ * Delete an exercise log from a workout session.
+ * @param exerciseLogId the UUID of the WorkoutSessionsLog record
+ */
+export async function deleteWorkoutSessionLog(exerciseLogId: string) {
+    await requireTrainerOrAdmin();
+    // First delete all workout details associated with this session
+    await db
+        .delete(WorkoutSessionDetails)
+        .where(eq(WorkoutSessionDetails.workoutDetailId, exerciseLogId));
+}
+
 // Fetch all workout details for a given session, grouped by exercise name
 export async function fetchWorkoutDetailsBySession(
     sessionLogId: string,

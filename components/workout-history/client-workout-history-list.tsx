@@ -1,18 +1,26 @@
 "use client";
 
-import React, { useState, useTransition, useRef, useEffect } from "react";
+import React, { useState, useTransition, useRef, useEffect, Dispatch, SetStateAction } from "react";
 import {
     fetchWorkoutDetailsBySession,
     updateWorkoutHistoryEntry,
     deleteWorkoutSession,
     fetchWorkoutSessionLogsPage,
+    deleteWorkoutSessionLog,
 } from "@/actions/workout_history_actions";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Textarea } from "../ui/textarea";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, EllipsisVertical, Trash2 } from "lucide-react";
 import { LinkifiedText } from "@/components/ui/linkified-text";
+import {
+    DropdownMenu,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+// import { Input } from "../ui/input";
 
 interface SessionLog {
     workoutSessionLogId: string;
@@ -51,6 +59,10 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
     const [isLoading, setIsLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
     const observerTarget = useRef<HTMLDivElement>(null);
+
+    useEffect(()=>{
+        setSessions(initialSessions);
+    },[initialSessions]);
 
     // Refetch data when page becomes visible (e.g., when navigating back from workout)
     useEffect(() => {
@@ -175,6 +187,25 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
         }
     };
 
+    const handleDeleteLog = (sessionId: string, exerciseLogId: string) => {
+        console.log(detailsMap[sessionId], exerciseLogId);
+        if (
+            confirm(
+                "Are you sure you want to delete this workout log? This action cannot be undone."
+            )
+        ) {
+            startTransition(async () => {
+                await deleteWorkoutSessionLog(exerciseLogId);
+                setDetailsMap((prev) => {
+                    const newMap = {...prev};
+                    newMap[sessionId] = newMap[sessionId].filter((log) => log.id !== exerciseLogId)
+                    return newMap;
+                });
+                toast.success("Deleted successfully");
+            });
+        }
+    };
+
     const handleEditDetail = (
         detailId: string,
         sessionId: string,
@@ -204,25 +235,53 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
     };
 
     // Format date to match the design in the image
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString("en-US", {
-            month: "numeric",
-            day: "numeric",
-            year: "numeric",
-            hour: "numeric",
-            minute: "numeric",
-            second: "numeric",
-            hour12: true,
-        });
-    };
+    function formatDate(dateString: string): string {
+        try {
+            const date = new Date(dateString);
+
+            // Check if the date object is valid after parsing.
+            if (isNaN(date.getTime())) {
+            return "Invalid Date String Provided";
+            }
+
+            // Use Intl.DateTimeFormat for robust, locale-aware formatting.
+            // By not specifying a locale (or using 'undefined'), we instruct it to use the user's
+            // browser/system settings for timezone and locale conventions.
+            const options: Intl.DateTimeFormatOptions = {
+            weekday: 'short',   // e.g., "Thu"
+            year: 'numeric',    // e.g., "2025"
+            month: 'short',     // e.g., "Jul"
+            day: 'numeric',     // e.g., "31"
+            hour: 'numeric',    // e.g., "10"
+            minute: '2-digit',  // e.g., "37"
+            hour12: true,       // Use 12-hour clock with AM/PM
+            };
+
+            // We use 'en-GB' or a similar locale to get the day-month-year order,
+            // but the timezone conversion is still based on the user's system.
+            // The final string is constructed manually to ensure the exact format.
+            const formatter = new Intl.DateTimeFormat('en-US', options);
+            const parts = formatter.formatToParts(date);
+
+            // Create a simple key-value map from the parts array for easier access.
+            const partsMap = new Map(parts.map(part => [part.type, part.value]));
+
+            // Assemble the final string exactly as requested.
+            // Note: The example date in the prompt "25 Jul" differs from the input "2025-07-31".
+            // This function correctly uses the date from the input string.
+            const formattedString = `${partsMap.get('day')} ${partsMap.get('month')} ${partsMap.get('year')}, ${partsMap.get('weekday')} - ${partsMap.get('hour')}:${partsMap.get('minute')} ${partsMap.get('dayPeriod')}`;
+
+            return formattedString;
+
+        } catch (error) {
+            console.error("An error occurred during date formatting:", error);
+            return "Error formatting date";
+        }
+        }
 
     return (
         <div className="space-y-4 p-4 h-full overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-6 text-accent-foreground">
-                Workout History
-            </h2>
-            {sessions.length === 0 ? (
+            {isLoading && sessions.length === 0 ? null : sessions.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                     No workout history found
                 </div>
@@ -232,19 +291,30 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
                         key={session.workoutSessionLogId}
                         className="border border-border bg-card rounded-lg p-4 shadow-sm"
                     >
-                        <div className="flex justify-between items-center mb-4">
-                            <button
-                                className="font-semibold text-lg text-accent-foreground underline hover:font-bold hover:cursor-pointer"
-                                onClick={() =>
-                                    handleExpand(session.workoutSessionLogId)
-                                }
-                            >
-                                {session.sessionName}
-                            </button>
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center min-w-0 flex-1">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleExpand(session.workoutSessionLogId)}
+                                    className="p-1 h-auto mr-2 cursor-pointer"
+                                >
+                                    {expandedSession === session.workoutSessionLogId ? (
+                                        <ChevronDown className="h-5 w-5" />
+                                    ) : (
+                                        <ChevronUp className="h-5 w-5" />
+                                    )}
+                                </Button>
+                                <div className="flex flex-row items-center gap-2">
+                                    <span className="font-semibold text-lg">
+                                        {session.sessionName}
+                                    </span>
+                                    <span className="text-base text-muted-foreground">
+                                        - {formatDate(session.startTime)}
+                                    </span>
+                                </div>
+                            </div>
                             <div className="flex items-center space-x-4">
-                                <span className="text-sm text-muted-foreground">
-                                    {formatDate(session.startTime)}
-                                </span>
                                 <button
                                     className="text-destructive hover:text-destructive/80"
                                     onClick={() =>
@@ -254,28 +324,13 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
                                     }
                                     title="Delete workout session"
                                 >
-                                    {/* <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="16"
-                                        height="16"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    >
-                                        <path d="M3 6h18"></path>
-                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                                    </svg> */}
                                     <Trash2 />
                                 </button>
                             </div>
                         </div>
 
                         {/* Show session details even when not expanded */}
-                        <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
+                        {/* <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
                             <div>
                                 <div className="font-medium text-accent-foreground">
                                     Start Time
@@ -316,7 +371,7 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
                                         : "Expand to view"}
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
 
                         {expandedSession === session.workoutSessionLogId && (
                             <div className="mt-4 space-y-2">
@@ -355,140 +410,25 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
                                                 key={exerciseName}
                                                 className="mb-4 last:mb-0"
                                             >
-                                                <div className="font-medium text-accent-foreground mb-4 text-lg text-center">
+                                                <div className="font-medium text-accent-foreground mb-4 text-lg">
                                                     {
                                                         exercises[0]
                                                             .setOrderMarker
                                                     }
-                                                    . {exerciseName}
+                                                    {" "}{exerciseName}
                                                 </div>
                                                 {exercises.map(
                                                     (exercise, index) => (
-                                                        <div
-                                                            key={exercise.id}
-                                                            className="flex justify-between items-center py-3 border-t border-border"
-                                                        >
-                                                            <div className="text-sm text-accent-foreground">
-                                                                Set {index + 1}:
-                                                                Reps:{" "}
-                                                                {exercise.reps},
-                                                                Weight:{" "}
-                                                                {typeof exercise.weight ===
-                                                                "number"
-                                                                    ? exercise.weight.toFixed(
-                                                                          1
-                                                                      )
-                                                                    : exercise.weight}
-                                                                kg, Volume:{" "}
-                                                                {(
-                                                                    exercise.reps *
-                                                                    exercise.weight
-                                                                ).toFixed(2)}
-                                                                kg
-                                                                {exercise.notes && (
-                                                                    <div className="text-muted-foreground italic mt-1">
-                                                                        <LinkifiedText
-                                                                            text={
-                                                                                exercise.notes
-                                                                            }
-                                                                            linkClassName="text-blue-400 hover:text-blue-300"
-                                                                        />
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            <Popover
-                                                                open={
-                                                                    editingNote?.id ===
-                                                                    exercise.id
-                                                                }
-                                                                onOpenChange={(
-                                                                    open
-                                                                ) => {
-                                                                    if (open) {
-                                                                        setEditingNote(
-                                                                            {
-                                                                                id: exercise.id,
-                                                                                note: exercise.notes,
-                                                                            }
-                                                                        );
-                                                                    } else {
-                                                                        setEditingNote(
-                                                                            null
-                                                                        );
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <PopoverTrigger
-                                                                    asChild
-                                                                >
-                                                                    <Button className="bg-secondary text-accent-foreground hover:bg-secondary/90 hover:text-accent-foreground text-sm hover:cursor-pointer">
-                                                                        Edit
-                                                                        Note
-                                                                    </Button>
-                                                                </PopoverTrigger>
-                                                                <PopoverContent className="w-80">
-                                                                    <div className="space-y-4">
-                                                                        <Textarea
-                                                                            value={
-                                                                                editingNote?.note ??
-                                                                                ""
-                                                                            }
-                                                                            onChange={(
-                                                                                e
-                                                                            ) =>
-                                                                                setEditingNote(
-                                                                                    (
-                                                                                        prev
-                                                                                    ) =>
-                                                                                        prev
-                                                                                            ? {
-                                                                                                  ...prev,
-                                                                                                  note: e
-                                                                                                      .target
-                                                                                                      .value,
-                                                                                              }
-                                                                                            : null
-                                                                                )
-                                                                            }
-                                                                            placeholder="Add a note..."
-                                                                            className="min-h-[100px]"
-                                                                        />
-                                                                        <div className="flex justify-end space-x-2">
-                                                                            <Button
-                                                                                variant="outline"
-                                                                                onClick={() =>
-                                                                                    setEditingNote(
-                                                                                        null
-                                                                                    )
-                                                                                }
-                                                                            >
-                                                                                Cancel
-                                                                            </Button>
-                                                                            <Button
-                                                                                onClick={() => {
-                                                                                    if (
-                                                                                        editingNote
-                                                                                    ) {
-                                                                                        handleEditDetail(
-                                                                                            exercise.id,
-                                                                                            session.workoutSessionLogId,
-                                                                                            {
-                                                                                                notes: editingNote.note,
-                                                                                            }
-                                                                                        );
-                                                                                        setEditingNote(
-                                                                                            null
-                                                                                        );
-                                                                                    }
-                                                                                }}
-                                                                            >
-                                                                                Save
-                                                                            </Button>
-                                                                        </div>
-                                                                    </div>
-                                                                </PopoverContent>
-                                                            </Popover>
-                                                        </div>
+                                                        <ExerciseTile 
+                                                            key={exercise.id} 
+                                                            exercise={exercise} 
+                                                            index={index} 
+                                                            editingNote={editingNote}
+                                                            setEditingNote={setEditingNote}
+                                                            handleEditDetail={handleEditDetail}
+                                                            session={session}
+                                                            handleDeleteLog={handleDeleteLog}
+                                                        />
                                                     )
                                                 )}
                                             </div>
@@ -511,6 +451,183 @@ const ClientWorkoutHistoryList: React.FC<ClientWorkoutHistoryListProps> = ({
             </div>
         </div>
     );
+};
+
+const ExerciseTile = ({
+    exercise,
+    index,
+    editingNote,
+    setEditingNote,
+    handleEditDetail,
+    session,
+    handleDeleteLog
+}: {
+    exercise: WorkoutDetail, 
+    index: number,
+    editingNote: EditingNote | null, setEditingNote: Dispatch<SetStateAction<EditingNote | null>>, 
+    handleEditDetail: (detailId: string, sessionId: string, changes: Partial<Omit<WorkoutDetail, "id" | "exerciseName" | "entryTime">>) => void, 
+    session: SessionLog,
+    handleDeleteLog: (sessionId: string, exerciseId: string) => void
+}) => {
+    return (
+        <div
+            key={exercise.id}
+            className="flex justify-between items-center py-3 border-t border-border"
+        >
+            <div className="text-sm text-accent-foreground">
+                Set {index + 1}:
+                Reps:{" "}
+                {exercise.reps},
+                Weight:{" "}
+                {typeof exercise.weight ===
+                "number"
+                    ? exercise.weight.toFixed(
+                        1
+                    )
+                    : exercise.weight}
+                kg, Volume:{" "}
+                {(
+                    exercise.reps *
+                    exercise.weight
+                ).toFixed(2)}
+                kg
+                {exercise.notes && (
+                    <div className="text-muted-foreground italic mt-1">
+                        <LinkifiedText
+                            text={
+                                exercise.notes
+                            }
+                            linkClassName="text-blue-400 hover:text-blue-300"
+                        />
+                    </div>
+                )}
+            </div>
+            <div className="flex flex-row items-center gap-4">
+                <Popover
+                    open={
+                        editingNote?.id ===
+                        exercise.id
+                    }
+                    onOpenChange={(
+                        open
+                    ) => {
+                        if (open) {
+                            setEditingNote(
+                                {
+                                    id: exercise.id,
+                                    note: exercise.notes,
+                                }
+                            );
+                        } else {
+                            setEditingNote(
+                                null
+                            );
+                        }
+                    }}
+                >
+                    <PopoverTrigger
+                        asChild
+                    >
+                        <Button className="bg-secondary text-accent-foreground hover:bg-secondary/90 hover:text-accent-foreground text-sm hover:cursor-pointer">
+                            Edit
+                            Note
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                        <div className="space-y-4">
+                            <Textarea
+                                value={
+                                    editingNote?.note ??
+                                    ""
+                                }
+                                onChange={(
+                                    e
+                                ) =>
+                                    setEditingNote(
+                                        (
+                                            prev
+                                        ) =>
+                                            prev
+                                                ? {
+                                                    ...prev,
+                                                    note: e
+                                                        .target
+                                                        .value,
+                                                }
+                                                : null
+                                    )
+                                }
+                                placeholder="Add a note..."
+                                className="min-h-[100px]"
+                            />
+                            <div className="flex justify-end space-x-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        setEditingNote(
+                                            null
+                                        )
+                                    }
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={() => {
+                                        if (
+                                            editingNote
+                                        ) {
+                                            handleEditDetail(
+                                                exercise.id,
+                                                session.workoutSessionLogId,
+                                                {
+                                                    notes: editingNote.note,
+                                                }
+                                            );
+                                            setEditingNote(
+                                                null
+                                            );
+                                        }
+                                    }}
+                                >
+                                    Save
+                                </Button>
+                            </div>
+                        </div>
+                    </PopoverContent>
+                </Popover>
+                <ExerciseDropdownMenu handleDeleteLog={()=>{handleDeleteLog(session.workoutSessionLogId, exercise.id)}}/>
+            </div>
+        </div>
+    )
+};
+
+const ExerciseDropdownMenu = ({handleDeleteLog}: {handleDeleteLog: () => void}) => {
+    const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+    return (
+        <DropdownMenu
+            open={isDropdownOpen}
+            onOpenChange={setIsDropdownOpen}
+        >
+            <DropdownMenuTrigger asChild>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 p-0 flex-shrink-0"
+                >
+                    <span className="sr-only">Switch trainer</span>
+                    <EllipsisVertical className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64 p-2">
+                <DropdownMenuItem className="cursor-pointer hover:bg-red-400" onClick={()=>{
+                    // Delete Log from Workout History
+                    handleDeleteLog()
+                }}>
+                    <Trash2 className="h-4 w-4" /> Delete Log
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
 };
 
 export default ClientWorkoutHistoryList;

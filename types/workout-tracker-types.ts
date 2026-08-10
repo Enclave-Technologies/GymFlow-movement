@@ -1,3 +1,5 @@
+import { SelectExercise } from "@/db/schemas";
+
 export interface ExerciseSet {
     id: string;
     reps: string;
@@ -138,6 +140,7 @@ export interface PastSession {
 }
 
 export interface RecordWorkoutClientProps {
+    allExercises: SelectExercise[];
     initialWorkoutData: WorkoutData;
     sessionId: string;
     phaseId?: string;

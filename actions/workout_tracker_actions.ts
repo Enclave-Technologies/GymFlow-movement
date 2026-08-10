@@ -351,12 +351,10 @@ export async function startWorkoutSession(
             .where(
                 and(
                     eq(WorkoutSessionsLog.userId, userId),
-                    eq(WorkoutSessionsLog.sessionName, sessionName),
                     isNotNull(WorkoutSessionsLog.endTime)
                 )
             )
             .orderBy(desc(WorkoutSessionsLog.startTime))
-            .limit(3); // Get last 3 similar sessions
 
         // Get details for each past session
         const pastSessionsWithDetails = await Promise.all(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, startTransition } from "react";
 import { toast } from "sonner";
 import {
     logWorkoutSet,
@@ -36,7 +36,7 @@ export function useWorkoutData({
     const triggerDebouncedSaveRef = useRef<() => void>(() => {});
     const DEBOUNCE_DELAY = 5000; // 5 seconds
 
-    // Initialize reliable save system
+    // Initialize reliable save system - Unused @Variables
     const { isSaving, saveStatus, pendingOperations, saveNow } =
         useReliableSave({
             workoutSessionLogId,
@@ -411,6 +411,35 @@ export function useWorkoutData({
         }
     };
 
+    const addExerciseToActiveWorkout = async(exercise: Exercise) => {
+        // Update local state first
+        setExercises((prev) => [...prev, exercise]);
+        // Add to database asynchronously
+        toast.success("Added successfully");
+    }
+
+    const removeExerciseFromActiveWorkout = async(exerciseId: string) => {
+        if (
+            confirm(
+                "Remove this exercise from the workout?"
+            )
+        ) {
+            startTransition(async () => {
+                const exercise = exercises.find((ex) => ex.id === exerciseId);
+                if (!exercise) return;
+
+                // Update local state first
+                setExercises((prev) =>
+                    prev.filter((ex) =>
+                        ex.id !== exerciseId
+                    )
+                );
+                // TOOD: Update the backend state.
+                toast.success("Deleted successfully");
+            });
+        }
+    }
+
     const saveUnsavedSets = useCallback(async () => {
         if (!workoutSessionLogId) {
             throw new Error("No active workout session");
@@ -657,5 +686,7 @@ export function useWorkoutData({
         isSyncing,
         hasUnsavedChanges,
         triggerDebouncedSave,
+        addExerciseToActiveWorkout,
+        removeExerciseFromActiveWorkout,
     };
 }

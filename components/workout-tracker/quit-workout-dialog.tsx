@@ -43,21 +43,6 @@ export function QuitWorkoutDialog({
                 </DialogHeader>
                 <div className="flex flex-col gap-3 mt-4">
                     <Button
-                        variant="destructive"
-                        onClick={onQuitWithoutSaving}
-                        className="w-full"
-                        disabled={isAnyOperationInProgress}
-                    >
-                        {isQuittingWithoutSaving ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                            <XCircle className="h-4 w-4 mr-2" />
-                        )}
-                        {isQuittingWithoutSaving
-                            ? "Quitting..."
-                            : "Quit Without Saving"}
-                    </Button>
-                    <Button
                         onClick={onEndWorkout}
                         className="w-full"
                         disabled={isAnyOperationInProgress}
@@ -72,12 +57,19 @@ export function QuitWorkoutDialog({
                             : "End & Save Workout"}
                     </Button>
                     <Button
-                        variant="outline"
-                        onClick={onClose}
+                        variant="destructive"
+                        onClick={onQuitWithoutSaving}
                         className="w-full"
                         disabled={isAnyOperationInProgress}
                     >
-                        Continue Workout
+                        {isQuittingWithoutSaving ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                            <XCircle className="h-4 w-4 mr-2" />
+                        )}
+                        {isQuittingWithoutSaving
+                            ? "Quitting..."
+                            : "Quit Without Saving"}
                     </Button>
                 </div>
             </DialogContent>

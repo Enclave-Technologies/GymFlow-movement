@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -10,7 +10,7 @@ import {
 } from "@/actions/workout_tracker_actions";
 
 // Types
-import { RecordWorkoutClientProps } from "@/types/workout-tracker-types";
+import { Exercise, RecordWorkoutClientProps } from "@/types/workout-tracker-types";
 
 // Hooks
 import { useWorkoutTimer } from "@/hooks/use-workout-timer";
@@ -21,8 +21,16 @@ import { WorkoutHeader } from "@/components/workout-tracker/workout-header";
 import { EnhancedExerciseCard } from "@/components/workout-tracker/enhanced-exercise-card";
 import { WorkoutHistorySidebar } from "@/components/workout-tracker/workout-history-sidebar";
 import { QuitWorkoutDialog } from "@/components/workout-tracker/quit-workout-dialog";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import ExerciseDropdown from "@/components/workout-planning/UI-components/exercise-table/ExerciseDropdown";
+import { Button } from "@/components/ui/button";
+import { SelectExercise } from "@/db/schemas";
+import { fetchWorkoutDetailsBySession } from "@/actions/workout_history_actions";
+import { Input } from "@/components/ui/input";
+
 
 export default function RecordWorkoutClient({
+    allExercises,
     initialWorkoutData,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     sessionId: _sessionId,
@@ -42,6 +50,16 @@ export default function RecordWorkoutClient({
     const [workoutSessionLogId] = useState<string | null>(
         initialWorkoutSessionLogId || null
     );
+    const [pastSessionDetails, setPastSessionDetails] = useState<{
+        id: string;
+        exerciseName: string;
+        sets: number;
+        reps: number;
+        weight: number;
+        notes: string;
+        setOrderMarker: string;
+        entryTime: string | null;
+    }[][]>([]);
     const [showQuitDialog, setShowQuitDialog] = useState(false);
     const [showPastWorkouts, setShowPastWorkouts] = useState(false);
     const [isQuittingWithoutSaving, setIsQuittingWithoutSaving] =
@@ -63,6 +81,8 @@ export default function RecordWorkoutClient({
         pendingOperations,
         isSyncing,
         hasUnsavedChanges,
+        addExerciseToActiveWorkout,
+        removeExerciseFromActiveWorkout
     } = useWorkoutData({
         initialWorkoutData,
         workoutSessionDetails: initialWorkoutSessionDetails,
@@ -244,6 +264,33 @@ export default function RecordWorkoutClient({
             setIsEndingWorkout(false);
         }
     };
+    
+    const fetchSessionDetails = useCallback(async () => {
+        const allSessionDetails = initialPastSessions.map(async ({session}) => {
+            const sessionId = session.workoutSessionLogId;
+            const sessionDetails = await fetchWorkoutDetailsBySession(sessionId, clientId ?? "");
+            return sessionDetails;
+            // get details of the sessionId;
+        });
+        const result = await Promise.all(allSessionDetails).then((values)=>{
+            return values;
+        });
+        setPastSessionDetails(result);
+    },[initialPastSessions, clientId]);
+
+    useEffect(()=>{
+        fetchSessionDetails();
+    },[fetchSessionDetails]);
+
+    const replaceExercise = async (exerciseId: string, selectedExercise: Exercise) => {
+        // Delete current exercise and create a new one using the add
+        try {
+            await removeExerciseFromActiveWorkout(exerciseId);
+            await addExerciseToActiveWorkout(selectedExercise);
+        } catch (error) {
+            console.warn(error);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -300,37 +347,56 @@ export default function RecordWorkoutClient({
             )}
 
             <div className="container mx-auto px-4 pt-2 pb-4 max-w-6xl">
-                <div className="flex flex-col md:flex-row gap-6">
+                <AddExerciseSheet 
+                    allExercises={allExercises}
+                    onAddExercise={(exercise)=>{
+                        addExerciseToActiveWorkout(exercise)
+                    }}
+                />
+                <div className="flex flex-col md:flex-row gap-6 w-full">
                     {/* Main workout content */}
-                    <div className="flex-1">
+                    <div className="flex-1 w-full">
                         {exercises.length === 0 ? (
                             <div className="text-center p-8">
                                 <p>No exercises found for this session.</p>
                             </div>
                         ) : (
-                            exercises.map((exercise) => (
-                                <EnhancedExerciseCard
-                                    key={exercise.id}
-                                    exercise={exercise}
-                                    onToggleExpansion={toggleExerciseExpansion}
-                                    onUpdateSetValue={updateSetValue}
-                                    onAddSet={addSet}
-                                    onDeleteSet={deleteSet}
-                                />
-                            ))
+                            <div className="flex flex-col gap-4 w-full">
+                                <div className="flex flex-col gap-0">
+                                    {exercises.sort((a,b)=> a.order > b.order ? 1 : -1).map((exercise) => {
+                                        return (
+                                        <EnhancedExerciseCard
+                                            key={exercise.id}
+                                            exercise={exercise}
+                                            onToggleExpansion={toggleExerciseExpansion}
+                                            onUpdateSetValue={updateSetValue}
+                                            onAddSet={addSet}
+                                            onDeleteSet={deleteSet}
+                                            onDeleteExercise={removeExerciseFromActiveWorkout}
+                                            pastSessionDetails={pastSessionDetails}
+                                            onReplaceExercise={replaceExercise}
+                                            allExercises={allExercises}
+                                        />
+                                    )})}
+                                </div>
+                            </div>
                         )}
                     </div>
-
-                    {/* Workout History Sidebar */}
-                    {initialPastSessions.length > 0 && showPastWorkouts && (
-                        <WorkoutHistorySidebar
-                            pastSessions={initialPastSessions}
-                            initialWorkoutData={initialWorkoutData}
-                        />
-                    )}
                 </div>
             </div>
-
+            {/* Workout History Sidebar */}
+            {/* 
+                TODO: Convert the Workout History Sidebar into a full-screen popup that appears from the bottom and allow coaches to view full workout history of the user. 
+                The coach should also be able to filter the history according the exercises present in the workout history in case they want to see it.
+            */}
+            {initialPastSessions.length > 0 && showPastWorkouts && (
+                <WorkoutHistorySidebar
+                    userId={clientId || ""}
+                    pastSessions={initialPastSessions}
+                    initialWorkoutData={initialWorkoutData}
+                    setShowPastWorkouts={setShowPastWorkouts}
+                />
+            )}
             <QuitWorkoutDialog
                 isOpen={showQuitDialog}
                 onClose={closeQuitDialog}
@@ -342,3 +408,85 @@ export default function RecordWorkoutClient({
         </div>
     );
 }
+
+const AddExerciseSheet = ({onAddExercise, allExercises}: {
+        onAddExercise: (exercise: Exercise) => void;
+        allExercises: SelectExercise[];
+}) => {
+    const [selectedExercise, setSelectedExercise] = useState<SelectExercise>();
+    const [exerciseOrder, setExerciseOrder] = useState<string>("A1");
+    const [openSheet, setOpenSheet] = useState(false);
+
+    return (
+        <Sheet open={openSheet} onOpenChange={setOpenSheet}>
+            <SheetTrigger asChild>
+                <div className="cursor-pointer fixed bottom-8 right-8" onClick={()=>{
+                    // Open tab to add a new workout
+                }}>
+                    <div
+                        className="bg-green-500 px-2 py-2 rounded-md text-white text-center w-40 flex items-center justify-center"
+                    >
+                        <span className="text-xl">
+                            Add Exercise
+                        </span>
+                    </div>
+                </div>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:w-[40vw]">
+                <SheetHeader>
+                <SheetTitle>Add Exercise</SheetTitle>
+                <SheetDescription>
+                    Add a new exercise to ongoing workout
+                </SheetDescription>
+                </SheetHeader>
+                <div className="grid gap-4 p-4">
+                    {/* Your form or content goes here */}
+                    <div className="flex flex-col items-start gap-2">
+                        {/* <label htmlFor="name" className="text-right">Target Muscle Group</label> */}
+                            {/* Show a checklist of all muscle groups */}
+                        {/* <label htmlFor="name" className="text-right">Motion</label> */}
+                            {/* Show a checklist of all motions available in that muscle group */}
+                        <div className="py-2 w-full flex flex-col items-start gap-2">
+                            <label htmlFor="name" className="text-right">Exercise Order</label>
+                            <Input value={exerciseOrder} onChange={(e) => {setExerciseOrder(e.target.value)}}/>                  
+                        </div>
+                        <div className="py-2 w-full flex flex-col items-start gap-2">
+                            <label htmlFor="name" className="text-right">Exercise</label>
+                            <ExerciseDropdown
+                                exercises={allExercises}
+                                selectedDescription={selectedExercise?.exerciseName || ""}
+                                onExerciseSelect={(ex)=>{
+                                    // Add Exercise to this Workout Plan
+                                    setSelectedExercise(ex)
+                                }}
+                                placeholder="Select exercise..."
+                            />           
+                        </div>       
+                    </div>
+                </div>
+                <SheetFooter>
+                {/* The SheetClose component can be used to create a button that closes the sheet */}
+                <Button type="submit" onClick={()=>{
+                    if(selectedExercise) {
+                        onAddExercise({
+                            customizations: "",
+                            id: selectedExercise?.exerciseId,
+                            isExpanded: true,
+                            name: selectedExercise?.exerciseName,
+                            notes: "",
+                            order: exerciseOrder,
+                            repRange: '8-10',
+                            restTime: '45-60s',
+                            setOrderMarker: exerciseOrder,
+                            setRange: "3",
+                            sets: [],
+                            tempo: "3 0 1 0"
+                        })
+                        setOpenSheet(false);
+                    }
+                }}>Save changes</Button>
+                </SheetFooter>
+            </SheetContent>
+        </Sheet>
+    )
+};
